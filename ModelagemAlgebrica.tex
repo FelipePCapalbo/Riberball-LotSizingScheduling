@@ -1,0 +1,83 @@
+\section{Modelo matemático}
+
+\section*{Conjuntos}
+\begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
+$\mathcal{M}$ & Máquinas\\
+$\mathcal{P}$ & Produtos (tipos de balão)\\
+$\mathcal{T}$ & Períodos de planejamento\\
+$\mathcal{O}$ & Pedidos de cliente (representados pela demanda agregada $d_{pt}$)\\
+$\mathcal{P}_m \subseteq \mathcal{P}$ & Produtos que podem ser produzidos na máquina $m$\\
+\end{tabularx}
+
+\section*{Parâmetros}
+\begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
+$d_{pt}$ & Demanda (kg) do produto $p$ no período $t$.\\
+$c_p$ & Custo unitário (R\$/kg) do produto $p$ (Venda Perdida).\\
+$h_p$ & Custo de atraso/backlog (R\$/kg) do produto $p$.\\
+$c^{\text{\textit{setup}}}_{mpp'}$ & Custo de \textit{setup} da troca na máquina $m$ de $p$ para $p'$ (calculado como tempo $\times$ taxa $\times$ custo de oportunidade).\\
+$v_{mp}$ & Taxa de produção (kg/hora) da máquina $m$ para o produto $p$.\\
+$s_{mpp'}$ & Tempo de \textit{setup} (horas) na máquina $m$ do produto $p$ para $p'$.\\
+$M_{mpt}$ & \textit{"Big-M"} ajustado (Tight-M) para a restrição de ativação de produção.\\
+$Cap_{t}$ & Capacidade total disponível (horas) no período $t$.\\
+\end{tabularx}
+
+\section*{Variáveis}
+\begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
+$H_{mpt} \ge 0$ & Quantidade de horas (ou blocos) de produção na máquina $m$ do produto $p$ no período $t$.\\
+$Y_{mpt} \in \{0,1\}$ & 1 se a máquina $m$ produz o produto $p$ no período $t$; 0 caso contrário.\\
+$S_{mpt} \in \{0,1\}$ & 1 se a máquina $m$ termina o período $t$ configurada para o produto $p$ (Estado Persistente).\\
+$Idle_{mt} \in \{0,1\}$ & 1 se a máquina $m$ não produziu nenhum produto no período $t$.\\
+$Z_{mpp't} \in \{0,1\}$ & 1 se há troca de estado na máquina $m$ de $p$ (em $t-1$) para $p'$ (em $t$).\\
+$W_{mt} \ge 0$ & Número de setups adicionais (intra-período) na máquina $m$ no período $t$.\\
+$I_{pt} \ge 0$ & Estoque (kg) do produto $p$ ao final do período $t$.\\
+$Q_{pt} \ge 0$ & Quantidade (kg) do produto $p$ entregue no período $t$.\\
+$K_{pt} \ge 0$ & Quantidade (kg) perdida do produto $p$ no período $t$.\\
+$B_{pt} \ge 0$ & Quantidade (kg) em atraso (backlog) do produto $p$ no período $t$.\\
+\end{tabularx}
+
+\section*{\textbf{Minimizar}}
+
+\begin{equation}
+Z =
+\sum_{m}\sum_{t}\sum_{p \ne p'}
+      c^{\text{\textit{setup}}}_{mpp'}\,Z_{mpp't}
++
+\sum_{m}\sum_{t}
+      \bar{c}^{\text{\textit{setup}}}_{m}\,W_{mt}
++
+\sum_{p}\sum_{t}
+      c_p\,K_{pt}
++
+\sum_{p}\sum_{t}
+      h_p\,B_{pt}
+\label{eq:objetivo}
+\end{equation}
+
+
+\noindent\textbf{Sujeito a}
+\begin{align}
+I_{p(t-1)} + \sum_{m : p \in \mathcal{P}_m} (H_{mpt} \cdot \text{step} \cdot v_{mp}) + B_{pt} &= I_{pt} + B_{p(t-1)} + d_{pt} - K_{pt} && \forall p, t \label{eq:balanco} \\
+\sum_{p \in \mathcal{P}_m} (H_{mpt} \cdot \text{step} + s_{m} \cdot Y_{mpt}) &\le Cap_{t} && \forall m, t \label{eq:capacidade} \\
+H_{mpt} &\le M_{mpt} \cdot Y_{mpt} && \forall m, p, t \label{eq:ativacao} \\
+\sum_{p \in \mathcal{P}_m} S_{mpt} &= 1 && \forall m, t \label{eq:estado_unico} \\
+\sum_{p \in \mathcal{P}_m} Y_{mpt} &\le |\mathcal{P}_m| \cdot (1 - Idle_{mt}) && \forall m, t \label{eq:idle_def} \\
+S_{mpt} &\le Y_{mpt} + Idle_{mt} && \forall m, p, t \label{eq:consistencia_estado} \\
+Z_{mpp't} &\ge S_{mp(t-1)} + S_{mp't} - 1 && \forall m, p \ne p', t > 1 \label{eq:transicao_estado} \\
+W_{mt} &\ge \sum_{p \in \mathcal{P}_m} Y_{mpt} - 1 && \forall m, t \label{eq:setup_intra} \\
+Y_{mpt}, S_{mpt}, Z_{mpp't}, Idle_{mt} &\in \{0,1\} && \forall m, p, p', t \label{eq:dominio1} \\
+H_{mpt}, W_{mt}, I_{pt}, Q_{pt}, K_{pt}, B_{pt} &\ge 0 && \forall m, p, t \label{eq:dominio2}
+\end{align}
+
+A função objetivo \eqref{eq:objetivo} minimiza o custo total composto por: custos de setup inter-período ($Z$), custos de setup intra-período ($W$) para trocas múltiplas no mesmo mês, custo de vendas perdidas ($K$) ponderado pelo valor do produto, e penalidade por atraso ($B$).
+
+A restrição \eqref{eq:balanco} representa o balanço de massa, considerando estoque, produção, backlog anterior e atual, demanda e perdas.
+
+A restrição \eqref{eq:capacidade} limita a capacidade da máquina, descontando o tempo de produção e um tempo fixo de setup para cada produto ativado no período.
+
+A restrição \eqref{eq:ativacao} vincula a produção à variável binária de ativação $Y$ usando a técnica Tight Big-M.
+
+As restrições \eqref{eq:estado_unico} e \eqref{eq:transicao_estado} controlam a lógica de estado persistente ($S$): a máquina sempre termina configurada em um produto, e a troca desse estado entre $t-1$ e $t$ aciona a variável de custo $Z$.
+
+Para garantir a consistência física do setup, a restrição \eqref{eq:idle_def} define a variável auxiliar $Idle_{mt}$, que é 1 apenas se a máquina não produzir nada. A restrição \eqref{eq:consistencia_estado} força que, se a máquina não estiver ociosa, o estado final $S_{mpt}$ deve corresponder a um dos produtos efetivamente produzidos ($Y_{mpt}=1$). Isso impede trocas de setup "fantasmas" sem custo.
+
+A restrição \eqref{eq:setup_intra} captura a complexidade adicional de produzir múltiplos produtos no mesmo período, forçando a variável $W$ a contar setups extras.

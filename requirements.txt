@@ -1,0 +1,5 @@
+Flask>=3.0,<4
+pandas
+pulp
+numpy
+scipy

@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIBERBALL - Planejamento de Produção</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip-icon {
+            cursor: help;
+            color: #007bff;
+            font-weight: bold;
+            margin-left: 5px;
+            border: 1px solid #007bff;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%; /* Position above */
+            left: 50%;
+            margin-left: -125px; /* Center */
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 13px;
+            font-weight: normal;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .machine-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .machine-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 50px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background-color 0.2s, border-color 0.2s;
+            background-color: rgba(255, 0, 0, 0.2); /* Inactive Red */
+            color: #555;
+            user-select: none;
+        }
+
+        .machine-box.active {
+            background-color: rgba(0, 255, 0, 0.2); /* Active Green */
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .machine-box:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="top-header">
+        <div class="logo-group-left">
+            <h2 style="color: #fff; margin: 0;">RIBERBALL - BALÕES PIC PIC</h2>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="page-title">
+            <h1>Sistema de Dimensionamento de Lotes</h1>
+            <p>Planejamento otimizado de produção e estoques.</p>
+        </div>
+
+        <div class="tabs-container">
+            <div class="tab-headers">
+                <button class="tab-link active" data-tab="tab-params">Parametrização</button>
+                <button class="tab-link" data-tab="tab-summary">Resumo Mensal</button>
+                <button class="tab-link" data-tab="tab-prod">Métricas de Produção e Estoque</button>
+                <button class="tab-link" data-tab="tab-demand">Métricas de Demanda</button>
+            </div>
+
+            <!-- Parametrização -->
+            <div class="tab-content active" id="tab-params">
+                <!-- Row 1: Settings and Sensitivity -->
+                <div class="horizontal-content">
+                    <div class="content-block" style="flex: 1;">
+                        <h3>Configurações Gerais</h3>
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                            <div class="form-group" style="flex: 1; min-width: 200px;">
+                                <label>Período de Início
+                                    <div class="tooltip-container">
+                                        <span class="tooltip-icon">?</span>
+                                        <span class="tooltip-text">Selecione a data de início do planejamento. O calendário indica as datas disponíveis nos dados de estoque. Planejamento retroativo não é permitido.</span>
+                                    </div>
+                                </label>
+                                <input type="date" id="start-period" class="form-control">
+                            </div>
+
+                            <div class="form-group" style="flex: 1; min-width: 200px;">
+                                <label>Período de Fim
+                                    <div class="tooltip-container">
+                                        <span class="tooltip-icon">?</span>
+                                        <span class="tooltip-text">Data final do planejamento. Se for maior que a última previsão disponível, os dados serão replicados automaticamente (sazonalidade).</span>
+                                    </div>
+                                </label>
+                                <input type="date" id="end-period" class="form-control">
+                            </div>
+
+                            <div class="form-group" style="flex: 1; min-width: 200px;">
+                                <label>Máximo de Atraso (Meses)
+                                    <div class="tooltip-container">
+                                        <span class="tooltip-icon">?</span>
+                                        <span class="tooltip-text">Número máximo de meses que um pedido pode ficar em atraso (backlog) antes de ser considerado perda.</span>
+                                    </div>
+                                </label>
+                                <input type="number" id="max-delay" class="form-control" value="0" step="1" min="0">
+                            </div>
+
+                            <div class="form-group" style="flex: 1; min-width: 200px;">
+                                <label>Cobertura de Estoque (Meses)
+                                    <div class="tooltip-container">
+                                        <span class="tooltip-icon">?</span>
+                                        <span class="tooltip-text">Quantidade de meses de demanda futura que deve ser mantida em estoque mínimo (Safety Stock). Ex: 0.5 = Meio mês; 1.0 = Um mês completo.</span>
+                                    </div>
+                                </label>
+                                <input type="number" id="coverage-months" class="form-control" value="0.1" step="0.1" min="0.0">
+                            </div>
+                        </div>
+
+                        <!-- Capacity Configuration -->
+                        <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                            <h4>Configuração de Capacidade e Decisão</h4>
+                            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                                <div class="form-group" style="flex: 1; min-width: 150px;">
+                                    <label>Turnos por Dia</label>
+                                    <input type="number" id="shifts-per-day" class="form-control" value="3" step="1" min="1" max="3">
+                                </div>
+                                <div class="form-group" style="flex: 1; min-width: 150px;">
+                                    <label>Horas por Turno</label>
+                                    <input type="number" id="hours-per-shift" class="form-control" value="8" step="0.1" min="1" max="24">
+                                </div>
+                                <div class="form-group" style="flex: 1; min-width: 150px;">
+                                    <label>Dias por Semana</label>
+                                    <input type="number" id="days-per-week" class="form-control" value="7" step="1" min="1" max="7">
+                                </div>
+                                <div class="form-group" style="flex: 1; min-width: 200px;">
+                                    <label>Horas Disponíveis / Mês (Est.)</label>
+                                    <input type="text" id="total-hours-display" class="form-control" value="727.44" readonly style="background-color: #e9ecef;">
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
+                                <div class="form-group" style="flex: 2; min-width: 250px;">
+                                    <label>Tipo de Decisão de Produção
+                                        <div class="tooltip-container">
+                                            <span class="tooltip-icon">?</span>
+                                            <span class="tooltip-text">Define a granularidade da variável de decisão do modelo (ex: alocar por kg exato, ou por blocos inteiros de tempo).</span>
+                                        </div>
+                                    </label>
+                                    <select id="decision-type" class="form-control">
+                                        <option value="kg">Kilogramas (Produção Contínua)</option>
+                                        <option value="hours" selected>Blocos de Horas (Discreto)</option>
+                                        <option value="shifts">Turnos Completos (Discreto)</option>
+                                        <option value="days">Dias Completos (Discreto)</option>
+                                        <option value="weeks">Semanas Completas (Discreto)</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group" id="bucket-hours-group" style="flex: 1; min-width: 150px;">
+                                    <label>Tamanho do Bloco (Horas)</label>
+                                    <input type="number" id="bucket-hours" class="form-control" value="6" step="1" min="1">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button class="action-button" id="btn-run">Executar Planejamento</button>
+                        </div>
+                        <p id="status-msg" style="margin-top: 10px; font-weight: bold;"></p>
+                        <p id="cost-msg" style="margin-top: 5px; font-weight: bold; color: #0056b3;"></p>
+                    </div>
+
+                </div>
+
+                <div class="content-block">
+                    <h3>Máquinas Ativas</h3>
+                    <div class="machine-grid" id="machine-list">
+                        <!-- Machine Boxes populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resumo Mensal -->
+            <div class="tab-content" id="tab-summary">
+                <div class="content-block">
+                    <div class="sub-tabs">
+                        <button class="sub-tab-link active" data-sub="view-summary">Resumo</button>
+                        <button class="sub-tab-link" data-sub="view-detailed">Produção Detalhada</button>
+                        <button class="sub-tab-link" data-sub="view-setups">Setup Detalhado</button>
+                    </div>
+
+                    <!-- View 1: Resumo -->
+                    <div id="view-summary" class="sub-tab-content active">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0;">Tabela Resumo Mensal</h3>
+                            <button class="action-button" id="btn-download-summary" style="width: auto; padding: 10px 20px;">Baixar Excel (CSV)</button>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: right;">
+                                <thead>
+                                    <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                        <th style="padding: 12px; text-align: left;">Mês</th>
+                                        <th style="padding: 12px;">Estoque Total (Kg)</th>
+                                        <th style="padding: 12px;">Utilização Média (%)</th>
+                                        <th style="padding: 12px;">Demanda (Kg)</th>
+                                        <th style="padding: 12px;">Perda (Kg)</th>
+                                        <th style="padding: 12px;">Produzido (Kg)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="summary-table-body">
+                                    <tr>
+                                        <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
+                                            Execute o planejamento para visualizar os dados.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- View 2: Produção Detalhada -->
+                    <div id="view-detailed" class="sub-tab-content">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0;">Produção Detalhada por Máquina</h3>
+                            <button class="action-button" id="btn-download-detailed" style="width: auto; padding: 10px 20px;">Baixar Detalhado (CSV)</button>
+                        </div>
+                        <div style="overflow-x: auto; max-height: 500px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+                                <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 1;">
+                                    <tr style="border-bottom: 2px solid #dee2e6;">
+                                        <th style="padding: 12px;">Período</th>
+                                        <th style="padding: 12px;">Máquina</th>
+                                        <th style="padding: 12px;">Produto</th>
+                                        <th style="padding: 12px; text-align: right;">Horas Prod.</th>
+                                        <th style="padding: 12px; text-align: right;">Dias Prod.</th>
+                                        <th style="padding: 12px; text-align: right;">Quantidade (Kg)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detailed-table-body">
+                                    <tr>
+                                        <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
+                                            Execute o planejamento para visualizar os dados.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- View 3: Setup Detalhado -->
+                    <div id="view-setups" class="sub-tab-content">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0;">Setups (Trocas) por Período</h3>
+                            <button class="action-button" id="btn-download-setups" style="width: auto; padding: 10px 20px;">Baixar Setups (CSV)</button>
+                        </div>
+                        <div style="overflow-x: auto; max-height: 500px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+                                <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 1;">
+                                    <tr style="border-bottom: 2px solid #dee2e6;">
+                                        <th style="padding: 12px;">Período</th>
+                                        <th style="padding: 12px;">Máquina</th>
+                                        <th style="padding: 12px;">De (Origem)</th>
+                                        <th style="padding: 12px;">Para (Destino)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="setups-table-body">
+                                    <tr>
+                                        <td colspan="4" style="padding: 20px; text-align: center; color: #6c757d;">
+                                            Execute o planejamento para visualizar os dados.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Produção e Estoque -->
+            <div class="tab-content" id="tab-prod">
+                <div class="content-block">
+                    <h3>Perfil de Estoque</h3>
+                    <div class="chart-container">
+                        <canvas id="inventoryChart"></canvas>
+                    </div>
+                </div>
+                <div class="content-block">
+                    <h3>Produção Agregada (Kg)</h3>
+                    <div class="chart-container">
+                        <canvas id="productionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Demanda -->
+            <div class="tab-content" id="tab-demand">
+                <div class="content-block">
+                    <h3>Atendimento da Demanda</h3>
+                    <div class="chart-container">
+                        <canvas id="demandChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
