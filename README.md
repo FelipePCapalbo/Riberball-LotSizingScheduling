@@ -40,6 +40,7 @@ O sistema segue uma arquitetura modular simples, utilizando Flask para a interfa
 - **Resumo Mensal**: KPIs agregados de estoque, utilização e atendimento. O cálculo de utilização considera estritamente o tempo de setup incorrido (variável binária de decisão) somado às horas de produção, garantindo consistência com as restrições de capacidade do modelo.
 - **Produção Detalhada**: Tabela granular de horas e quantidades produzidas por máquina/produto.
 - **Relatório de Setups**: Visualização detalhada de todas as trocas (setups) ocorridas, indicando o produto de origem (estado anterior da máquina) e o produto destino, permitindo análise fina de perdas por troca.
+- **Favicon**: Implementado via Data URI (base64) diretamente no HTML para evitar requisições 404 desnecessárias e manter a estrutura de arquivos limpa.
 
 ## Performance e Limitações
 
