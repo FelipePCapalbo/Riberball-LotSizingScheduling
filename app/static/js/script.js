@@ -15,12 +15,14 @@ const AppState = {
     charts: {
         inventory: null,
         production: null,
-        demand: null
+        demand: null,
+        vacations: null
     },
     data: {
         summary: [],
         production: [],
-        setups: []
+        setups: [],
+        vacations: []
     }
 };
 
@@ -52,9 +54,10 @@ function switchTab(clickedLink, linkClass, contentClass, dataAttr) {
 
 function initInputs() {
     const inputsToWatch = [
-        'start-period', 'end-period', 'max-delay', 
+        'start-period', 'end-period', 
         'shifts-per-day', 'hours-per-shift', 'days-per-week', 
-        'decision-type', 'bucket-hours', 'coverage-months'
+        'decision-type', 'bucket-hours', 'coverage-months',
+        'operators-per-machine', 'solver-select', 'time-limit'
     ];
     
     inputsToWatch.forEach(id => {
@@ -93,6 +96,9 @@ function initActionButtons() {
 
     const btnSetups = document.getElementById('btn-download-setups');
     if (btnSetups) btnSetups.addEventListener('click', downloadSetupsCSV);
+
+    const btnVacations = document.getElementById('btn-download-vacations');
+    if (btnVacations) btnVacations.addEventListener('click', downloadVacationsCSV);
 }
 
 // --- Logic & API Calls ---
@@ -205,15 +211,19 @@ async function handleRunOptimization() {
 
 function buildRunPayload() {
     const getVal = (id) => document.getElementById(id).value;
+    const ops = parseFloat(getVal('operators-per-machine')) || 0;
     
     return {
         start_period: getVal('start-period') + " 00:00:00",
         end_period: getVal('end-period') ? getVal('end-period') + " 00:00:00" : null,
         active_machines: Array.from(document.querySelectorAll('.machine-box.active')).map(el => el.dataset.machine),
-        max_delay: getVal('max-delay'),
         coverage_months: getVal('coverage-months'),
         decision_type: getVal('decision-type'),
         bucket_hours: getVal('bucket-hours'),
+        vacation_planning: ops > 0,
+        operators_per_machine: ops,
+        solver_name: getVal('solver-select'),
+        time_limit: parseInt(getVal('time-limit')) || 600,
         capacity_params: {
             shifts_per_day: getVal('shifts-per-day'),
             hours_per_shift: getVal('hours-per-shift'),
@@ -269,13 +279,14 @@ function saveSettingsState() {
     const state = {
         startPeriod: document.getElementById('start-period').value,
         endPeriod: document.getElementById('end-period').value,
-        maxDelay: document.getElementById('max-delay').value,
         coverageMonths: document.getElementById('coverage-months').value,
         shiftsPerDay: document.getElementById('shifts-per-day').value,
         hoursPerShift: document.getElementById('hours-per-shift').value,
         daysPerWeek: document.getElementById('days-per-week').value,
         decisionType: document.getElementById('decision-type').value,
         bucketHours: document.getElementById('bucket-hours').value,
+        operatorsPerMachine: document.getElementById('operators-per-machine').value,
+        timeLimit: document.getElementById('time-limit').value,
         activeMachines: Array.from(document.querySelectorAll('.machine-box.active')).map(el => el.dataset.machine)
     };
     localStorage.setItem('riberball_settings', JSON.stringify(state));
@@ -291,12 +302,13 @@ function loadSettingsState() {
         
         setVal('start-period', state.startPeriod);
         setVal('end-period', state.endPeriod);
-        setVal('max-delay', state.maxDelay);
         setVal('coverage-months', state.coverageMonths);
         setVal('shifts-per-day', state.shiftsPerDay);
         setVal('hours-per-shift', state.hoursPerShift);
         setVal('days-per-week', state.daysPerWeek);
         setVal('bucket-hours', state.bucketHours);
+        setVal('operators-per-machine', state.operatorsPerMachine);
+        setVal('time-limit', state.timeLimit);
         
         if (state.decisionType) {
             const el = document.getElementById('decision-type');
@@ -325,22 +337,81 @@ function renderResults(data) {
     AppState.data.summary = data.summary || [];
     AppState.data.production = data.production || [];
     AppState.data.setups = data.setups || [];
+    AppState.data.vacations = data.vacations || [];
     
     renderCharts(data);
     renderSummaryTable(AppState.data.summary);
     renderDetailedTable(AppState.data.production);
     renderSetupsTable(AppState.data.setups);
+    renderVacationsTable(AppState.data.vacations);
 }
 
 function renderCharts(data) {
     renderInventoryChart(data.inventory);
     renderProductionChart(data.production);
     renderDemandChart(data.demand);
+    renderVacationsChart(data.vacations);
+}
+
+function renderVacationsChart(vacationsData) {
+    // Get all periods from summary to ensure we show months with 0 vacations
+    let periods = [];
+    if (AppState.data.summary && AppState.data.summary.length > 0) {
+        periods = AppState.data.summary.map(s => s.Period).sort();
+    } else if (vacationsData && vacationsData.length > 0) {
+        periods = [...new Set(vacationsData.map(d => d.Period))].sort();
+    }
+
+    if (periods.length === 0) return;
+
+    const displayPeriods = periods.map(p => formatDate(p));
+    
+    // Count stopped machines per period
+    const countByPeriod = {};
+    periods.forEach(p => countByPeriod[p] = 0);
+    
+    if (vacationsData) {
+        vacationsData.forEach(r => {
+            if (countByPeriod.hasOwnProperty(r.Period)) {
+                countByPeriod[r.Period]++; 
+            }
+        });
+    }
+
+    const ctx = document.getElementById('vacationsChart');
+    if (!ctx) return;
+    
+    if (AppState.charts.vacations) AppState.charts.vacations.destroy();
+
+    AppState.charts.vacations = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: displayPeriods,
+            datasets: [{
+                label: 'Máquinas Paradas (Férias)',
+                data: periods.map(p => countByPeriod[p]),
+                backgroundColor: 'orange',
+                borderColor: 'darkorange',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true, 
+            maintainAspectRatio: false,
+            scales: { 
+                y: { 
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 },
+                    title: { display: true, text: 'Qtd. Máquinas' }
+                } 
+            }
+        }
+    });
 }
 
 function renderInventoryChart(inventoryData) {
     const periods = [...new Set(inventoryData.map(d => d.Period))].sort();
-    const displayPeriods = periods.map(p => p.split(' ')[0]);
+    const displayPeriods = periods.map(p => formatDate(p));
     
     const invByPeriod = {};
     const targetByPeriod = {}; // Keep logic if we re-add target later
@@ -368,7 +439,7 @@ function renderInventoryChart(inventoryData) {
 
 function renderProductionChart(prodData) {
     const periods = [...new Set(prodData.map(d => d.Period))].sort();
-    const displayPeriods = periods.map(p => p.split(' ')[0]);
+    const displayPeriods = periods.map(p => formatDate(p));
     const machines = [...new Set(prodData.map(d => d.Machine))].sort();
     
     const datasets = machines.map(m => {
@@ -399,7 +470,7 @@ function renderProductionChart(prodData) {
 
 function renderDemandChart(demandData) {
     const periods = [...new Set(demandData.map(d => d.Period))].sort();
-    const displayPeriods = periods.map(p => p.split(' ')[0]);
+    const displayPeriods = periods.map(p => formatDate(p));
     
     const metrics = { demand: {}, met: {}, lost: {}, backlog: {} };
     periods.forEach(p => { for(let k in metrics) metrics[k][p] = 0; });
@@ -408,9 +479,6 @@ function renderDemandChart(demandData) {
         metrics.demand[r.Period] += r.Demand;
         metrics.met[r.Period] += r.Met;
         metrics.lost[r.Period] += r.Lost;
-        let delayed = r.Demand - r.Met - r.Lost;
-        if (delayed < 0) delayed = 0;
-        metrics.backlog[r.Period] += delayed;
     });
 
     const ctx = document.getElementById('demandChart');
@@ -422,7 +490,6 @@ function renderDemandChart(demandData) {
             labels: displayPeriods,
             datasets: [
                 { label: 'Atendida', data: periods.map(p => metrics.met[p]), backgroundColor: 'green' },
-                { label: 'Atraso', data: periods.map(p => metrics.backlog[p]), backgroundColor: 'orange' },
                 { label: 'Perdida', data: periods.map(p => metrics.lost[p]), backgroundColor: 'red' },
                 { type: 'line', label: 'Demanda Total', data: periods.map(p => metrics.demand[p]), borderColor: 'black', borderWidth: 2 }
             ]
@@ -450,6 +517,11 @@ function renderSummaryTable(data) {
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid #eee';
         
+        // Resumo Mensal geralmente usa formato Mês/Ano. 
+        // Mas se quisermos forçar consistência, podemos usar a mesma lógica ou ajustar.
+        // Dado que é "Resumo Mensal", manter MM/AAAA talvez seja melhor, 
+        // mas o usuário pediu "Force DD/MM/AAAA".
+        // Vamos aplicar DD/MM/AAAA se a data tiver dia. Se for só mês, mantém.
         const fmtDate = formatDate(row.Period);
         
         tr.innerHTML = `
@@ -503,10 +575,59 @@ function renderDetailedTable(data) {
 function renderSetupsTable(data) {
     const tbody = document.getElementById('setups-table-body');
     if (!tbody) return;
+    
+    // Add header for Cost if not exists
+    const thead = tbody.previousElementSibling;
+    if (thead) {
+        const headerRow = thead.querySelector('tr');
+        if (headerRow && headerRow.children.length === 4) {
+            const th = document.createElement('th');
+            th.textContent = "Custo Estimado (R$)";
+            th.style.padding = "12px";
+            th.style.textAlign = "right";
+            headerRow.appendChild(th);
+        }
+    }
+
     tbody.innerHTML = '';
 
     if (!data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="padding: 20px; text-align: center;">Nenhum setup registrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center;">Nenhum setup registrado.</td></tr>';
+        return;
+    }
+
+    // Sort: Period, Machine
+    data.sort((a, b) => {
+        if (a.Period !== b.Period) return a.Period.localeCompare(b.Period);
+        const mA = parseInt(a.Machine) || 0;
+        const mB = parseInt(b.Machine) || 0;
+        return mA - mB;
+    });
+
+    data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #eee';
+        
+        const cost = row.Cost !== undefined ? fmtNumber(row.Cost, 2) : '-';
+
+        tr.innerHTML = `
+            <td style="padding: 10px;">${formatDate(row.Period)}</td>
+            <td style="padding: 10px;">M${row.Machine}</td>
+            <td style="padding: 10px;">${row.From}</td>
+            <td style="padding: 10px;">${row.To}</td>
+            <td style="padding: 10px; text-align: right;">R$ ${cost}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderVacationsTable(data) {
+    const tbody = document.getElementById('vacations-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="padding: 20px; text-align: center;">Nenhuma férias programada ou módulo desativado.</td></tr>';
         return;
     }
 
@@ -525,8 +646,7 @@ function renderSetupsTable(data) {
         tr.innerHTML = `
             <td style="padding: 10px;">${formatDate(row.Period)}</td>
             <td style="padding: 10px;">M${row.Machine}</td>
-            <td style="padding: 10px;">${row.From}</td>
-            <td style="padding: 10px;">${row.To}</td>
+            <td style="padding: 10px;">${row.Operators} Operadores</td>
         `;
         tbody.appendChild(tr);
     });
@@ -557,12 +677,21 @@ function downloadDetailedCSV() {
 }
 
 function downloadSetupsCSV() {
-    downloadCSV(AppState.data.setups, ["Período", "Máquina", "De", "Para"], row => [
+    downloadCSV(AppState.data.setups, ["Período", "Máquina", "De", "Para", "Custo (R$)"], row => [
         formatDate(row.Period),
         `M${row.Machine}`,
         row.From,
-        row.To
+        row.To,
+        fmtNumberCSV(row.Cost || 0)
     ], "setups_detalhado.csv");
+}
+
+function downloadVacationsCSV() {
+    downloadCSV(AppState.data.vacations, ["Período", "Máquina", "Operadores"], row => [
+        formatDate(row.Period),
+        `M${row.Machine}`,
+        row.Operators
+    ], "ferias_programadas.csv");
 }
 
 function downloadCSV(data, headers, rowMapper, filename) {
@@ -587,8 +716,18 @@ function downloadCSV(data, headers, rowMapper, filename) {
 // --- Formatters ---
 
 function formatDate(isoDate) {
-    const parts = isoDate.split('-');
-    if (parts.length >= 2) return `${parts[1]}/${parts[0]}`;
+    // Tenta limpar timestamp se vier (ex: "2024-01-01 00:00:00")
+    const cleanDate = isoDate.split(' ')[0]; 
+    const parts = cleanDate.split('-');
+    
+    // YYYY-MM-DD -> DD/MM/YYYY
+    if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    // YYYY-MM -> MM/YYYY (Fallback se vier incompleto)
+    if (parts.length === 2) {
+        return `${parts[1]}/${parts[0]}`;
+    }
     return isoDate;
 }
 

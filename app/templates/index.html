@@ -157,16 +157,6 @@
                             </div>
 
                             <div class="form-group" style="flex: 1; min-width: 200px;">
-                                <label>Máximo de Atraso (Meses)
-                                    <div class="tooltip-container">
-                                        <span class="tooltip-icon">?</span>
-                                        <span class="tooltip-text">Número máximo de meses que um pedido pode ficar em atraso (backlog) antes de ser considerado perda.</span>
-                                    </div>
-                                </label>
-                                <input type="number" id="max-delay" class="form-control" value="0" step="1" min="0">
-                            </div>
-
-                            <div class="form-group" style="flex: 1; min-width: 200px;">
                                 <label>Cobertura de Estoque (Meses)
                                     <div class="tooltip-container">
                                         <span class="tooltip-icon">?</span>
@@ -175,10 +165,20 @@
                                 </label>
                                 <input type="number" id="coverage-months" class="form-control" value="0.1" step="0.1" min="0.0">
                             </div>
+
+                            <div class="form-group" style="flex: 1; min-width: 200px;">
+                                <label>Operadores por Máquina
+                                    <div class="tooltip-container">
+                                        <span class="tooltip-icon">?</span>
+                                        <span class="tooltip-text">Número de operadores necessários para operar uma máquina. Define se o planejamento de férias será considerado nas restrições de capacidade.</span>
+                                    </div>
+                                </label>
+                                <input type="number" id="operators-per-machine" class="form-control" value="2" step="1" min="0">
+                            </div>
                         </div>
 
-                        <!-- Capacity Configuration -->
-                        <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                        <!-- Capacity & Decision -->
+                        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
                             <h4>Configuração de Capacidade e Decisão</h4>
                             <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
                                 <div class="form-group" style="flex: 1; min-width: 150px;">
@@ -200,6 +200,30 @@
                             </div>
 
                             <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
+                                <div class="form-group" style="flex: 2; min-width: 250px;">
+                                    <label>Solver (Motor de Otimização)
+                                        <div class="tooltip-container">
+                                            <span class="tooltip-icon">?</span>
+                                            <span class="tooltip-text">Escolha qual software resolverá o modelo matemático. CBC é open-source. Gurobi é comercial (requer licença).</span>
+                                        </div>
+                                    </label>
+                                    <select id="solver-select" class="form-control">
+                                        <option value="CBC" selected>CBC (Padrão)</option>
+                                        <option value="GUROBI">Gurobi (Requer Licença)</option>
+                                        <option value="GLPK">GLPK</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group" style="flex: 1; min-width: 150px;">
+                                    <label>Tempo Limite (s)
+                                        <div class="tooltip-container">
+                                            <span class="tooltip-icon">?</span>
+                                            <span class="tooltip-text">Tempo máximo em segundos para o solver buscar a solução ótima. (Padrão: 600s = 10 min)</span>
+                                        </div>
+                                    </label>
+                                    <input type="number" id="time-limit" class="form-control" value="600" step="10" min="10">
+                                </div>
+
                                 <div class="form-group" style="flex: 2; min-width: 250px;">
                                     <label>Tipo de Decisão de Produção
                                         <div class="tooltip-container">
@@ -247,6 +271,7 @@
                         <button class="sub-tab-link active" data-sub="view-summary">Resumo</button>
                         <button class="sub-tab-link" data-sub="view-detailed">Produção Detalhada</button>
                         <button class="sub-tab-link" data-sub="view-setups">Setup Detalhado</button>
+                        <button class="sub-tab-link" data-sub="view-vacations">Férias Programadas</button>
                     </div>
 
                     <!-- View 1: Resumo -->
@@ -310,7 +335,7 @@
                     <!-- View 3: Setup Detalhado -->
                     <div id="view-setups" class="sub-tab-content">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="margin: 0;">Setups (Trocas) por Período</h3>
+                            <h3 style="margin: 0;">Setups por Período</h3>
                             <button class="action-button" id="btn-download-setups" style="width: auto; padding: 10px 20px;">Baixar Setups (CSV)</button>
                         </div>
                         <div style="overflow-x: auto; max-height: 500px; overflow-y: auto;">
@@ -321,12 +346,42 @@
                                         <th style="padding: 12px;">Máquina</th>
                                         <th style="padding: 12px;">De (Origem)</th>
                                         <th style="padding: 12px;">Para (Destino)</th>
+                                        <th style="padding: 12px; text-align: right;">Custo Estimado (R$)</th>
                                     </tr>
                                 </thead>
                                 <tbody id="setups-table-body">
                                     <tr>
-                                        <td colspan="4" style="padding: 20px; text-align: center; color: #6c757d;">
+                                        <td colspan="5" style="padding: 20px; text-align: center; color: #6c757d;">
                                             Execute o planejamento para visualizar os dados.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- View 4: Férias Programadas -->
+                    <div id="view-vacations" class="sub-tab-content">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0;">Cronograma de Férias</h3>
+                            <button class="action-button" id="btn-download-vacations" style="width: auto; padding: 10px 20px;">Baixar Férias (CSV)</button>
+                        </div>
+                        <div class="chart-container" style="height: 300px; margin-bottom: 20px;">
+                            <canvas id="vacationsChart"></canvas>
+                        </div>
+                        <div style="overflow-x: auto; max-height: 500px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+                                <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 1;">
+                                    <tr style="border-bottom: 2px solid #dee2e6;">
+                                        <th style="padding: 12px;">Período</th>
+                                        <th style="padding: 12px;">Máquina Parada</th>
+                                        <th style="padding: 12px;">Operadores em Férias</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vacations-table-body">
+                                    <tr>
+                                        <td colspan="3" style="padding: 20px; text-align: center; color: #6c757d;">
+                                            Execute o planejamento. (Requer Operadores > 0)
                                         </td>
                                     </tr>
                                 </tbody>
@@ -367,3 +422,4 @@
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
+

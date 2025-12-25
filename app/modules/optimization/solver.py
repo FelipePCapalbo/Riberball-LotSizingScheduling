@@ -1,470 +1,292 @@
 import pulp
 import pandas as pd
+import os
 import math
 from app.config import Config
+from app.utils import sanitize_name
 
 class LotSizingSolver:
-    """
-    Classe responsável pela construção e resolução do modelo matemático de otimização (MILP).
-    Otimiza o planejamento de produção minimizando custos de vendas perdidas, backlog e setup.
-    """
+    """Solver MILP para planejamento de produção."""
 
     def __init__(self, demand, productivity, initial_stock, active_machines, 
                  start_period, end_period=None, costs=None,
-                 hours_per_period=720, max_delay=0, step_hours=6.0, integer_var=True, safety_stock_pct=0.0):
+                 hours_per_period=720, step_hours=6.0, integer_var=True, safety_stock_pct=0.0,
+                 vacation_planning=False, operators_per_machine=2):
         
         self.demand = demand
         self.productivity = productivity
         self.initial_stock = initial_stock
         self.active_machines = active_machines
         self.costs = costs or {}
+        
         self.hours_per_period = hours_per_period
-        self.max_delay = max_delay
         self.step_hours = step_hours
         self.integer_var = integer_var
-        self.safety_stock_pct = safety_stock_pct 
+        self.safety_stock_pct = safety_stock_pct
+        self.vacation_planning = vacation_planning
+        self.operators_per_machine = operators_per_machine 
         
-        # --- Definição de Períodos ---
         self.products = list(demand.keys())
-        all_dates = sorted(list(demand[self.products[0]].keys()))
+        all_dates = sorted(demand[self.products[0]].keys()) if self.products else []
+        self.periods = [d for d in all_dates if d >= start_period and (not end_period or d <= end_period)]
         
-        if end_period:
-            self.periods = [d for d in all_dates if d >= start_period and d <= end_period]
-        else:
-            self.periods = [d for d in all_dates if d >= start_period]
-            
-        # --- Mapeamentos ---
-        self.machine_products = {m: [] for m in active_machines}
+        self._map_machine_products()
+        self.prob = pulp.LpProblem("LotSizing", pulp.LpMinimize)
+
+    def _map_machine_products(self):
+        self.machine_products = {m: [] for m in self.active_machines}
         self.product_machines = {p: [] for p in self.products}
         
         for p in self.products:
-            if p in productivity:
-                for m, rate in productivity[p].items():
-                    if m in active_machines:
-                        self.machine_products[m].append(p)
-                        self.product_machines[p].append(m)
-        
-        # --- Variáveis do Modelo Pulp ---
-        self.prob = pulp.LpProblem("LotSizing", pulp.LpMinimize)
-        
-        # Variáveis de Decisão
-        self.H_steps = {}
-        self.Y = {}
-        self.X_expr = {}
-        self.S_state = {} 
-        self.Delta_Setup = {} 
-        self.Idle = {} 
-        
-        # Variáveis de Estado
-        self.I = {}
-        self.Q = {}
-        self.K = {}
-        self.B = {}
-        
-        # Termos da Função Objetivo
-        self.terms_lost_sales = []
-        self.terms_backlog = []
-        self.terms_setup = []
+            if p not in self.productivity: continue
+            for m, rate in self.productivity[p].items():
+                if m in self.active_machines:
+                    self.machine_products[m].append(p)
+                    self.product_machines[p].append(m)
 
-    def solve(self):
-        """
-        Executa o pipeline completo de resolução: Definição -> Restrições -> Solve -> Formatação.
-        """
-        if not self.periods:
-            return {"status": "No valid periods found"}
+    def solve(self, time_limit=600, log_path=None, solver_name='CBC', threads=None):
+        if not self.periods: return {"status": "No valid periods found"}
 
         self._define_variables()
         self._build_objective_function()
         self._add_constraints()
         
-        # Resolução (com logs no terminal)
-        self.prob.solve(pulp.PULP_CBC_CMD(msg=1, timeLimit=600))
-        status = pulp.LpStatus[self.prob.status]
+        solver = self._get_solver_instance(solver_name, time_limit, log_path, threads)
+        self.prob.solve(solver)
         
-        if status != "Optimal":
-            return {"status": status}
+        return self._format_results(pulp.LpStatus[self.prob.status])
+
+    def _get_solver_instance(self, name, time_limit, log_path, threads=None):
+        name = name.upper()
+        if name == 'GUROBI':
+            opts = [("TimeLimit", time_limit)]
+            if log_path: opts.append(("LogFile", log_path))
+            if threads: opts.append(("Threads", threads))
+            return pulp.GUROBI_CMD(msg=1, options=opts)
+        
+        if name == 'GLPK':
+            opts = [f"--log {log_path}"] if log_path else []
+            return pulp.GLPK_CMD(msg=1, timeLimit=time_limit, options=opts)
             
-        return self._format_results(status)
+        # CBC is the default for 'CBC' and fallback for others
+        args = dict(msg=1, timeLimit=time_limit, logPath=log_path)
+        if threads: args['threads'] = threads
+        return pulp.PULP_CBC_CMD(**args)
 
     def _define_variables(self):
-        """
-        Inicializa todas as variáveis de decisão do modelo.
-        """
-        # --- Cálculo de Demanda Restante (Tight Big-M) ---
-        remaining_demand = {}
-        for p in self.products:
-            d_list = [self.demand[p].get(t, 0) for t in self.periods]
-            current_rem = 0
-            for i in range(len(self.periods)-1, -1, -1):
-                current_rem += d_list[i]
-                remaining_demand[(p, i)] = current_rem
-
-        # --- Definição de Variáveis de Produção ---
+        self.vars = {}
+        max_steps = int(self.hours_per_period / self.step_hours) + 1
         var_cat = 'Integer' if self.integer_var else 'Continuous'
-        
-        max_steps_cap = int(self.hours_per_period / self.step_hours) if self.integer_var else (self.hours_per_period / self.step_hours)
+
+        # Variables containers
+        self.H_steps, self.Y, self.S_state, self.Delta_Setup, self.Idle = {}, {}, {}, {}, {}
+        self.I, self.Q, self.K = {}, {}, {}
 
         for m in self.active_machines:
-            prods = self.machine_products[m]
-            
-            # Estado Persistente e Setup
-            for p in prods:
-                for t in self.periods:
-                    self.S_state[(m, p, t)] = pulp.LpVariable(f"S_{m}_{p}_{t}", cat='Binary')
-                    self.Delta_Setup[(m, p, t)] = pulp.LpVariable(f"Delta_{m}_{p}_{t}", cat='Binary')
-            
-            # Ociosidade
             for t in self.periods:
-                self.Idle[(m, t)] = pulp.LpVariable(f"Idle_{m}_{t}", cat='Binary')
-
-            # Produção por Produto
-            for p in prods:
-                rate = self.productivity[p][m]
+                safe_t = sanitize_name(t)
+                self.Idle[(m, t)] = pulp.LpVariable(f"Idle_{m}_{safe_t}", cat='Binary')
                 
-                for t_idx, t in enumerate(self.periods):
-                    # Tight Big-M Calculation
-                    needed_qty = remaining_demand.get((p, t_idx), 0)
-                    if rate > 0:
-                        val_dem = needed_qty / (rate * self.step_hours)
-                        ub_dem = int(math.ceil(val_dem)) if self.integer_var else val_dem
-                    else:
-                        ub_dem = 0
+                for p in self.machine_products[m]:
+                    safe_p = sanitize_name(f"{p[0]}_{p[1]}")
+                    key = (m, p, t)
                     
-                    max_steps = min(max_steps_cap, ub_dem)
+                    self.S_state[key] = pulp.LpVariable(f"S_{m}_{safe_p}_{safe_t}", cat='Binary')
+                    self.Delta_Setup[key] = pulp.LpVariable(f"Delta_{m}_{safe_p}_{safe_t}", cat='Binary')
+                    self.Y[key] = pulp.LpVariable(f"Y_{m}_{safe_p}_{safe_t}", cat='Binary')
+                    self.H_steps[key] = pulp.LpVariable(f"H_{m}_{safe_p}_{safe_t}", lowBound=0, upBound=max_steps, cat=var_cat)
                     
-                    self.H_steps[(m, p, t)] = pulp.LpVariable(f"H_{m}_{p}_{t}", lowBound=0, upBound=max_steps, cat=var_cat)
-                    self.Y[(m, p, t)] = pulp.LpVariable(f"Y_{m}_{p}_{t}", cat='Binary')
-                    
-                    hours_prod = self.H_steps[(m, p, t)] * self.step_hours
-                    self.X_expr[(m, p, t)] = hours_prod * rate
-                    
-                    # Link Lógico: Se produz, Y=1
-                    self.prob += self.H_steps[(m, p, t)] <= max_steps * self.Y[(m, p, t)]
+                    self.prob += self.H_steps[key] <= max_steps * self.Y[key]
 
-        # --- Definição de Variáveis de Estoque ---
         for p in self.products:
+            safe_p = sanitize_name(f"{p[0]}_{p[1]}")
             for t in self.periods:
-                self.I[(p, t)] = pulp.LpVariable(f"I_{p}_{t}", lowBound=0)
-                self.Q[(p, t)] = pulp.LpVariable(f"Q_{p}_{t}", lowBound=0) # Entregue
-                self.K[(p, t)] = pulp.LpVariable(f"K_{p}_{t}", lowBound=0) # Venda Perdida
-                if self.max_delay > 0:
-                    self.B[(p, t)] = pulp.LpVariable(f"B_{p}_{t}", lowBound=0) # Backlog
+                safe_t = sanitize_name(t)
+                key = (p, t)
+                self.I[key] = pulp.LpVariable(f"I_{safe_p}_{safe_t}", lowBound=0)
+                self.Q[key] = pulp.LpVariable(f"Q_{safe_p}_{safe_t}", lowBound=0)
+                self.K[key] = pulp.LpVariable(f"K_{safe_p}_{safe_t}", lowBound=0)
 
     def _build_objective_function(self):
-        """
-        Constrói a função objetivo minimizando custos totais.
-        """
-        # 1. Custo de Venda Perdida
-        for p in self.products:
-            cost = self.costs.get(p, 0.0) 
-            for t in self.periods:
-                self.terms_lost_sales.append(cost * self.K[(p, t)])
-
-        # 2. Custo de Backlog
-        if self.max_delay > 0:
-            for p in self.products:
-                cost = self.costs.get(p, 0.0)
-                penalty = cost * Config.BACKLOG_PENALTY_FACTOR
-                for t in self.periods:
-                    self.terms_backlog.append(penalty * self.B[(p, t)])
-
-        # 3. Setup Otimizado
+        lost_sales = [self.costs.get(p, 0.0) * self.K[(p, t)] for p in self.products for t in self.periods]
+        
+        setup_costs = []
         for m in self.active_machines:
-            setup_time_hours = Config.DEFAULT_SETUP_TIME_HIGH if m in Config.HIGH_SETUP_MACHINES else Config.DEFAULT_SETUP_TIME_LOW
-            prods = self.machine_products[m]
-            
-            for t_idx, t in enumerate(self.periods):
-                for p in prods:
-                    delta = self.Delta_Setup[(m, p, t)]
-                    c_p = self.costs.get(p, 0.0)
-                    rate_p = self.productivity[p][m]
-                    cost_val = c_p * rate_p * setup_time_hours
-                    self.terms_setup.append(cost_val * delta)
-                    
-        self.prob += pulp.lpSum(self.terms_lost_sales + self.terms_backlog + self.terms_setup)
+            setup_time = Config.DEFAULT_SETUP_TIME_HIGH if m in Config.HIGH_SETUP_MACHINES else Config.DEFAULT_SETUP_TIME_LOW
+            for p in self.machine_products[m]:
+                cost = self.costs.get(p, 0.0) * self.productivity[p][m] * setup_time
+                setup_costs.extend([cost * self.Delta_Setup[(m, p, t)] for t in self.periods])
+                
+        self.prob += pulp.lpSum(lost_sales + setup_costs)
 
     def _add_constraints(self):
-        """
-        Adiciona as restrições físicas e lógicas ao modelo.
-        """
-        # --- 1. Restrições de Estado da Máquina ---
-        for m in self.active_machines:
-            for t in self.periods:
-                # Apenas um produto configurado por vez
-                self.prob += pulp.lpSum([self.S_state[(m, p, t)] for p in self.machine_products[m]]) == 1, f"OneState_{m}_{t}"
-
-        # --- 2. Detecção de Setup (Delta) ---
-        for m in self.active_machines:
-            prods = self.machine_products[m]
-            for t_idx, t in enumerate(self.periods):
-                prev_t = self.periods[t_idx-1] if t_idx > 0 else None
-                
-                for p in prods:
-                    curr_s = self.S_state[(m, p, t)]
-                    prev_s = self.S_state[(m, p, prev_t)] if prev_t else 0
-                    
-                    # Custo de setup por mudança de estado final
-                    self.prob += self.Delta_Setup[(m, p, t)] >= curr_s - prev_s, f"DeltaDef_{m}_{p}_{t}"
-                    
-                    # Custo de setup se houver produção e não era o estado anterior (Setup para produzir)
-                    # Isso garante que se produzirmos múltiplos itens no mesmo período, pagamos setup
-                    # exceto para aquele que já estava na máquina (carry-over).
-                    self.prob += self.Delta_Setup[(m, p, t)] >= self.Y[(m, p, t)] - prev_s, f"DeltaProd_{m}_{p}_{t}"
-
-        # --- 3. Link Lógico Y -> S (Setup Force) ---
-        for m in self.active_machines:
-            prods = self.machine_products[m]
-            for t in self.periods:
-                sum_y = pulp.lpSum([self.Y[(m, p, t)] for p in prods])
-                n_prods = len(prods)
-                
-                # Definição de Ociosidade (Idle)
-                self.prob += sum_y <= n_prods * (1 - self.Idle[(m, t)]), f"IdleDef_{m}_{t}"
-                
-                # Se Y=1, então S deve ser 1 (a menos que Idle)
-                for p in prods:
-                    self.prob += self.S_state[(m, p, t)] <= self.Y[(m, p, t)] + self.Idle[(m, t)], f"LinkSY_{m}_{p}_{t}"
-
-        # --- 4. Restrições de Capacidade ---
         for m in self.active_machines:
             setup_time = Config.DEFAULT_SETUP_TIME_HIGH if m in Config.HIGH_SETUP_MACHINES else Config.DEFAULT_SETUP_TIME_LOW
             
-            for t in self.periods:
-                # Capacidade = Produção + Setup
-                self.prob += pulp.lpSum([
-                    self.H_steps[(m, p, t)] * self.step_hours + setup_time * self.Delta_Setup[(m, p, t)]
-                    for p in self.machine_products[m]
-                ]) <= self.hours_per_period, f"Cap_{m}_{t}"
-
-        # --- 5. Backlog (Janela de Tempo) ---
-        if self.max_delay > 0:
-            for p in self.products:
-                for t_idx, t in enumerate(self.periods):
-                    start_window = max(0, t_idx - self.max_delay + 1)
-                    window_sum = sum(self.demand[p].get(self.periods[k], 0) for k in range(start_window, t_idx + 1))
-                    self.prob += self.B[(p, t)] <= window_sum
-
-        # --- 6. Balanço de Estoque e Demanda ---
-        for p in self.products:
-            curr_initial = self.initial_stock.get(p, 0)
             for t_idx, t in enumerate(self.periods):
-                prod_in = pulp.lpSum([self.X_expr[(m, p, t)] for m in self.product_machines[p]])
-                prev_inv = curr_initial if t_idx == 0 else self.I[(p, self.periods[t_idx-1])]
+                prods = self.machine_products[m]
+                prev_t = self.periods[t_idx-1] if t_idx > 0 else None
                 
-                prev_back = 0
-                curr_back = 0
-                if self.max_delay > 0:
-                    curr_back = self.B[(p, t)]
-                    if t_idx > 0:
-                        prev_back = self.B[(p, self.periods[t_idx-1])]
+                # 1. Machine State & Idle
+                self.prob += pulp.lpSum([self.S_state[(m, p, t)] for p in prods]) == 1
+                self.prob += pulp.lpSum([self.Y[(m, p, t)] for p in prods]) <= len(prods) * (1 - self.Idle[(m, t)])
                 
-                d_val = self.demand[p].get(t, 0)
-                
-                # Equação de Balanço
-                self.prob += prev_inv + prod_in + curr_back == \
-                             self.I[(p, t)] + prev_back + d_val - self.K[(p, t)]
-                
-                # Definição de Quantidade Entregue (Q)
-                backlog_change = 0
-                if self.max_delay > 0:
-                    if t_idx > 0:
-                        backlog_change = self.B[(p, t)] - self.B[(p, self.periods[t_idx-1])]
-                    else:
-                        backlog_change = self.B[(p, t)]
-                        
-                self.prob += self.Q[(p, t)] == d_val - self.K[(p, t)] - backlog_change
-
-                # Restrição de Estoque de Segurança (Forward Coverage)
-                if self.safety_stock_pct > 0:
-                    next_dem = 0
-                    if t_idx + 1 < len(self.periods):
-                        next_dem = self.demand[p].get(self.periods[t_idx+1], 0)
-                    else:
-                        next_dem = d_val # Fallback
+                usage = []
+                for p in prods:
+                    # 2. Setup Logic
+                    curr_s = self.S_state[(m, p, t)]
+                    prev_s = self.S_state[(m, p, prev_t)] if prev_t else 0
                     
-                    min_stock = next_dem * self.safety_stock_pct
-                    self.prob += self.I[(p, t)] >= min_stock, f"SafetyStock_{p}_{t}"
+                    self.prob += self.Delta_Setup[(m, p, t)] >= curr_s - prev_s
+                    self.prob += self.Delta_Setup[(m, p, t)] >= self.Y[(m, p, t)] - prev_s
+                    self.prob += curr_s <= self.Y[(m, p, t)] + self.Idle[(m, t)]
+                    
+                    # 3. Capacity Usage
+                    usage.append(self.H_steps[(m, p, t)] * self.step_hours + setup_time * self.Delta_Setup[(m, p, t)])
+                
+                self.prob += pulp.lpSum(usage) <= self.hours_per_period
+
+        # 4. Mass Balance
+        for p in self.products:
+            curr_init = self.initial_stock.get(p, 0)
+            for t_idx, t in enumerate(self.periods):
+                prod_in = pulp.lpSum([
+                    self.H_steps[(m, p, t)] * self.step_hours * self.productivity[p][m]
+                    for m in self.product_machines[p]
+                ])
+                prev_inv = curr_init if t_idx == 0 else self.I[(p, self.periods[t_idx-1])]
+                dem = self.demand[p].get(t, 0)
+                
+                self.prob += prev_inv + prod_in == self.I[(p, t)] + dem - self.K[(p, t)]
+                self.prob += self.Q[(p, t)] == dem - self.K[(p, t)]
+                
+                if self.safety_stock_pct > 0:
+                    next_dem = self.demand[p].get(self.periods[t_idx+1], dem) if t_idx + 1 < len(self.periods) else dem
+                    self.prob += self.I[(p, t)] >= next_dem * self.safety_stock_pct
+
+        # 5. Vacation Planning Constraint
+        if self.vacation_planning and len(self.periods) > 0:
+            horizon_years = len(self.periods) / 12.0
+            # Arredonda para cima para garantir cobertura mínima completa
+            required_idle_periods = math.ceil(len(self.active_machines) * horizon_years)
+            
+            total_idle = pulp.lpSum([self.Idle[(m, t)] for m in self.active_machines for t in self.periods])
+            
+            # Fixa exatamente o número de paradas para evitar que o solver use Idle para ociosidade comum,
+            # o que inflaria o relatório de férias desnecessariamente.
+            self.prob += total_idle == required_idle_periods
 
     def _format_results(self, status):
-        """
-        Formata a saída do solver em DataFrames amigáveis.
-        """
-        res_inventory = []
-        res_production = []
-        res_demand = []
-        res_setups = []
-        
-        total_inv_val = 0
-        total_demand_val = 0
-        total_met_val = 0
-        
+        if status not in ['Optimal', 'Feasible']:
+            return {"status": status, "kpis": {"total_cost": float('inf')}}
+            
+        def val(v): return v.varValue if v.varValue is not None else 0.0
+
+        res_inv, res_prod, res_dem, res_setup, res_vacations = [], [], [], [], []
+        res_summary = {}
+
         for t_idx, t in enumerate(self.periods):
-            # Resultados de Inventário e Demanda
+            # Init summary for period
+            res_summary[t] = {
+                "Period": t, "Inventory": 0.0, "Utilization": 0.0,
+                "Demand": 0.0, "Lost": 0.0, "Production": 0.0
+            }
+
             for p in self.products:
-                inv_val = self.I[(p, t)].varValue
-                total_inv_val += inv_val
+                inv_val = val(self.I[(p, t)])
+                dem_val = self.demand[p].get(t, 0)
+                met_val = val(self.Q[(p, t)])
+                lost_val = val(self.K[(p, t)])
                 
-                d_val = self.demand[p].get(t, 0)
-                met_val = self.Q[(p, t)].varValue
-                total_demand_val += d_val
-                total_met_val += met_val
-                
-                fut_dem = 0
-                if t_idx + 1 < len(self.periods):
-                    fut_dem = self.demand[p].get(self.periods[t_idx+1], 0)
-                
-                res_inventory.append({
-                    "Period": t,
-                    "Product": f"{p[0]} {p[1]}",
-                    "Inventory": inv_val,
-                    "TargetInventory": fut_dem, 
-                    "Shortage": 0.0
+                res_inv.append({"Period": t, "Product": f"{p[0]} {p[1]}", "Inventory": inv_val})
+                res_dem.append({
+                    "Period": t, "Product": f"{p[0]} {p[1]}",
+                    "Demand": dem_val, "Met": met_val, "Lost": lost_val
                 })
                 
-                res_demand.append({
-                    "Period": t,
-                    "Product": f"{p[0]} {p[1]}",
-                    "Demand": d_val,
-                    "Met": met_val,
-                    "Lost": self.K[(p, t)].varValue,
-                    "Backlog": self.B[(p, t)].varValue if self.max_delay > 0 else 0
-                })
-
-            # Resultados de Produção
-            for m in self.active_machines:
-                # 1. Identificar Estado Anterior (From)
-                prev_state_prod = "Início/Ocioso"
-                if t_idx > 0:
-                    prev_t = self.periods[t_idx-1]
-                    for p_check in self.machine_products[m]:
-                        if round(pulp.value(self.S_state[(m, p_check, prev_t)]) or 0) == 1:
-                            prev_state_prod = f"{p_check[0]} {p_check[1]}"
-                            break
-
-                # 2. Identificar Setups e Estado Final
-                current_period_setups = []
-                final_state_prod = None
-
-                for p in self.machine_products[m]:
-                    if round(pulp.value(self.S_state[(m, p, t)]) or 0) == 1:
-                        final_state_prod = p
-                    
-                    if round(pulp.value(self.Delta_Setup[(m, p, t)]) or 0) == 1:
-                        current_period_setups.append(p)
-
-                # 3. Gerar Registros de Setup Ordenados
-                if current_period_setups:
-                    # Separa o estado final dos intermediários para criar a cadeia
-                    intermediaries = [p for p in current_period_setups if p != final_state_prod]
-                    
-                    # A lista ordenada termina com o estado final (se ele gerou setup)
-                    ordered_chain = intermediaries
-                    if final_state_prod in current_period_setups:
-                        ordered_chain.append(final_state_prod)
-                    
-                    # Caso especial: Se houver setups mas o estado final não gerou setup (raro/impossível pela restrição Delta >= S - Prev)
-                    # A menos que S seja igual a Prev, mas houve produção intermediária.
-                    # Nesse caso, current_period_setups conteria apenas os intermediários.
-                    
-                    curr_from = prev_state_prod
-                    for p_dest in ordered_chain:
-                        res_setups.append({
-                            "Period": t,
-                            "Machine": m,
-                            "From": curr_from,
-                            "To": f"{p_dest[0]} {p_dest[1]}"
-                        })
-                        curr_from = f"{p_dest[0]} {p_dest[1]}"
-
-                # 4. Dados de Produção (Mantido)
-                for p in self.machine_products[m]:
-                    val_steps = self.H_steps[(m, p, t)].varValue
-                    if val_steps and val_steps > 0:
-                        prod_hours = val_steps * self.step_hours
-                        prod_qty = prod_hours * self.productivity[p][m]
-                        res_production.append({
-                            "Period": t,
-                            "Machine": m,
-                            "Product": f"{p[0]} {p[1]}",
-                            "Quantity": prod_qty,
-                            "Hours": prod_hours
-                        })
-
-        # Cálculos de KPIs
-        total_demand_safe = total_demand_val if total_demand_val > 0 else 1.0
-        service_level = (total_met_val / total_demand_safe) if total_demand_val > 0 else 1.0
-        avg_inv = total_inv_val / len(self.periods) if self.periods else 0.0
-        
-        summary_data = []
-        for t in self.periods:
-            p_inv = sum(self.I[(p, t)].varValue for p in self.products)
-            p_dem = sum(self.demand[p].get(t, 0) for p in self.products)
-            p_lost = sum(self.K[(p, t)].varValue for p in self.products)
+                res_summary[t]["Inventory"] += inv_val
+                res_summary[t]["Demand"] += dem_val
+                res_summary[t]["Lost"] += lost_val
             
-            p_prod = 0
-            p_hours = 0
+            machine_hours_used = 0.0
+            total_machine_hours = len(self.active_machines) * self.hours_per_period
+
             for m in self.active_machines:
-                setup_time = Config.DEFAULT_SETUP_TIME_HIGH if m in Config.HIGH_SETUP_MACHINES else Config.DEFAULT_SETUP_TIME_LOW
+                # Vacations / Idle
+                if self.vacation_planning and val(self.Idle[(m, t)]) > 0.5:
+                    res_vacations.append({"Period": t, "Machine": m, "Operators": self.operators_per_machine})
+
+                prev_t = self.periods[t_idx-1] if t_idx > 0 else None
                 
+                # Check setup (From -> To)
+                # To find "From", check which product was active in prev_t
+                from_prod = "-"
+                
+                # Logic to identify if setup comes from idle (vacation/stop)
+                was_idle = False
+                if prev_t:
+                    if val(self.Idle[(m, prev_t)]) > 0.5:
+                        from_prod = "Parada/Férias"
+                        was_idle = True
+                    else:
+                        for p_prev in self.machine_products[m]:
+                            if val(self.S_state[(m, p_prev, prev_t)]) > 0.5:
+                                from_prod = f"{p_prev[0]} {p_prev[1]}"
+                                break
+                
+                # If first period and machine starts idle/clean, we can assume "-" or special state
+                # But here we focus on transitions
+
                 for p in self.machine_products[m]:
-                    # Recupera valores do solver (tratando None como 0)
-                    steps_val = self.H_steps[(m, p, t)].varValue or 0
-                    binary_setup = self.Delta_Setup[(m, p, t)].varValue or 0
-
-                    # Limpeza numérica (0.999 -> 1, 0.001 -> 0)
-                    is_setup = round(binary_setup)
-
-                    # Cálculo direto de horas
-                    prod_hours = steps_val * self.step_hours
+                    h_val = val(self.H_steps[(m, p, t)])
+                    prod_qty = h_val * self.step_hours * self.productivity[p][m]
+                    hours_used = h_val * self.step_hours
                     
-                    # Acumula totais
-                    p_prod += prod_hours * self.productivity[p][m]
-                    p_hours += prod_hours + (is_setup * setup_time)
-            
-            avail = self.hours_per_period * len(self.active_machines)
-            util = (p_hours / avail) if avail > 0 else 0.0
-            
-            summary_data.append({
-                "Period": t,
-                "Inventory": p_inv,
-                "Utilization": util,
-                "Demand": p_dem,
-                "Lost": p_lost,
-                "Production": p_prod
-            })
+                    if h_val > 0:
+                        res_prod.append({
+                            "Period": t, "Machine": m, "Product": f"{p[0]} {p[1]}",
+                            "Quantity": prod_qty, "Hours": hours_used
+                        })
+                        res_summary[t]["Production"] += prod_qty
+                        machine_hours_used += hours_used
+                    
+                    if val(self.Delta_Setup[(m, p, t)]) > 0.5:
+                        # Setup cost calculation
+                        setup_time = Config.DEFAULT_SETUP_TIME_HIGH if m in Config.HIGH_SETUP_MACHINES else Config.DEFAULT_SETUP_TIME_LOW
+                        rate = self.productivity[p][m]
+                        c_p = self.costs.get(p, 0.0)
+                        
+                        # If coming from Idle, cost might be different or standard setup
+                        # In this model, Delta_Setup handles all transitions to State S. 
+                        # If S changed or Y activated, Delta=1.
+                        setup_cost_val = c_p * rate * setup_time
 
-        cost_breakdown = {
-            "lost_sales": sum(pulp.value(t) for t in self.terms_lost_sales),
-            "backlog": sum(pulp.value(t) for t in self.terms_backlog),
-            "setup": sum(pulp.value(t) for t in self.terms_setup)
-        }
-        
-        def sanitize(val):
-            if val is None: return 0.0
-            if math.isnan(val) or math.isinf(val): return 0.0
-            return float(val)
+                        res_setup.append({
+                            "Period": t, "Machine": m, 
+                            "From": from_prod,
+                            "To": f"{p[0]} {p[1]}",
+                            "Cost": setup_cost_val
+                        })
+                        
+                        machine_hours_used += setup_time
 
-        print(f"Optimization Status: {status}")
-        print(f"Total Cost: {pulp.value(self.prob.objective)}")
+            res_summary[t]["Utilization"] = machine_hours_used / total_machine_hours if total_machine_hours > 0 else 0.0
+
+        total_cost = pulp.value(self.prob.objective)
         
+        # Calculate KPIs
+        total_demand = sum(d['Demand'] for d in res_dem)
+        total_lost = sum(d['Lost'] for d in res_dem)
+        service_level = (1 - total_lost / total_demand) * 100 if total_demand > 0 else 100.0
+        
+        avg_inventory = sum(i['Inventory'] for i in res_inv) / len(self.periods) if self.periods else 0.0
+
         return {
-            "status": status,
-            "inventory": pd.DataFrame(res_inventory).fillna(0.0).to_dict(orient='records'),
-            "production": pd.DataFrame(res_production).fillna(0.0).to_dict(orient='records'),
-            "setups": pd.DataFrame(res_setups).fillna("").to_dict(orient='records'),
-            "demand": pd.DataFrame(res_demand).fillna(0.0).to_dict(orient='records'),
-            "summary": pd.DataFrame(summary_data).fillna(0.0).to_dict(orient='records'),
+            "status": status, "inventory": res_inv, "production": res_prod, "setups": res_setup,
+            "vacations": res_vacations, "demand": res_dem, "summary": list(res_summary.values()),
             "kpis": {
-                "service_level": sanitize(service_level),
-                "avg_inventory": sanitize(avg_inv),
-                "total_cost": sanitize(pulp.value(self.prob.objective)),
-                "cost_breakdown": {k: sanitize(v) for k, v in cost_breakdown.items()}
+                "total_cost": total_cost,
+                "service_level": service_level,
+                "avg_inventory": avg_inventory
             }
         }
-
-def build_and_solve_model(**kwargs):
-    """
-    Wrapper para manter compatibilidade com a chamada antiga ou simplificar a API.
-    """
-    solver = LotSizingSolver(**kwargs)
-    return solver.solve()
