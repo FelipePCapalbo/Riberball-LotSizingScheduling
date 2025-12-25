@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initInputs();
     initDataLoading();
     initActionButtons();
+    initResizer();
 });
 
 // --- State Management ---
@@ -99,6 +100,63 @@ function initActionButtons() {
 
     const btnVacations = document.getElementById('btn-download-vacations');
     if (btnVacations) btnVacations.addEventListener('click', downloadVacationsCSV);
+}
+
+function initResizer() {
+    const resizer = document.getElementById('dragMe');
+    const leftSide = document.getElementById('left-panel');
+    const rightSide = document.getElementById('right-panel');
+    const parent = resizer ? resizer.parentElement : null;
+
+    if (!resizer || !leftSide || !rightSide || !parent) return;
+
+    let x = 0;
+    let leftWidth = 0;
+
+    const mouseDownHandler = function(e) {
+        // Obter posição inicial do mouse
+        x = e.clientX;
+        leftWidth = leftSide.getBoundingClientRect().width;
+
+        // Adicionar listeners ao documento para permitir arrastar fora do elemento
+        document.addEventListener('mousemove', mouseMoveHandler);
+        document.addEventListener('mouseup', mouseUpHandler);
+        
+        resizer.classList.add('resizing');
+        document.body.style.cursor = 'col-resize'; // Força cursor no body durante drag
+        
+        // Evita seleção de texto durante o resize
+        leftSide.style.userSelect = 'none';
+        rightSide.style.userSelect = 'none';
+    };
+
+    const mouseMoveHandler = function(e) {
+        const dx = e.clientX - x;
+        const newLeftWidth = leftWidth + dx;
+        const containerWidth = parent.getBoundingClientRect().width;
+        
+        // Constraints (min widths)
+        const minLeft = 300;
+        const minRight = 200;
+
+        if (newLeftWidth >= minLeft && newLeftWidth <= (containerWidth - minRight)) {
+            leftSide.style.width = `${newLeftWidth}px`;
+            leftSide.style.flex = `0 0 auto`; // Fixa a largura, remove comportamento flex responsivo imediato
+        }
+    };
+
+    const mouseUpHandler = function() {
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        document.removeEventListener('mouseup', mouseUpHandler);
+        
+        resizer.classList.remove('resizing');
+        document.body.style.removeProperty('cursor');
+        
+        leftSide.style.removeProperty('user-select');
+        rightSide.style.removeProperty('user-select');
+    };
+
+    resizer.addEventListener('mousedown', mouseDownHandler);
 }
 
 // --- Logic & API Calls ---

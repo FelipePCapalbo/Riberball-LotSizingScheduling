@@ -42,6 +42,7 @@ O sistema segue uma arquitetura modular simples, utilizando Flask para a interfa
 
 ### Interface e Relatórios
 - **Parametrização Centralizada**: As configurações de Período, Cobertura de Estoque e Recursos Operacionais (Férias) estão organizadas na linha superior para acesso rápido.
+- **Layout Flexível**: O painel de Configurações Gerais e o Painel de Máquinas possuem uma barra divisória ajustável, permitindo que o usuário personalize a largura de cada área conforme sua necessidade de visualização.
 - **Resumo Mensal**: KPIs agregados de estoque, utilização e atendimento.
 - **Produção Detalhada**: Tabela granular de horas e quantidades produzidas por máquina/produto.
 - **Relatório de Setups**: Visualização detalhada de todas as trocas (setups) ocorridas.

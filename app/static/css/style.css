@@ -100,9 +100,52 @@ html {
 
 .horizontal-content {
     display: flex;
-    gap: 25px;
+    gap: 0;
     align-items: stretch;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+}
+
+.resizer {
+    width: 12px;
+    cursor: col-resize;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: transparent;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+    margin: 0 5px;
+}
+
+.resizer:hover, .resizer.resizing {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+
+.resizer::after {
+    content: "";
+    width: 4px;
+    height: 40px;
+    background-color: #dee2e6;
+    border-radius: 2px;
+}
+
+@media (max-width: 992px) {
+    .horizontal-content {
+        flex-wrap: wrap !important;
+    }
+    .resizer {
+        display: none !important;
+    }
+    #left-panel {
+        width: 100% !important;
+        flex: 1 1 auto !important;
+        margin-bottom: 20px;
+    }
+    #right-panel {
+        width: 100% !important;
+        flex: 1 1 auto !important;
+    }
 }
 
 .content-block {
@@ -198,7 +241,7 @@ html {
 /* Machine Selection Grid */
 .machine-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 10px;
     margin-top: 10px;
 }

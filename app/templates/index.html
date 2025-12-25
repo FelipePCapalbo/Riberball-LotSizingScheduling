@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIBERBALL - Planejamento de Produção</title>
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -72,39 +72,6 @@
             width: 100%;
             margin-bottom: 20px;
         }
-
-        .machine-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .machine-box {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 50px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 14px;
-            transition: background-color 0.2s, border-color 0.2s;
-            background-color: rgba(255, 0, 0, 0.2); /* Inactive Red */
-            color: #555;
-            user-select: none;
-        }
-
-        .machine-box.active {
-            background-color: rgba(0, 255, 0, 0.2); /* Active Green */
-            border-color: #28a745;
-            color: #155724;
-        }
-
-        .machine-box:hover {
-            opacity: 0.8;
-        }
     </style>
 </head>
 <body>
@@ -133,7 +100,7 @@
             <div class="tab-content active" id="tab-params">
                 <!-- Row 1: Settings and Sensitivity -->
                 <div class="horizontal-content">
-                    <div class="content-block" style="flex: 1;">
+                    <div class="content-block" id="left-panel" style="width: 65%; flex: 0 0 auto;">
                         <h3>Configurações Gerais</h3>
                         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                             <div class="form-group" style="flex: 1; min-width: 200px;">
@@ -157,7 +124,7 @@
                             </div>
 
                             <div class="form-group" style="flex: 1; min-width: 200px;">
-                                <label>Cobertura de Estoque (Meses)
+                                <label>Cobertura de Estoque
                                     <div class="tooltip-container">
                                         <span class="tooltip-icon">?</span>
                                         <span class="tooltip-text">Quantidade de meses de demanda futura que deve ser mantida em estoque mínimo (Safety Stock). Ex: 0.5 = Meio mês; 1.0 = Um mês completo.</span>
@@ -194,14 +161,14 @@
                                     <input type="number" id="days-per-week" class="form-control" value="7" step="1" min="1" max="7">
                                 </div>
                                 <div class="form-group" style="flex: 1; min-width: 200px;">
-                                    <label>Horas Disponíveis / Mês (Est.)</label>
+                                    <label>Horas Disponíveis / Mês</label>
                                     <input type="text" id="total-hours-display" class="form-control" value="727.44" readonly style="background-color: #e9ecef;">
                                 </div>
                             </div>
 
                             <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
                                 <div class="form-group" style="flex: 2; min-width: 250px;">
-                                    <label>Solver (Motor de Otimização)
+                                    <label>Solver
                                         <div class="tooltip-container">
                                             <span class="tooltip-icon">?</span>
                                             <span class="tooltip-text">Escolha qual software resolverá o modelo matemático. CBC é open-source. Gurobi é comercial (requer licença).</span>
@@ -254,12 +221,13 @@
                         <p id="cost-msg" style="margin-top: 5px; font-weight: bold; color: #0056b3;"></p>
                     </div>
 
-                </div>
+                    <div class="resizer" id="dragMe"></div>
 
-                <div class="content-block">
-                    <h3>Máquinas Ativas</h3>
-                    <div class="machine-grid" id="machine-list">
-                        <!-- Machine Boxes populated by JS -->
+                    <div class="content-block" id="right-panel" style="flex: 1; min-width: 200px;">
+                        <h3>Máquinas Ativas</h3>
+                        <div class="machine-grid" id="machine-list">
+                            <!-- Machine Boxes populated by JS -->
+                        </div>
                     </div>
                 </div>
             </div>
