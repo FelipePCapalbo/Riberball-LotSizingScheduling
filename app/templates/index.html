@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIBERBALL - Planejamento de Produção</title>
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -71,6 +71,39 @@
             height: 400px;
             width: 100%;
             margin-bottom: 20px;
+        }
+
+        .machine-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .machine-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 50px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background-color 0.2s, border-color 0.2s;
+            background-color: rgba(255, 0, 0, 0.2); /* Inactive Red */
+            color: #555;
+            user-select: none;
+        }
+
+        .machine-box.active {
+            background-color: rgba(0, 255, 0, 0.2); /* Active Green */
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .machine-box:hover {
+            opacity: 0.8;
         }
     </style>
 </head>
@@ -175,9 +208,8 @@
                                         </div>
                                     </label>
                                     <select id="solver-select" class="form-control">
-                                        <option value="CBC" selected>CBC (Padrão)</option>
+                                        <option value="CBC" selected>CBC (Padrão, Open-source)</option>
                                         <option value="GUROBI">Gurobi (Requer Licença)</option>
-                                        <option value="GLPK">GLPK</option>
                                     </select>
                                 </div>
 
@@ -230,7 +262,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </div><!-- /tab-params -->
 
             <!-- Resumo Mensal -->
             <div class="tab-content" id="tab-summary">

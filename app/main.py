@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 from flask import Flask, render_template, request, jsonify
 
 # Adiciona o diretório raiz para importação de módulos
@@ -28,6 +29,7 @@ def run_optimization():
     """Endpoint principal de execução do solver."""
     data = request.json
     start_period = data.get('start_period')
+    solver_name = data.get('solver_name', 'CBC').upper()
     
     if not start_period or not data.get('active_machines'):
         return jsonify({"error": "Parâmetros obrigatórios ausentes"}), 400
@@ -45,7 +47,7 @@ def run_optimization():
     )
     
     # 2. Execução do Solver
-    solver = LotSizingSolver(
+    solver_instance = LotSizingSolver(
         demand=demand,
         productivity=productivity,
         initial_stock=initial_inventory,
@@ -61,15 +63,35 @@ def run_optimization():
         operators_per_machine=int(data.get('operators_per_machine', 2))
     )
     
-    result = solver.solve(
-        solver_name=data.get('solver_name', 'CBC'),
-        time_limit=int(data.get('time_limit', 600)),
-        threads=data.get('threads')
-    )
+    try:
+        result = solver_instance.solve(
+            solver_name=solver_name,
+            time_limit=int(data.get('time_limit', 600)),
+            threads=data.get('threads')
+        )
+    except Exception as e:
+        error_msg = str(e)
+        app.logger.error(f"Erro ao executar solver {solver_name}: {error_msg}\n{traceback.format_exc()}")
+        
+        # Mensagem mais amigável para falha do Gurobi
+        if solver_name == 'GUROBI' and ('license' in error_msg.lower() or 'gurobi' in error_msg.lower()):
+            return jsonify({
+                "status": "Error",
+                "message": f"Falha ao inicializar o Gurobi. Verifique se a licença está ativa e o solver instalado. Detalhe: {error_msg}"
+            }), 500
+        
+        return jsonify({
+            "status": "Error",
+            "message": f"Erro interno ao executar o solver {solver_name}: {error_msg}"
+        }), 500
     
-    # 3. Resposta
-    if result['status'] != 'Optimal':
-        return jsonify({"status": result['status'], "message": "Otimização falhou ou é inviável."})
+    # 3. Resposta — aceita Optimal e Feasible (solução válida por timeout)
+    valid_statuses = ('Optimal', 'Feasible')
+    if result.get('status') not in valid_statuses:
+        return jsonify({
+            "status": result.get('status', 'Unknown'),
+            "message": f"Otimização falhou ou é inviável. Status: {result.get('status')}"
+        })
         
     return jsonify({k: result.get(k) for k in [
         'status', 'inventory', 'production', 'setups', 'vacations', 'demand', 'summary', 'kpis'

@@ -64,11 +64,7 @@ class LotSizingSolver:
             if threads: opts.append(("Threads", threads))
             return pulp.GUROBI_CMD(msg=1, options=opts)
         
-        if name == 'GLPK':
-            opts = [f"--log {log_path}"] if log_path else []
-            return pulp.GLPK_CMD(msg=1, timeLimit=time_limit, options=opts)
-            
-        # CBC is the default for 'CBC' and fallback for others
+        # CBC is the default
         args = dict(msg=1, timeLimit=time_limit, logPath=log_path)
         if threads: args['threads'] = threads
         return pulp.PULP_CBC_CMD(**args)
