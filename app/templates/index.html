@@ -40,9 +40,9 @@
             padding: 8px;
             position: absolute;
             z-index: 1;
-            bottom: 125%; /* Position above */
+            bottom: 125%;
             left: 50%;
-            margin-left: -125px; /* Center */
+            margin-left: -125px;
             opacity: 0;
             transition: opacity 0.3s;
             font-size: 13px;
@@ -64,46 +64,6 @@
         .tooltip-container:hover .tooltip-text {
             visibility: visible;
             opacity: 1;
-        }
-
-        .chart-container {
-            position: relative;
-            height: 400px;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-
-        .machine-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .machine-box {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 50px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 14px;
-            transition: background-color 0.2s, border-color 0.2s;
-            background-color: rgba(255, 0, 0, 0.2); /* Inactive Red */
-            color: #555;
-            user-select: none;
-        }
-
-        .machine-box.active {
-            background-color: rgba(0, 255, 0, 0.2); /* Active Green */
-            border-color: #28a745;
-            color: #155724;
-        }
-
-        .machine-box:hover {
-            opacity: 0.8;
         }
     </style>
 </head>
@@ -157,10 +117,10 @@
                             </div>
 
                             <div class="form-group" style="flex: 1; min-width: 200px;">
-                                <label>Cobertura de Estoque
+                                <label>Estoque de Segurança (meses)
                                     <div class="tooltip-container">
                                         <span class="tooltip-icon">?</span>
-                                        <span class="tooltip-text">Quantidade de meses de demanda futura que deve ser mantida em estoque mínimo (Safety Stock). Ex: 0.5 = Meio mês; 1.0 = Um mês completo.</span>
+                                        <span class="tooltip-text">Quantidade de meses de demanda futura que deve ser mantida em estoque mínimo (Safety Stock). Ex: 0.5 = meio mês; 1.0 = um mês completo.</span>
                                     </div>
                                 </label>
                                 <input type="number" id="coverage-months" class="form-control" value="0.1" step="0.1" min="0.0">
@@ -170,10 +130,11 @@
                                 <label>Operadores por Máquina
                                     <div class="tooltip-container">
                                         <span class="tooltip-icon">?</span>
-                                        <span class="tooltip-text">Número de operadores necessários para operar uma máquina. Define se o planejamento de férias será considerado nas restrições de capacidade.</span>
+                                        <span class="tooltip-text">Número de operadores por máquina. Quando maior que 0, o modelo inclui restrições de férias anuais. Defina como 0 para desativar.</span>
                                     </div>
                                 </label>
                                 <input type="number" id="operators-per-machine" class="form-control" value="2" step="1" min="0">
+                                <small style="color: #6c757d; font-size: 12px;">0 = desativa planejamento de férias</small>
                             </div>
                         </div>
 
@@ -194,7 +155,9 @@
                                     <input type="number" id="days-per-week" class="form-control" value="7" step="1" min="1" max="7">
                                 </div>
                                 <div class="form-group" style="flex: 1; min-width: 200px;">
-                                    <label>Horas Disponíveis / Mês</label>
+                                    <label>Horas Disponíveis / Mês
+                                        <small style="font-weight: normal; color: #6c757d;">(calculado)</small>
+                                    </label>
                                     <input type="text" id="total-hours-display" class="form-control" value="727.44" readonly style="background-color: #e9ecef;">
                                 </div>
                             </div>
@@ -214,28 +177,29 @@
                                 </div>
 
                                 <div class="form-group" style="flex: 1; min-width: 150px;">
-                                    <label>Tempo Limite (s)
+                                    <label>Tempo Limite
                                         <div class="tooltip-container">
                                             <span class="tooltip-icon">?</span>
-                                            <span class="tooltip-text">Tempo máximo em segundos para o solver buscar a solução ótima. (Padrão: 600s = 10 min)</span>
+                                            <span class="tooltip-text">Tempo máximo para o solver buscar a solução ótima. Se atingido, a melhor solução encontrada até então é retornada. (Padrão: 600s = 10 min)</span>
                                         </div>
                                     </label>
                                     <input type="number" id="time-limit" class="form-control" value="600" step="10" min="10">
+                                    <small style="color: #6c757d; font-size: 12px;">em segundos</small>
                                 </div>
 
                                 <div class="form-group" style="flex: 2; min-width: 250px;">
-                                    <label>Tipo de Decisão de Produção
+                                    <label>Granularidade da Decisão
                                         <div class="tooltip-container">
                                             <span class="tooltip-icon">?</span>
-                                            <span class="tooltip-text">Define a granularidade da variável de decisão do modelo (ex: alocar por kg exato, ou por blocos inteiros de tempo).</span>
+                                            <span class="tooltip-text">Define como o modelo aloca tempo de produção: contínuo (kg exato) ou por blocos discretos de tempo (mais rápido de resolver).</span>
                                         </div>
                                     </label>
                                     <select id="decision-type" class="form-control">
-                                        <option value="kg">Kilogramas (Produção Contínua)</option>
-                                        <option value="hours" selected>Blocos de Horas (Discreto)</option>
-                                        <option value="shifts">Turnos Completos (Discreto)</option>
-                                        <option value="days">Dias Completos (Discreto)</option>
-                                        <option value="weeks">Semanas Completas (Discreto)</option>
+                                        <option value="kg">Contínuo (Kg)</option>
+                                        <option value="hours" selected>Blocos de Horas</option>
+                                        <option value="shifts">Turnos Completos</option>
+                                        <option value="days">Dias Completos</option>
+                                        <option value="weeks">Semanas Completas</option>
                                     </select>
                                 </div>
 
@@ -252,8 +216,6 @@
                         <p id="status-msg" style="margin-top: 10px; font-weight: bold;"></p>
                         <p id="cost-msg" style="margin-top: 5px; font-weight: bold; color: #0056b3;"></p>
                     </div>
-
-                    <div class="resizer" id="dragMe"></div>
 
                     <div class="content-block" id="right-panel" style="flex: 1; min-width: 200px;">
                         <h3>Máquinas Ativas</h3>

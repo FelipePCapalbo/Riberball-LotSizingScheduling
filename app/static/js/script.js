@@ -155,6 +155,8 @@ function setupMachineGrid(machines) {
 async function handleRunOptimization() {
     const btn = document.getElementById('btn-run');
     btn.disabled = true;
+    btn.classList.add('loading');
+    btn.textContent = 'Calculando...';
     updateStatus('Processando otimização...', '#333');
     updateCostDisplay('');
 
@@ -198,6 +200,10 @@ async function handleRunOptimization() {
                 updateCostDisplay(result.kpis.total_cost);
             }
             renderResults(result);
+
+            // Navega automaticamente para a aba de resultados
+            const summaryTabLink = document.querySelector('.tab-link[data-tab="tab-summary"]');
+            if (summaryTabLink) summaryTabLink.click();
         } else {
             updateStatus(`Erro/Status: ${result.status || result.message}`, 'red');
         }
@@ -211,6 +217,8 @@ async function handleRunOptimization() {
         }
     } finally {
         btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.textContent = 'Executar Planejamento';
     }
 }
 
@@ -419,8 +427,6 @@ function renderInventoryChart(inventoryData) {
     const displayPeriods = periods.map(p => formatDate(p));
     
     const invByPeriod = {};
-    const targetByPeriod = {}; // Keep logic if we re-add target later
-    
     periods.forEach(p => { invByPeriod[p] = 0; });
     inventoryData.forEach(r => { invByPeriod[r.Period] += r.Inventory; });
 
@@ -477,7 +483,7 @@ function renderDemandChart(demandData) {
     const periods = [...new Set(demandData.map(d => d.Period))].sort();
     const displayPeriods = periods.map(p => formatDate(p));
     
-    const metrics = { demand: {}, met: {}, lost: {}, backlog: {} };
+    const metrics = { demand: {}, met: {}, lost: {} };
     periods.forEach(p => { for(let k in metrics) metrics[k][p] = 0; });
     
     demandData.forEach(r => {
@@ -580,19 +586,6 @@ function renderDetailedTable(data) {
 function renderSetupsTable(data) {
     const tbody = document.getElementById('setups-table-body');
     if (!tbody) return;
-    
-    // Add header for Cost if not exists
-    const thead = tbody.previousElementSibling;
-    if (thead) {
-        const headerRow = thead.querySelector('tr');
-        if (headerRow && headerRow.children.length === 4) {
-            const th = document.createElement('th');
-            th.textContent = "Custo Estimado (R$)";
-            th.style.padding = "12px";
-            th.style.textAlign = "right";
-            headerRow.appendChild(th);
-        }
-    }
 
     tbody.innerHTML = '';
 

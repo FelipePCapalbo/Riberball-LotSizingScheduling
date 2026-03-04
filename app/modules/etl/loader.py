@@ -68,23 +68,21 @@ def load_costs() -> Dict[Tuple[str, str], float]:
             continue
     return costs
 
-def load_demand() -> Tuple[List[str], Dict, Dict]:
-    """Carrega previsão de demanda."""
+def load_demand() -> Tuple[List[str], Dict]:
+    """Carrega previsão de demanda e estende 12 meses com sazonalidade do ano anterior."""
     df = _read_csv('Prod_Fat_e_Saldos_Estoque_Previsto.csv', header=1)
-    if df.empty: return [], {}, {}
+    if df.empty: return [], {}
     
     dates = [c for c in df.columns if c != 'PRODUTO']
     demand = {}
-    display_names = {}
     
     for _, row in df.iterrows():
         if pd.isna(row.get('PRODUTO')): continue
         key = parse_product_string(row['PRODUTO'])
-        display_names[key] = str(row['PRODUTO']).strip()
         demand[key] = {d: float(row.get(d, 0)) for d in dates if pd.notna(row.get(d))}
             
     dates = _extend_dates_with_seasonality(dates, demand)
-    return dates, demand, display_names
+    return dates, demand
 
 def _extend_dates_with_seasonality(dates: List[str], demand: Dict, months_ahead: int = 12) -> List[str]:
     """Projeta datas futuras usando dados históricos (ano anterior)."""

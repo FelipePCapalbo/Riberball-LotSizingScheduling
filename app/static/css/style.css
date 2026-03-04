@@ -34,7 +34,7 @@ html {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.logo-group-left, .logo-group-right {
+.logo-group-left {
     display: flex;
     align-items: center;
     gap: 25px;
@@ -135,6 +135,7 @@ html {
 
 .action-button:hover { background-color: #495057; border-color: #495057; }
 .action-button:disabled { background-color: #6c757d; cursor: not-allowed; }
+.action-button.loading { background-color: #495057; border-color: #495057; cursor: wait; }
 
 .form-group {
     margin-bottom: 15px;
@@ -193,6 +194,14 @@ html {
 
 .sub-tab-content.active {
     display: block;
+}
+
+/* Chart containers */
+.chart-container {
+    position: relative;
+    height: 400px;
+    width: 100%;
+    margin-bottom: 20px;
 }
 
 /* Machine Selection Grid */
