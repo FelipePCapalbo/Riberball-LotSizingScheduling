@@ -6,382 +6,337 @@
     <title>RIBERBALL - Planejamento de Produção</title>
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <style>
-        .tooltip-container {
-            position: relative;
-            display: inline-block;
-        }
-
-        .tooltip-icon {
-            cursor: help;
-            color: #007bff;
-            font-weight: bold;
-            margin-left: 5px;
-            border: 1px solid #007bff;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-        }
-
-        .tooltip-text {
-            visibility: hidden;
-            width: 250px;
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 8px;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -125px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 13px;
-            font-weight: normal;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-
-        .tooltip-text::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #333 transparent transparent transparent;
-        }
-
-        .tooltip-container:hover .tooltip-text {
-            visibility: visible;
-            opacity: 1;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <header class="top-header">
-        <div class="logo-group-left">
-            <h2 style="color: #fff; margin: 0;">RIBERBALL - BALÕES PIC PIC</h2>
+<header class="top-header">
+    <h2>RIBERBALL &mdash; BALÕES PIC PIC</h2>
+</header>
+
+<div class="main-container">
+    <div class="page-title">
+        <h1>Sistema de Dimensionamento de Lotes</h1>
+        <p>Planejamento otimizado de produção e estoques.</p>
+    </div>
+
+    <div class="tabs-container">
+        <div class="tab-headers">
+            <button class="tab-link active" data-tab="tab-params">Parametrização</button>
+            <button class="tab-link" data-tab="tab-summary">Resultados Tabulares</button>
+            <button class="tab-link" data-tab="tab-charts">Gráficos</button>
         </div>
-    </header>
 
-    <div class="main-container">
-        <div class="page-title">
-            <h1>Sistema de Dimensionamento de Lotes</h1>
-            <p>Planejamento otimizado de produção e estoques.</p>
-        </div>
+        <!-- ══════════════════════════════════════════════════
+             ABA 1 — PARAMETRIZAÇÃO
+        ══════════════════════════════════════════════════ -->
+        <div class="tab-content active" id="tab-params">
+            <div class="panel-row">
 
-        <div class="tabs-container">
-            <div class="tab-headers">
-                <button class="tab-link active" data-tab="tab-params">Parametrização</button>
-                <button class="tab-link" data-tab="tab-summary">Resumo Mensal</button>
-                <button class="tab-link" data-tab="tab-prod">Métricas de Produção e Estoque</button>
-                <button class="tab-link" data-tab="tab-demand">Métricas de Demanda</button>
-            </div>
+                <!-- COLUNA ESQUERDA: Parâmetros -->
+                <div class="panel panel-wide">
 
-            <!-- Parametrização -->
-            <div class="tab-content active" id="tab-params">
-                <!-- Row 1: Settings and Sensitivity -->
-                <div class="horizontal-content">
-                    <div class="content-block" id="left-panel" style="width: 65%; flex: 0 0 auto;">
-                        <h3>Configurações Gerais</h3>
-                        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                            <div class="form-group" style="flex: 1; min-width: 200px;">
-                                <label>Período de Início
-                                    <div class="tooltip-container">
-                                        <span class="tooltip-icon">?</span>
-                                        <span class="tooltip-text">Selecione a data de início do planejamento. O calendário indica as datas disponíveis nos dados de estoque. Planejamento retroativo não é permitido.</span>
-                                    </div>
-                                </label>
-                                <input type="date" id="start-period" class="form-control">
-                            </div>
-
-                            <div class="form-group" style="flex: 1; min-width: 200px;">
-                                <label>Período de Fim
-                                    <div class="tooltip-container">
-                                        <span class="tooltip-icon">?</span>
-                                        <span class="tooltip-text">Data final do planejamento. Se for maior que a última previsão disponível, os dados serão replicados automaticamente (sazonalidade).</span>
-                                    </div>
-                                </label>
-                                <input type="date" id="end-period" class="form-control">
-                            </div>
-
-                            <div class="form-group" style="flex: 1; min-width: 200px;">
-                                <label>Estoque de Segurança (meses)
-                                    <div class="tooltip-container">
-                                        <span class="tooltip-icon">?</span>
-                                        <span class="tooltip-text">Quantidade de meses de demanda futura que deve ser mantida em estoque mínimo (Safety Stock). Ex: 0.5 = meio mês; 1.0 = um mês completo.</span>
-                                    </div>
-                                </label>
-                                <input type="number" id="coverage-months" class="form-control" value="0.1" step="0.1" min="0.0">
-                            </div>
-
-                            <div class="form-group" style="flex: 1; min-width: 200px;">
-                                <label>Operadores por Máquina
-                                    <div class="tooltip-container">
-                                        <span class="tooltip-icon">?</span>
-                                        <span class="tooltip-text">Número de operadores por máquina. Quando maior que 0, o modelo inclui restrições de férias anuais. Defina como 0 para desativar.</span>
-                                    </div>
-                                </label>
-                                <input type="number" id="operators-per-machine" class="form-control" value="2" step="1" min="0">
-                                <small style="color: #6c757d; font-size: 12px;">0 = desativa planejamento de férias</small>
-                            </div>
+                    <!-- Horizonte de Planejamento -->
+                    <p class="panel-title">Horizonte de Planejamento</p>
+                    <div class="form-grid form-grid-4">
+                        <div class="form-group">
+                            <label>
+                                Início
+                                <span class="tooltip-container">
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Data de início do planejamento. O modelo usa os dados de estoque disponíveis a partir desta data.</span>
+                                </span>
+                            </label>
+                            <input type="date" id="start-period" class="form-control">
                         </div>
-
-                        <!-- Capacity & Decision -->
-                        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
-                            <h4>Configuração de Capacidade e Decisão</h4>
-                            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
-                                <div class="form-group" style="flex: 1; min-width: 150px;">
-                                    <label>Turnos por Dia</label>
-                                    <input type="number" id="shifts-per-day" class="form-control" value="3" step="1" min="1" max="3">
-                                </div>
-                                <div class="form-group" style="flex: 1; min-width: 150px;">
-                                    <label>Horas por Turno</label>
-                                    <input type="number" id="hours-per-shift" class="form-control" value="8" step="0.1" min="1" max="24">
-                                </div>
-                                <div class="form-group" style="flex: 1; min-width: 150px;">
-                                    <label>Dias por Semana</label>
-                                    <input type="number" id="days-per-week" class="form-control" value="7" step="1" min="1" max="7">
-                                </div>
-                                <div class="form-group" style="flex: 1; min-width: 200px;">
-                                    <label>Horas Disponíveis / Mês
-                                        <small style="font-weight: normal; color: #6c757d;">(calculado)</small>
-                                    </label>
-                                    <input type="text" id="total-hours-display" class="form-control" value="727.44" readonly style="background-color: #e9ecef;">
-                                </div>
-                            </div>
-
-                            <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
-                                <div class="form-group" style="flex: 2; min-width: 250px;">
-                                    <label>Solver
-                                        <div class="tooltip-container">
-                                            <span class="tooltip-icon">?</span>
-                                            <span class="tooltip-text">Escolha qual software resolverá o modelo matemático. CBC é open-source. Gurobi é comercial (requer licença).</span>
-                                        </div>
-                                    </label>
-                                    <select id="solver-select" class="form-control">
-                                        <option value="CBC" selected>CBC (Padrão, Open-source)</option>
-                                        <option value="GUROBI">Gurobi (Requer Licença)</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group" style="flex: 1; min-width: 150px;">
-                                    <label>Tempo Limite
-                                        <div class="tooltip-container">
-                                            <span class="tooltip-icon">?</span>
-                                            <span class="tooltip-text">Tempo máximo para o solver buscar a solução ótima. Se atingido, a melhor solução encontrada até então é retornada. (Padrão: 600s = 10 min)</span>
-                                        </div>
-                                    </label>
-                                    <input type="number" id="time-limit" class="form-control" value="600" step="10" min="10">
-                                    <small style="color: #6c757d; font-size: 12px;">em segundos</small>
-                                </div>
-
-                                <div class="form-group" style="flex: 2; min-width: 250px;">
-                                    <label>Granularidade da Decisão
-                                        <div class="tooltip-container">
-                                            <span class="tooltip-icon">?</span>
-                                            <span class="tooltip-text">Define como o modelo aloca tempo de produção: contínuo (kg exato) ou por blocos discretos de tempo (mais rápido de resolver).</span>
-                                        </div>
-                                    </label>
-                                    <select id="decision-type" class="form-control">
-                                        <option value="kg">Contínuo (Kg)</option>
-                                        <option value="hours" selected>Blocos de Horas</option>
-                                        <option value="shifts">Turnos Completos</option>
-                                        <option value="days">Dias Completos</option>
-                                        <option value="weeks">Semanas Completas</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group" id="bucket-hours-group" style="flex: 1; min-width: 150px;">
-                                    <label>Tamanho do Bloco (Horas)</label>
-                                    <input type="number" id="bucket-hours" class="form-control" value="6" step="1" min="1">
-                                </div>
-                            </div>
+                        <div class="form-group">
+                            <label>
+                                Fim
+                                <span class="tooltip-container">
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Data final do planejamento. Se ultrapassar a última previsão disponível, os dados são extrapolados com sazonalidade do ano anterior.</span>
+                                </span>
+                            </label>
+                            <input type="date" id="end-period" class="form-control">
                         </div>
-                        
-                        <div style="display: flex; gap: 10px; margin-top: 20px;">
-                            <button class="action-button" id="btn-run">Executar Planejamento</button>
+                        <div class="form-group">
+                            <label>
+                                Estoque de Segurança
+                                <span class="tooltip-container">
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Meses de demanda futura a manter como estoque mínimo (Safety Stock). Ex: 0,5 = meio mês; 1,0 = um mês completo.</span>
+                                </span>
+                            </label>
+                            <input type="number" id="coverage-months" class="form-control" value="0.1" step="0.1" min="0.0">
+                            <span class="form-hint">meses de cobertura</span>
                         </div>
-                        <p id="status-msg" style="margin-top: 10px; font-weight: bold;"></p>
-                        <p id="cost-msg" style="margin-top: 5px; font-weight: bold; color: #0056b3;"></p>
+                        <div class="form-group">
+                            <label>
+                                Operadores / Máquina
+                                <span class="tooltip-container">
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Número de operadores por máquina. Quando maior que 0, o modelo inclui restrições de férias anuais.</span>
+                                </span>
+                            </label>
+                            <input type="number" id="operators-per-machine" class="form-control" value="2" step="1" min="0">
+                            <span class="form-hint">0 = sem planejamento de férias</span>
+                        </div>
                     </div>
 
-                    <div class="content-block" id="right-panel" style="flex: 1; min-width: 200px;">
-                        <h3>Máquinas Ativas</h3>
-                        <div class="machine-grid" id="machine-list">
-                            <!-- Machine Boxes populated by JS -->
+                    <hr class="field-separator">
+
+                    <!-- Capacidade -->
+                    <p class="panel-title">Capacidade Produtiva</p>
+                    <div class="form-grid form-grid-4">
+                        <div class="form-group">
+                            <label>Turnos / Dia</label>
+                            <input type="number" id="shifts-per-day" class="form-control" value="3" step="1" min="1" max="3">
                         </div>
+                        <div class="form-group">
+                            <label>Horas / Turno</label>
+                            <input type="number" id="hours-per-shift" class="form-control" value="8" step="0.5" min="1" max="24">
+                        </div>
+                        <div class="form-group">
+                            <label>Dias / Semana</label>
+                            <input type="number" id="days-per-week" class="form-control" value="7" step="1" min="1" max="7">
+                        </div>
+                        <div class="form-group">
+                            <label>Horas Disp. / Mês <span style="font-weight:400; text-transform:none; font-size:11px;">(calculado)</span></label>
+                            <input type="text" id="total-hours-display" class="form-control" value="727.44" readonly>
+                        </div>
+                    </div>
+
+                    <hr class="field-separator">
+
+                    <!-- Solver e Decisão -->
+                    <p class="panel-title">Configuração do Solver</p>
+                    <div class="form-grid form-grid-4">
+                        <div class="form-group">
+                            <label>
+                                Solver
+                                <span class="tooltip-container">
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">CBC é open-source e não requer instalação adicional. Gurobi é comercial e requer licença ativa.</span>
+                                </span>
+                            </label>
+                            <select id="solver-select" class="form-control">
+                                <option value="CBC" selected>CBC (Open-source)</option>
+                                <option value="GUROBI">Gurobi (Licença)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                Tempo Limite
+                                <span class="tooltip-container">
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Tempo máximo de execução. Se atingido, retorna a melhor solução encontrada. Padrão: 600 s (10 min).</span>
+                                </span>
+                            </label>
+                            <input type="number" id="time-limit" class="form-control" value="600" step="60" min="10">
+                            <span class="form-hint">em segundos</span>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                Granularidade
+                                <span class="tooltip-container">
+                                    <span class="tooltip-icon">?</span>
+                                    <span class="tooltip-text">Define como o tempo de produção é alocado: contínuo (Kg exato) ou em blocos discretos de tempo (resolve mais rápido).</span>
+                                </span>
+                            </label>
+                            <select id="decision-type" class="form-control">
+                                <option value="kg">Contínuo (Kg)</option>
+                                <option value="hours" selected>Blocos de Horas</option>
+                                <option value="shifts">Turnos Completos</option>
+                                <option value="days">Dias Completos</option>
+                                <option value="weeks">Semanas Completas</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="bucket-hours-group">
+                            <label>Horas por Bloco</label>
+                            <input type="number" id="bucket-hours" class="form-control" value="6" step="1" min="1">
+                            <span class="form-hint">apenas para "Blocos de Horas"</span>
+                        </div>
+                    </div>
+
+                    <hr class="field-separator">
+
+                    <!-- Executar -->
+                    <button class="btn btn-primary" id="btn-run">Executar Planejamento</button>
+                    <div class="run-footer">
+                        <span id="status-msg"></span>
+                        <span id="cost-msg"></span>
+                    </div>
+
+                </div><!-- /panel-wide -->
+
+                <!-- COLUNA DIREITA: Máquinas -->
+                <div class="panel">
+                    <p class="panel-title">Máquinas Ativas</p>
+                    <div class="machine-grid" id="machine-list">
+                        <!-- populado pelo JS -->
+                    </div>
+                    <div class="machine-legend">
+                        <span><span class="legend-dot" style="background:rgba(25,135,84,0.25); border:1px solid #198754;"></span>Ativa</span>
+                        <span><span class="legend-dot" style="background:rgba(220,53,69,0.15); border:1px solid #ccc;"></span>Inativa</span>
                     </div>
                 </div>
-            </div><!-- /tab-params -->
+
+            </div><!-- /panel-row -->
+        </div><!-- /tab-params -->
+
+        <!-- ══════════════════════════════════════════════════
+             ABA 2 — RESULTADOS TABULARES
+        ══════════════════════════════════════════════════ -->
+        <div class="tab-content" id="tab-summary">
+            <div class="sub-tabs">
+                <button class="sub-tab-link active" data-sub="view-summary">Resumo Mensal</button>
+                <button class="sub-tab-link" data-sub="view-detailed">Produção Detalhada</button>
+                <button class="sub-tab-link" data-sub="view-setups">Setups</button>
+                <button class="sub-tab-link" data-sub="view-vacations">Férias</button>
+            </div>
 
             <!-- Resumo Mensal -->
-            <div class="tab-content" id="tab-summary">
-                <div class="content-block">
-                    <div class="sub-tabs">
-                        <button class="sub-tab-link active" data-sub="view-summary">Resumo</button>
-                        <button class="sub-tab-link" data-sub="view-detailed">Produção Detalhada</button>
-                        <button class="sub-tab-link" data-sub="view-setups">Setup Detalhado</button>
-                        <button class="sub-tab-link" data-sub="view-vacations">Férias Programadas</button>
-                    </div>
-
-                    <!-- View 1: Resumo -->
-                    <div id="view-summary" class="sub-tab-content active">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="margin: 0;">Tabela Resumo Mensal</h3>
-                            <button class="action-button" id="btn-download-summary" style="width: auto; padding: 10px 20px;">Baixar Excel (CSV)</button>
-                        </div>
-                        <div style="overflow-x: auto;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: right;">
-                                <thead>
-                                    <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
-                                        <th style="padding: 12px; text-align: left;">Mês</th>
-                                        <th style="padding: 12px;">Estoque Total (Kg)</th>
-                                        <th style="padding: 12px;">Utilização Média (%)</th>
-                                        <th style="padding: 12px;">Demanda (Kg)</th>
-                                        <th style="padding: 12px;">Perda (Kg)</th>
-                                        <th style="padding: 12px;">Produzido (Kg)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="summary-table-body">
-                                    <tr>
-                                        <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
-                                            Execute o planejamento para visualizar os dados.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- View 2: Produção Detalhada -->
-                    <div id="view-detailed" class="sub-tab-content">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="margin: 0;">Produção Detalhada por Máquina</h3>
-                            <button class="action-button" id="btn-download-detailed" style="width: auto; padding: 10px 20px;">Baixar Detalhado (CSV)</button>
-                        </div>
-                        <div style="overflow-x: auto; max-height: 500px; overflow-y: auto;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
-                                <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 1;">
-                                    <tr style="border-bottom: 2px solid #dee2e6;">
-                                        <th style="padding: 12px;">Período</th>
-                                        <th style="padding: 12px;">Máquina</th>
-                                        <th style="padding: 12px;">Produto</th>
-                                        <th style="padding: 12px; text-align: right;">Horas Prod.</th>
-                                        <th style="padding: 12px; text-align: right;">Dias Prod.</th>
-                                        <th style="padding: 12px; text-align: right;">Quantidade (Kg)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="detailed-table-body">
-                                    <tr>
-                                        <td colspan="6" style="padding: 20px; text-align: center; color: #6c757d;">
-                                            Execute o planejamento para visualizar os dados.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- View 3: Setup Detalhado -->
-                    <div id="view-setups" class="sub-tab-content">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="margin: 0;">Setups por Período</h3>
-                            <button class="action-button" id="btn-download-setups" style="width: auto; padding: 10px 20px;">Baixar Setups (CSV)</button>
-                        </div>
-                        <div style="overflow-x: auto; max-height: 500px; overflow-y: auto;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
-                                <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 1;">
-                                    <tr style="border-bottom: 2px solid #dee2e6;">
-                                        <th style="padding: 12px;">Período</th>
-                                        <th style="padding: 12px;">Máquina</th>
-                                        <th style="padding: 12px;">De (Origem)</th>
-                                        <th style="padding: 12px;">Para (Destino)</th>
-                                        <th style="padding: 12px; text-align: right;">Custo Estimado (R$)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="setups-table-body">
-                                    <tr>
-                                        <td colspan="5" style="padding: 20px; text-align: center; color: #6c757d;">
-                                            Execute o planejamento para visualizar os dados.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- View 4: Férias Programadas -->
-                    <div id="view-vacations" class="sub-tab-content">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="margin: 0;">Cronograma de Férias</h3>
-                            <button class="action-button" id="btn-download-vacations" style="width: auto; padding: 10px 20px;">Baixar Férias (CSV)</button>
-                        </div>
-                        <div class="chart-container" style="height: 300px; margin-bottom: 20px;">
-                            <canvas id="vacationsChart"></canvas>
-                        </div>
-                        <div style="overflow-x: auto; max-height: 500px; overflow-y: auto;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
-                                <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 1;">
-                                    <tr style="border-bottom: 2px solid #dee2e6;">
-                                        <th style="padding: 12px;">Período</th>
-                                        <th style="padding: 12px;">Máquina Parada</th>
-                                        <th style="padding: 12px;">Operadores em Férias</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="vacations-table-body">
-                                    <tr>
-                                        <td colspan="3" style="padding: 20px; text-align: center; color: #6c757d;">
-                                            Execute o planejamento. (Requer Operadores > 0)
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+            <div id="view-summary" class="sub-tab-content active">
+                <div class="table-toolbar">
+                    <h3>Resumo Mensal</h3>
+                    <button class="btn btn-secondary" id="btn-download-summary">Exportar CSV</button>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Mês</th>
+                                <th class="text-right">Estoque Total (Kg)</th>
+                                <th class="text-right">Utilização (%)</th>
+                                <th class="text-right">Demanda (Kg)</th>
+                                <th class="text-right">Perda (Kg)</th>
+                                <th class="text-right">Produzido (Kg)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summary-table-body">
+                            <tr class="table-empty"><td colspan="6">Execute o planejamento para visualizar os dados.</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <!-- Produção e Estoque -->
-            <div class="tab-content" id="tab-prod">
-                <div class="content-block">
-                    <h3>Perfil de Estoque</h3>
+            <!-- Produção Detalhada -->
+            <div id="view-detailed" class="sub-tab-content">
+                <div class="table-toolbar">
+                    <h3>Produção Detalhada por Máquina</h3>
+                    <button class="btn btn-secondary" id="btn-download-detailed">Exportar CSV</button>
+                </div>
+                <div class="table-wrapper table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Período</th>
+                                <th>Máquina</th>
+                                <th>Produto</th>
+                                <th class="text-right">Horas Prod.</th>
+                                <th class="text-right">Dias Prod.</th>
+                                <th class="text-right">Quantidade (Kg)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailed-table-body">
+                            <tr class="table-empty"><td colspan="6">Execute o planejamento para visualizar os dados.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Setups -->
+            <div id="view-setups" class="sub-tab-content">
+                <div class="table-toolbar">
+                    <h3>Setups por Período</h3>
+                    <button class="btn btn-secondary" id="btn-download-setups">Exportar CSV</button>
+                </div>
+                <div class="table-wrapper table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Período</th>
+                                <th>Máquina</th>
+                                <th>De (Origem)</th>
+                                <th>Para (Destino)</th>
+                                <th class="text-right">Custo Estimado (R$)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="setups-table-body">
+                            <tr class="table-empty"><td colspan="5">Execute o planejamento para visualizar os dados.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Férias -->
+            <div id="view-vacations" class="sub-tab-content">
+                <div class="table-toolbar">
+                    <h3>Cronograma de Férias</h3>
+                    <button class="btn btn-secondary" id="btn-download-vacations">Exportar CSV</button>
+                </div>
+                <div class="chart-panel" style="margin-bottom: 16px;">
+                    <h3>Máquinas Paradas por Período</h3>
+                    <div class="chart-container" style="height: 260px;">
+                        <canvas id="vacationsChart"></canvas>
+                    </div>
+                </div>
+                <div class="table-wrapper table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Período</th>
+                                <th>Máquina Parada</th>
+                                <th>Operadores em Férias</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vacations-table-body">
+                            <tr class="table-empty"><td colspan="3">Execute o planejamento. (Requer Operadores &gt; 0)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div><!-- /tab-summary -->
+
+        <!-- ══════════════════════════════════════════════════
+             ABA 3 — GRÁFICOS
+        ══════════════════════════════════════════════════ -->
+        <div class="tab-content" id="tab-charts">
+            <div class="chart-row" style="margin-bottom: 16px;">
+                <div class="chart-panel">
+                    <h3>Perfil de Estoque (Kg)</h3>
                     <div class="chart-container">
                         <canvas id="inventoryChart"></canvas>
                     </div>
                 </div>
-                <div class="content-block">
-                    <h3>Produção Agregada (Kg)</h3>
-                    <div class="chart-container">
-                        <canvas id="productionChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Demanda -->
-            <div class="tab-content" id="tab-demand">
-                <div class="content-block">
-                    <h3>Atendimento da Demanda</h3>
+                <div class="chart-panel">
+                    <h3>Atendimento da Demanda (Kg)</h3>
                     <div class="chart-container">
                         <canvas id="demandChart"></canvas>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+            <div class="chart-panel">
+                <div class="chart-panel-header">
+                    <h3>Produção Agregada (Kg)</h3>
+                    <div id="production-filter" class="machine-filter">
+                        <button class="filter-btn filter-btn-all active" id="btn-filter-all">Todas as Máquinas</button>
+                        <div class="filter-checkboxes" id="production-machine-checkboxes">
+                            <!-- populado pelo JS após otimização -->
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="productionChart"></canvas>
+                </div>
+            </div>
+        </div><!-- /tab-charts -->
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    </div><!-- /tabs-container -->
+</div><!-- /main-container -->
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
-

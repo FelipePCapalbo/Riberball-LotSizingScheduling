@@ -299,6 +299,7 @@ function saveSettingsState() {
         decisionType: document.getElementById('decision-type').value,
         bucketHours: document.getElementById('bucket-hours').value,
         operatorsPerMachine: document.getElementById('operators-per-machine').value,
+        solverName: document.getElementById('solver-select').value,
         timeLimit: document.getElementById('time-limit').value,
         activeMachines: Array.from(document.querySelectorAll('.machine-box.active')).map(el => el.dataset.machine)
     };
@@ -322,6 +323,7 @@ function loadSettingsState() {
         setVal('bucket-hours', state.bucketHours);
         setVal('operators-per-machine', state.operatorsPerMachine);
         setVal('time-limit', state.timeLimit);
+        if (state.solverName) document.getElementById('solver-select').value = state.solverName;
         
         if (state.decisionType) {
             const el = document.getElementById('decision-type');
@@ -451,32 +453,124 @@ function renderInventoryChart(inventoryData) {
 function renderProductionChart(prodData) {
     const periods = [...new Set(prodData.map(d => d.Period))].sort();
     const displayPeriods = periods.map(p => formatDate(p));
-    const machines = [...new Set(prodData.map(d => d.Machine))].sort();
-    
-    const datasets = machines.map(m => {
-        const color = '#' + Math.floor(Math.random()*16777215).toString(16);
-        return {
-            label: `M${m}`,
-            data: periods.map(p => {
-                return prodData
-                    .filter(x => x.Period === p && x.Machine === m)
-                    .reduce((sum, item) => sum + item.Quantity, 0);
-            }),
-            backgroundColor: color
+    const allMachines = [...new Set(prodData.map(d => d.Machine))].sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0));
+
+    const palette = [
+        '#2563eb','#16a34a','#dc2626','#d97706','#7c3aed',
+        '#0891b2','#be185d','#65a30d','#ea580c','#6366f1',
+        '#0f766e','#b45309','#9333ea','#0284c7','#15803d',
+        '#c2410c','#4338ca','#0e7490','#a21caf','#854d0e',
+        '#1d4ed8','#166534','#991b1b','#92400e','#5b21b6'
+    ];
+    const colorOf = (m) => palette[allMachines.indexOf(m) % palette.length];
+
+    // Monta chips de filtro
+    const checkboxContainer = document.getElementById('production-machine-checkboxes');
+    const btnAll = document.getElementById('btn-filter-all');
+
+    if (checkboxContainer) {
+        checkboxContainer.innerHTML = '';
+        allMachines.forEach(m => {
+            const chip = document.createElement('label');
+            chip.className = 'machine-filter-chip';
+            chip.title = `Máquina ${m}`;
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = m;
+
+            chip.appendChild(cb);
+            chip.appendChild(document.createTextNode(`M${m}`));
+
+            chip.addEventListener('click', () => {
+                cb.checked = !cb.checked;
+                chip.classList.toggle('selected', cb.checked);
+                _updateProductionFilter();
+            });
+
+            checkboxContainer.appendChild(chip);
+        });
+    }
+
+    if (btnAll) {
+        btnAll.onclick = () => {
+            checkboxContainer.querySelectorAll('.machine-filter-chip').forEach(c => {
+                c.classList.remove('selected');
+                c.querySelector('input').checked = false;
+            });
+            btnAll.classList.add('active');
+            _drawAggregated();
         };
-    });
+    }
 
-    const ctx = document.getElementById('productionChart');
-    if (AppState.charts.production) AppState.charts.production.destroy();
+    // Render inicial: visão agregada (total por período)
+    _drawAggregated();
 
-    AppState.charts.production = new Chart(ctx, {
-        type: 'bar',
-        data: { labels: displayPeriods, datasets: datasets },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'Kg' } } }
+    function _updateProductionFilter() {
+        const checked = [...checkboxContainer.querySelectorAll('input:checked')].map(c => c.value);
+        btnAll.classList.toggle('active', checked.length === 0);
+        if (checked.length === 0) {
+            _drawAggregated();
+        } else {
+            _drawByMachine(checked);
         }
-    });
+    }
+
+    function _drawAggregated() {
+        const totals = periods.map(p =>
+            prodData.filter(x => x.Period === p).reduce((s, x) => s + x.Quantity, 0)
+        );
+
+        _renderChart(
+            [{ label: 'Produção Total', data: totals, backgroundColor: '#2563eb' }],
+            false
+        );
+    }
+
+    function _drawByMachine(machines) {
+        const datasets = machines.map(m => ({
+            label: `M${m}`,
+            data: periods.map(p =>
+                prodData.filter(x => x.Period === p && x.Machine === m)
+                        .reduce((s, x) => s + x.Quantity, 0)
+            ),
+            backgroundColor: colorOf(m)
+        }));
+
+        _renderChart(datasets, true);
+    }
+
+    function _renderChart(datasets, stacked) {
+        const ctx = document.getElementById('productionChart');
+        if (AppState.charts.production) AppState.charts.production.destroy();
+
+        AppState.charts.production = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: displayPeriods, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: stacked,
+                        position: 'bottom',
+                        labels: { boxWidth: 12, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            footer: stacked
+                                ? (items) => `Total: ${items.reduce((s, i) => s + i.parsed.y, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} Kg`
+                                : undefined
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked },
+                    y: { stacked, title: { display: true, text: 'Kg' } }
+                }
+            }
+        });
+    }
 }
 
 function renderDemandChart(demandData) {
