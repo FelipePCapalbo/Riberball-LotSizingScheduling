@@ -36,6 +36,21 @@ def calculate_step_size(decision_type: str, bucket_hours: float, capacity_params
     
     return 1.0, True
 
+def calculate_hours_per_day(capacity_params: dict) -> float:
+    """Horas produtivas por dia por máquina (turnos * horas/turno)."""
+    if not capacity_params:
+        return 24.0
+    shifts = float(capacity_params.get('shifts_per_day', 3))
+    hours_shift = float(capacity_params.get('hours_per_shift', 8))
+    return shifts * hours_shift
+
+def calculate_days_in_period(capacity_params: dict) -> int:
+    """Dias úteis por período (mês médio)."""
+    if not capacity_params:
+        return 30
+    days_week = float(capacity_params.get('days_per_week', 7))
+    return round(days_week * 4.33)
+
 def sanitize_name(name) -> str:
     """Helper to sanitize names for LP/Solver compatibility."""
     return str(name).replace(' ', '_').replace(':', '_').replace('-', '_')

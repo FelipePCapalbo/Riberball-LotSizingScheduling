@@ -83,3 +83,52 @@ Para rodar os experimentos configurados em `doe_config.json`:
 python run_doe.py
 ```
 Os resultados serão salvos em `doe_results.csv`.
+
+---
+
+## Gerando o Executável (.exe) — Windows
+
+O sistema permite gerar um `.exe` para iniciar a aplicação sem que o usuário precise ter Python instalado.  
+Apenas o `launcher.py` é empacotado como executável; os demais módulos Python (`app/`) permanecem como `.py`.
+
+### Pré-requisitos para o build
+- Python 3.10+ com `pip` disponível no PATH
+- PyInstaller (instalado automaticamente pelo script de build)
+
+### Gerar o .exe
+
+Execute o script na raiz do projeto:
+```cmd
+build.bat
+```
+
+O script realiza automaticamente:
+1. Instala as dependências (`requirements.txt` + `pyinstaller`)
+2. Remove builds anteriores
+3. Compila com as configurações de `riberball.spec`
+4. Copia os módulos `app/` e `data/` para a pasta de distribuição
+
+### Resultado
+
+Após o build, duas pastas são geradas:
+
+- `dist/RiverballLotSizing/` — saída bruta do PyInstaller (arquivos intermediários)
+- `release/RiverballLotSizing/` — **pasta de distribuição limpa**, pronta para entregar
+
+```
+release/
+└── RiverballLotSizing/
+    ├── RiverballLotSizing.exe   ← executável principal
+    ├── app/                     ← módulos Python (obrigatório)
+    ├── data/                    ← arquivos de dados (obrigatório)
+    └── *.dll / *.pyd            ← runtime Python empacotado
+```
+
+Para distribuir, copie a pasta `release/RiverballLotSizing/` inteira.
+
+### Por que não é detectado como vírus?
+
+- **UPX desabilitado**: compressão UPX causa falsos positivos — não usada.
+- **Modo `onedir`**: os arquivos ficam descompactados ao lado do `.exe`, não em `%TEMP%` (comportamento suspeito para antivírus).
+- **Console visível**: o terminal aberto pelo `.exe` mostra logs e não age em segundo plano silencioso.
+- **Sem ofuscação**: o código-fonte dos módulos `.py` permanece legível na pasta `app/`.

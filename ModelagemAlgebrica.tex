@@ -1,34 +1,181 @@
+\documentclass[fleqn,12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern} % Fontes vetoriais
+\usepackage{amsmath,amssymb}
+\usepackage{nccmath} % permite centralizar equações mesmo com fleqn
+\usepackage{geometry,tabularx,array}
+\usepackage{setspace}
+\geometry{a4paper,margin=1in}
+\onehalfspacing
+
+% TikZ e fluxogramas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+
+% Ajustes finos de espaçamento
+\setlength{\mathindent}{0pt}
+\setlength{\abovedisplayskip}{4pt}
+\setlength{\belowdisplayskip}{4pt}
+\setlength{\abovedisplayshortskip}{0pt}
+\setlength{\belowdisplayshortskip}{0pt}
+\setlength{\jot}{3pt}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{R}{>{\raggedright\arraybackslash}X}
+
+% BibTeX estilo ABNT
+\usepackage[alf]{abntex2cite}
+\renewcommand{\refname}{Referências}
+
+
+\title{Modelo de Otimização da Produção de Balões de Látex com Permissividade de Atrasos}
+\author{}
+\date{15/03/2026}
+
+\begin{document}
+\maketitle
+
+\newpage
+\section{Introdução}
+
+\section{Contextualização}
+
+\section{O problema}
+
+\section{Revisão de literatura}
+
+\section{Processo produtivo}
+
+O processo produtivo (Figura \ref{fig:fluxo_produtivo}) inicia-se no recebimento de matérias-primas. Devido à sua perecibilidade, o látex é recebido diariamente e estocado em tanques, enquanto os demais insumos químicos pertencentes à produção são repostos conforme a demanda.
+
+A transformação começa na pré-vulcanização, onde o látex é misturado a agentes químicos para viabilizar a futura elasticidade do produto. A seguir, o composto recebe pigmentos e aditivos de acabamento (perolado, brilhante, fosco), gerando diversas combinações demandadas pelo mercado.
+
+Dimensionado pelo planejamento tático e sequenciado pelo planejamento operacional, o composto alimenta as máquinas de moldagem. Em um processo contínuo, os moldes imergem no fluido, recebem talco, são vulcanizados em estufas e desmoldados mecanicamente.
+
+Por fim, batedores removem o excesso de talco dos balões semiacabados. Os produtos são então empacotados e transferidos para o estoque de produtos acabados, prontos para distribuição.
+
+Este trabalho tem como intuito explorar o processo de tomada de decisão nos planejamentos tático e operacional.
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{\textwidth}{!}{% Redimensiona o diagrama para a largura do texto
+        \begin{tikzpicture}[
+            % --- Estilos Padronizados para Fluxograma ---
+            process/.style={
+                rectangle, 
+                draw=black, 
+                thick, 
+                fill=white,
+                text centered, 
+                minimum height=1.8cm, 
+                text width=3.2cm
+            },
+            inventory/.style={
+                isosceles triangle,
+                shape border rotate=180, % Inverte o triângulo
+                draw=black,
+                thick,
+                fill=gray!25,
+                text centered,
+                minimum height=2.5cm,
+                text width=2.5cm,
+                inner ysep=0pt,
+                text depth=1.5em % Ajusta o texto verticalmente no triângulo
+            },
+            critical/.style={
+                process, % Herda o estilo de processo
+                very thick,
+                fill=gray!25,
+                font=\bfseries
+            },
+            % --- Estilo das Setas (simplificado para evitar erros) ---
+            arrow/.style={
+                draw=black, 
+                -{>}, % Seta padrão do TikZ
+                thick
+            }
+        ]
+    
+        % Nós do Processo
+        % Linha Superior
+        \node[process] (recebimento) {Recebimento de Matéria-Prima};
+        \node[inventory, right=1.5cm of recebimento] (estoque_mp) {Estoque de Látex};
+        \node[process, right=1.5cm of estoque_mp] (pre_vulcanizacao) {Pré-Vulcanização};
+        \node[process, right=1.5cm of pre_vulcanizacao] (mistura_cor) {Mistura e Pigmentação};
+    
+        % Linha Inferior
+        \node[critical, below=2cm of mistura_cor] (moldagem) {Moldagem, Vulcanização e Desmoldagem};
+        \node[process, left=1.5cm of moldagem] (remocao_talco) {Remoção de Talco};
+        \node[process, left=1.5cm of remocao_talco] (embalagem) {Embalagem};
+        \node[inventory, left=1.5cm of embalagem] (estoque_pa) {Estoque de P.A.};
+    
+        % Conexões
+        \path[arrow] (recebimento) -- (estoque_mp);
+        \path[arrow] (estoque_mp) -- (pre_vulcanizacao);
+        \path[arrow] (pre_vulcanizacao) -- (mistura_cor);
+        \path[arrow] (mistura_cor) -- (moldagem);
+        \path[arrow] (moldagem) -- (remocao_talco);
+        \path[arrow] (remocao_talco) -- (embalagem);
+        \path[arrow] (embalagem) -- (estoque_pa);
+    
+        \end{tikzpicture}%
+    }
+    \caption{Fluxograma do processo produtivo com simbologia padrão.}
+    \label{fig:fluxo_produtivo}
+\end{figure}
+
+\subsection{Planejamento tático}
+
+\subsection{Planejamento operacional}
+
+\subsection{Estoque de segurança}
+
+
+
+\newpage
+
 \section{Modelo matemático}
 
 \section*{Conjuntos}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$T$ & Conjunto de períodos de planejamento (horas).\\
+$T$ & Conjunto de períodos (meses) de planejamento.\\
 $I$ & Conjunto de produtos.\\
 $J$ & Conjunto de máquinas.\\
+$D$ & Conjunto de dias do horizonte, indexados sequencialmente: $D = \{1, \ldots, N_D\}$.\\
+$D_t \subset D$ & Subconjunto dos $n_t$ dias pertencentes ao período $t$.\\
+$O$ & Conjunto de operadores: $O = \{1, \ldots, N_{\text{op}}\}$.\\
+$O^f \subseteq O$ & Subconjunto dos $N_f$ operadores que tiram férias no horizonte.\\
 \end{tabularx}
 
 \section*{Parâmetros}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$D_{it}$ & Demanda do item $i$ no período $t$.\\
+$d_{it}$ & Demanda do item $i$ no período $t$.\\
 $c^l_{i}$ & Custo de venda perdida do item $i$.\\
 $c^s_{ij}$ & Custo de \textit{setup} do item $i$ na máquina $j$.\\
 $p_{ij}$ & Produtividade do item $i$ na máquina $j$.\\
-$cap_{jt}$ & Capacidade disponível da máquina $j$ no período $t$.\\
+$n_t$ & Dias úteis no período $t$.\\
+$\bar{h}$ & Horas produtivas por dia por máquina.\\
+$h$ & Granularidade de discretização da produção (horas).\\
 $t^s_{j}$ & Tempo de \textit{setup} (horas) na máquina $j$.\\
-$ss_{it}$ & Estoque de segurança do item $i$ no período $t$.\\
-$I_{i0}$ & Estoque inicial do item $i$.\\
-$M$ & Valor suficientemente grande (\textit{Big-M}).\\
+$m_{jd} \in \{0,1\}$ & 1 se a máquina $j$ tem parada programada no dia $d$; 0 caso contrário.\\
+$\alpha$ & Fração de cobertura para estoque de segurança.\\
+$I^{0}_{i}$ & Estoque inicial do item $i$.\\
+$F$ & Dias de férias por operador.\\
+$N_f$ & Número de operadores que tiram férias.\\
 \end{tabularx}
 
 \section*{Variáveis}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$x_{ijt} \ge 0$ & Quantidade produzida do item $i$ na máquina $j$ no período $t$.\\
+$w_{ijt} \ge 0$ & Blocos de $h$ horas dedicados à produção do item $i$ na máquina $j$ no período $t$.\\
 $y_{ijt} \in \{0,1\}$ & 1 se o item $i$ é produzido na máquina $j$ no período $t$; 0 caso contrário.\\
 $s_{ijt} \in \{0,1\}$ & 1 se a máquina $j$ está configurada para o item $i$ no período $t$; 0 caso contrário.\\
 $\delta_{ijt} \in \{0,1\}$ & 1 se ocorre \textit{setup} para o item $i$ na máquina $j$ no período $t$; 0 caso contrário.\\
-$z_{jt} \in \{0,1\}$ & 1 se a máquina $j$ está ociosa no período $t$; 0 caso contrário.\\
-$I_{it} \ge 0$ & Nível de estoque do item $i$ ao final do período $t$.\\
-$K_{it} \ge 0$ & Quantidade de venda perdida do item $i$ no período $t$.\\
+$\ell_{it} \ge 0$ & Venda perdida do item $i$ no período $t$.\\
+$z_{jd} \in \{0,1\}$ & 1 se a máquina $j$ está ociosa no dia $d$; 0 caso contrário.\\
+$f_{kd} \in \{0,1\}$ & 1 se o operador $k$ está de férias no dia $d$; 0 caso contrário.\\
+$g_{kd} \in \{0,1\}$ & 1 se o dia $d$ é o início do bloco de férias do operador $k$; 0 caso contrário.\\
+$r_{kjd} \in \{0,1\}$ & 1 se o operador $k$ opera a máquina $j$ no dia $d$; 0 caso contrário.\\
 \end{tabularx}
 
 \section*{\textbf{Minimizar}}
@@ -37,36 +184,46 @@ $K_{it} \ge 0$ & Quantidade de venda perdida do item $i$ no período $t$.\\
 Z =
 \sum_{i \in I}\sum_{j \in J}\sum_{t \in T} c^s_{ij} \delta_{ijt}
 +
-\sum_{i \in I}\sum_{t \in T} c^l_{i} K_{it}
+\sum_{i \in I}\sum_{t \in T} c^l_{i} \ell_{it}
 \label{eq:objetivo}
 \end{equation}
 
 
 \noindent\textbf{Sujeito a}
 \begin{align}
-\sum_{i \in I} s_{ijt} &= 1 && \forall j, t \label{eq:estado_unico} \\
+\sum_{i \in I} s_{ijt} &\le 1 && \forall j, t \label{eq:estado_unico} \\
 \delta_{ijt} &\ge s_{ijt} - s_{ij(t-1)} && \forall i, j, t \label{eq:setup_delta1} \\
 \delta_{ijt} &\ge y_{ijt} - s_{ij(t-1)} && \forall i, j, t \label{eq:setup_delta2} \\
-\sum_{i \in I} y_{ijt} &\le |I| (1 - z_{jt}) && \forall j, t \label{eq:ociosidade} \\
-s_{ijt} &\le y_{ijt} + z_{jt} && \forall i, j, t \label{eq:link_prod_estado} \\
-x_{ijt} &\le M \cdot y_{ijt} && \forall i, j, t \label{eq:ativacao} \\
-\sum_{i \in I} \left( \frac{x_{ijt}}{p_{ij}} + t^s_{j} \delta_{ijt} \right) &\le cap_{jt} && \forall j, t \label{eq:capacidade} \\
-I_{i(t-1)} + \sum_{j \in J} x_{ijt} &= I_{it} + D_{it} - K_{it} && \forall i, t \label{eq:balanco} \\
-I_{it} &\ge ss_{it} && \forall i, t \label{eq:seguranca}
+s_{ijt} &\le y_{ijt} && \forall i, j, t \label{eq:link_prod_estado} \\
+w_{ijt} &\le \left(\frac{\bar{h} \cdot n_t}{h}\right) y_{ijt} && \forall i, j, t \label{eq:ativacao} \\
+\sum_{i \in I} \left( w_{ijt} \cdot h + t^s_{j} \delta_{ijt} \right) &\le \bar{h} \sum_{d \in D_t} \left(1 - z_{jd}\right) && \forall j, t \label{eq:capacidade} \\
+I^{0}_{i} + \sum_{\tau \le t}\sum_{j \in J} w_{ij\tau} \cdot h \cdot p_{ij} + \sum_{\tau \le t} \ell_{i\tau} &\ge \sum_{\tau \le t} d_{i\tau} && \forall i, t \label{eq:balanco} \\
+I^{0}_{i} + \sum_{\tau \le t}\sum_{j \in J} w_{ij\tau} \cdot h \cdot p_{ij} + \sum_{\tau \le t} \ell_{i\tau} - \sum_{\tau \le t} d_{i\tau} &\ge \alpha \cdot d_{i(t+1)} && \forall i, t \label{eq:seguranca} \\
+z_{jd} &\ge m_{jd} && \forall j, d \label{eq:parada_manual} \\
+\sum_{k \in O} r_{kjd} &\ge 1 - z_{jd} && \forall j, d \label{eq:cobertura} \\
+r_{kjd} &\le 1 - f_{kd} && \forall k \in O^f,\; \forall j, d \label{eq:ferias_bloqueio} \\
+\sum_{j \in J} r_{kjd} &\le 1 && \forall k, d \label{eq:operador_unico} \\
+\sum_{d \in D} f_{kd} &= F && \forall k \in O^f \label{eq:total_ferias} \\
+g_{kd} &\ge f_{kd} - f_{k(d-1)} && \forall k \in O^f,\; d > 1 \label{eq:inicio_ferias} \\
+g_{k1} &\ge f_{k1} && \forall k \in O^f \label{eq:inicio_ferias_d1} \\
+\sum_{d \in D} g_{kd} &\le 1 && \forall k \in O^f \label{eq:ferias_contiguas}
 \end{align}
 
-A função objetivo \eqref{eq:objetivo} minimiza o custo total composto por dois termos: custos de \textit{setup} das máquinas e penalidades por vendas perdidas.
+A função objetivo \eqref{eq:objetivo} minimiza o custo total composto por dois termos: custos de \textit{setup} das máquinas e penalidades por vendas perdidas. Paradas programadas e férias não carregam custo direto; seu impacto aparece pela redução de capacidade disponível.
 
-A restrição \eqref{eq:estado_unico} garante que cada máquina $j$ mantenha exatamente uma configuração (estado) ativa para algum produto $i$ em cada período $t$, assegurando a continuidade do setup ("carry-over").
+A restrição \eqref{eq:estado_unico} garante que cada máquina $j$ mantenha no máximo uma configuração ativa em cada período $t$. A desigualdade permite que nenhum estado esteja ativo quando a máquina está totalmente parada; ao retomar produção, a ausência de estado anterior força a ocorrência de \textit{setup}. As restrições \eqref{eq:setup_delta1} e \eqref{eq:setup_delta2} detectam essa ocorrência: $\delta_{ijt}$ é forçada a 1 se a máquina muda seu estado para o item $i$ ou se inicia produção vindo de um estado diferente.
 
-As restrições \eqref{eq:setup_delta1} e \eqref{eq:setup_delta2} detectam a ocorrência de \textit{setup}. A variável $\delta_{ijt}$ é forçada a 1 se a máquina muda seu estado para o produto $i$ ou se inicia a produção do produto $i$ vindo de um estado diferente no período anterior.
+A restrição \eqref{eq:link_prod_estado} vincula o estado de configuração à produção efetiva: se a máquina está configurada para o item $i$, ela deve estar produzindo-o. A restrição \eqref{eq:ativacao} subordina a produção $w_{ijt}$ à variável de ativação $y_{ijt}$, usando a capacidade teórica máxima $\bar{h} n_t / h$ como limitante superior.
 
-As restrições \eqref{eq:ociosidade} e \eqref{eq:link_prod_estado} gerenciam a ociosidade. Se a máquina é declarada ociosa ($z_{jt}=1$), nenhuma produção pode ocorrer ($\sum y_{ijt} = 0$). Caso contrário, se a máquina não está ociosa, ela deve obrigatoriamente produzir o item para o qual está configurada ($s_{ijt} \le y_{ijt}$), evitando setups "fantasmas" sem produção.
+A restrição \eqref{eq:capacidade} limita o consumo total de horas — produção e \textit{setups} — à capacidade efetiva da máquina $j$ no período $t$. A capacidade é derivada diretamente da disponibilidade diária: $\bar{h} \sum_{d \in D_t}(1 - z_{jd})$.
 
-A restrição \eqref{eq:ativacao} vincula a quantidade produzida $x_{ijt}$ à variável binária de produção $y_{ijt}$.
+As restrições \eqref{eq:balanco} e \eqref{eq:seguranca} formulam o balanço de estoque de forma acumulada e impõem o estoque de segurança mínimo, respectivamente.
 
-A restrição \eqref{eq:capacidade} limita a capacidade disponível em cada máquina e período, consumida tanto pelo tempo de processamento da produção quanto pelo tempo improdutivo de \textit{setup}.
+A restrição \eqref{eq:parada_manual} fixa a ociosidade da máquina em dias com parada programada. A restrição \eqref{eq:cobertura} exige que cada máquina ativa ($z_{jd}=0$) tenha pelo menos um operador alocado. A restrição \eqref{eq:ferias_bloqueio} impede que operadores de férias sejam designados a máquinas, e \eqref{eq:operador_unico} garante que cada operador opere no máximo uma máquina por dia.
 
-A restrição \eqref{eq:balanco} realiza o balanço de massa do estoque, considerando o estoque do período anterior, a produção atual, e subtraindo a demanda atendida e vendas perdidas.
+A restrição \eqref{eq:total_ferias} fixa o total de dias de férias de cada operador em $F$. As restrições \eqref{eq:inicio_ferias}--\eqref{eq:ferias_contiguas} garantem a contiguidade das férias: $g_{kd}$ detecta o início do bloco, e $\sum_d g_{kd} \le 1$ assegura que exista no máximo um início, formando um bloco único e sequencial.
+    
+\bibliographystyle{abntex2-alf}
+\bibliography{referencias}     
 
-Finalmente, a restrição \eqref{eq:seguranca} assegura que o nível de estoque final respeite o estoque de segurança mínimo estabelecido.
+\end{document}

@@ -1,3 +1,20 @@
+# Python
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Logs
 *.log
 logs/
+
+# PyInstaller - artefatos de build
+build/
+dist/
+release/
+*.spec.bak
+
+# Ambiente virtual
+venv/
+.venv/
+env/
