@@ -39,10 +39,6 @@
 \newpage
 \section{Introdução}
 
-\section{Contextualização}
-
-\section{O problema}
-
 \section{Revisão de literatura}
 
 \section{Processo produtivo}
@@ -127,10 +123,19 @@ Este trabalho tem como intuito explorar o processo de tomada de decisão nos pla
 
 \subsection{Planejamento tático}
 
+O planejamento tático define o que, onde, quando e quanto se produzir, por meio da alocação das máquinas em cada um dos períodos, balanceando estoques e garantindo o atendimento da demanda. O estoque e a demanda são agregados por formato e acabamento dos balões, podendo a demanda derivar de previsões, para planejar períodos futuros, ou histórico realizado, para analisar decisões em \textit{backtest}. A decisão de produção segregada por cores dos balões, granularidade abaixo do formato e do acabamento, não é processada nesta fase.
+
+O nível de estoque, em determinado período, é definido conforme a demanda futura. O tomador de decisão define quantos períodos futuros de demanda o estoque atual deve cobrir, sendo um valor que se altera dinamicamente ao longo dos períodos de planejamento. O alvo de estoque do período é usado no balanço de estoque, junto da decisão da produção, a fim de determinar se os estoques serão consumidos ou repostos.
+
+A elaboração do plano de produção ocorre em periodicidade semanal, admitindo atualizações esporádicas conforme a necessidade da operação. A decisão de produção considera as trocas de formas, que configuram longos tempos de \textit{setup}. O \textit{setup} em um equipamento acontece, no limite mínimo, entre turnos de trabalho, ocorrendo, na prática, com intervalos de dias, por conta do alto custo de tempo e pela heterogeneidade das máquinas, cuja diversidade permite alocar o \textit{mix} de produtos simultaneamente.
+
+A alocação das máquinas e seus respectivos balões produzidos obedece às restrições dos equipamentos. Cada máquina possui suas taxas de produção para cada uma das formas e acabamentos dos balões, bem como as formas suportadas. Dentro do horizonte de planejamento, pode-se incluir momentos de ociosidade programada para cada máquina (derivado de pausas para manutenção, reformas e quebras), reduzindo a capacidade produtiva disponível.
+
+Além de determinar a alocação das máquinas, o planejamento tático dita a alocação da força de trabalho. Cada máquina em operação exige, via de regra, dois operadores. Não há restrição de capacitação: qualquer operador trabalha em qualquer máquina. Dentro do horizonte planejado, o tomador de decisão pode incluir a concessão de férias como uma das restrições operacionais, impondo a parada de máquinas em momentos estratégicos para desocupar a mão de obra.
+
+Por fim, o objetivo do tomador de decisão é minimizar os custos operacionais, descritos, neste trabalho, pelos custos de \textit{setup} e pelas vendas perdidas por restrição de capacidade. A variação nos custos dos produtos baliza essa minimização, orientando a priorização do atendimento (produtos mais caros são atendidos e mais baratos são perdidos) e o sequenciamento dos \textit{setups}.
+
 \subsection{Planejamento operacional}
-
-\subsection{Estoque de segurança}
-
 
 
 \newpage
@@ -139,43 +144,41 @@ Este trabalho tem como intuito explorar o processo de tomada de decisão nos pla
 
 \section*{Conjuntos}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$T$ & Conjunto de períodos (meses) de planejamento.\\
+$T$ & Conjunto de períodos (meses).\\
 $I$ & Conjunto de produtos.\\
 $J$ & Conjunto de máquinas.\\
-$D$ & Conjunto de dias do horizonte, indexados sequencialmente: $D = \{1, \ldots, N_D\}$.\\
-$D_t \subset D$ & Subconjunto dos $n_t$ dias pertencentes ao período $t$.\\
-$O$ & Conjunto de operadores: $O = \{1, \ldots, N_{\text{op}}\}$.\\
-$O^f \subseteq O$ & Subconjunto dos $N_f$ operadores que tiram férias no horizonte.\\
+$D$ & Conjunto de sub-períodos (dias).\\
+$D_t \subset D$ & Subconjunto de dias pertencentes ao período $t$.\\
+$O$ & Conjunto de operadores.\\
+$O^v \subseteq O$ & Subconjunto dos operadores que tiram férias no horizonte.\\
 \end{tabularx}
 
 \section*{Parâmetros}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$d_{it}$ & Demanda do item $i$ no período $t$.\\
-$c^l_{i}$ & Custo de venda perdida do item $i$.\\
-$c^s_{ij}$ & Custo de \textit{setup} do item $i$ na máquina $j$.\\
-$p_{ij}$ & Produtividade do item $i$ na máquina $j$.\\
-$n_t$ & Dias úteis no período $t$.\\
-$\bar{h}$ & Horas produtivas por dia por máquina.\\
-$h$ & Granularidade de discretização da produção (horas).\\
-$t^s_{j}$ & Tempo de \textit{setup} (horas) na máquina $j$.\\
-$m_{jd} \in \{0,1\}$ & 1 se a máquina $j$ tem parada programada no dia $d$; 0 caso contrário.\\
-$\alpha$ & Fração de cobertura para estoque de segurança.\\
-$I^{0}_{i}$ & Estoque inicial do item $i$.\\
+$d_{it}$ & Demanda do balão $i$ no período $t$.\\
+$c^l_{i}$ & Custo de venda perdida do balão $i$.\\
+$c^s_{ij}$ & Custo de \textit{setup} do balão $i$ na máquina $j$.\\
+$p_{ij}$ & Produtividade do balão $i$ na máquina $j$.\\
+$h_{jd}$ & Horas produtivas disponíveis da máquina $j$ no dia $d$.\\
+$\Delta$ & Discretização da decisão de produção.\\
+$t^s_{j}$ & Tempo de \textit{setup} na máquina $j$.\\
+$\alpha$ & Fração da cobertura da demanda do período seguinte.\\
+$I^{0}_{i}$ & Estoque inicial do balão $i$.\\
 $F$ & Dias de férias por operador.\\
-$N_f$ & Número de operadores que tiram férias.\\
+$n_o$ & Número de operadores necessários para operar cada máquina simultaneamente.\\
 \end{tabularx}
 
 \section*{Variáveis}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$w_{ijt} \ge 0$ & Blocos de $h$ horas dedicados à produção do item $i$ na máquina $j$ no período $t$.\\
-$y_{ijt} \in \{0,1\}$ & 1 se o item $i$ é produzido na máquina $j$ no período $t$; 0 caso contrário.\\
-$s_{ijt} \in \{0,1\}$ & 1 se a máquina $j$ está configurada para o item $i$ no período $t$; 0 caso contrário.\\
-$\delta_{ijt} \in \{0,1\}$ & 1 se ocorre \textit{setup} para o item $i$ na máquina $j$ no período $t$; 0 caso contrário.\\
-$\ell_{it} \ge 0$ & Venda perdida do item $i$ no período $t$.\\
-$z_{jd} \in \{0,1\}$ & 1 se a máquina $j$ está ociosa no dia $d$; 0 caso contrário.\\
-$f_{kd} \in \{0,1\}$ & 1 se o operador $k$ está de férias no dia $d$; 0 caso contrário.\\
-$g_{kd} \in \{0,1\}$ & 1 se o dia $d$ é o início do bloco de férias do operador $k$; 0 caso contrário.\\
-$r_{kjd} \in \{0,1\}$ & 1 se o operador $k$ opera a máquina $j$ no dia $d$; 0 caso contrário.\\
+$w_{ijt} \ge 0$ & Blocos de $\Delta$ horas produzindo o balão $i$ na máquina $j$ no período $t$.\\
+$y_{ijt} \in \{0,1\}$ & 1 se o balão $i$ é produzido na máquina $j$ no período $t$.\\
+$s_{ijt} \in \{0,1\}$ & 1 se a máquina $j$ está configurada para o balão $i$ no período $t$.\\
+$\delta_{ijt} \in \{0,1\}$ & 1 se ocorre \textit{setup} para o balão $i$ na máquina $j$ no período $t$.\\
+$\ell_{it} \ge 0$ & Venda perdida do balão $i$ no período $t$.\\
+$z_{jd} \in \{0,1\}$ & 1 se a máquina $j$ para no dia $d$, para garantir férias.\\
+$v_{kd} \in \{0,1\}$ & 1 se o operador $k$ está de férias no dia $d$.\\
+$u_{kd} \in \{0,1\}$ & 1 se o dia $d$ é o início do bloco de férias do operador $k$.\\
+$r_{kjd} \in \{0,1\}$ & 1 se o operador $k$ opera a máquina $j$ no dia $d$.\\
 \end{tabularx}
 
 \section*{\textbf{Minimizar}}
@@ -195,33 +198,32 @@ Z =
 \delta_{ijt} &\ge s_{ijt} - s_{ij(t-1)} && \forall i, j, t \label{eq:setup_delta1} \\
 \delta_{ijt} &\ge y_{ijt} - s_{ij(t-1)} && \forall i, j, t \label{eq:setup_delta2} \\
 s_{ijt} &\le y_{ijt} && \forall i, j, t \label{eq:link_prod_estado} \\
-w_{ijt} &\le \left(\frac{\bar{h} \cdot n_t}{h}\right) y_{ijt} && \forall i, j, t \label{eq:ativacao} \\
-\sum_{i \in I} \left( w_{ijt} \cdot h + t^s_{j} \delta_{ijt} \right) &\le \bar{h} \sum_{d \in D_t} \left(1 - z_{jd}\right) && \forall j, t \label{eq:capacidade} \\
-I^{0}_{i} + \sum_{\tau \le t}\sum_{j \in J} w_{ij\tau} \cdot h \cdot p_{ij} + \sum_{\tau \le t} \ell_{i\tau} &\ge \sum_{\tau \le t} d_{i\tau} && \forall i, t \label{eq:balanco} \\
-I^{0}_{i} + \sum_{\tau \le t}\sum_{j \in J} w_{ij\tau} \cdot h \cdot p_{ij} + \sum_{\tau \le t} \ell_{i\tau} - \sum_{\tau \le t} d_{i\tau} &\ge \alpha \cdot d_{i(t+1)} && \forall i, t \label{eq:seguranca} \\
-z_{jd} &\ge m_{jd} && \forall j, d \label{eq:parada_manual} \\
-\sum_{k \in O} r_{kjd} &\ge 1 - z_{jd} && \forall j, d \label{eq:cobertura} \\
-r_{kjd} &\le 1 - f_{kd} && \forall k \in O^f,\; \forall j, d \label{eq:ferias_bloqueio} \\
+w_{ijt} &\le \left(\frac{\sum_{d \in D_t} h_{jd}}{\Delta}\right) y_{ijt} && \forall i, j, t \label{eq:ativacao} \\
+\sum_{i \in I} \left( w_{ijt} \cdot \Delta + t^s_{j} \delta_{ijt} \right) &\le \sum_{d \in D_t} h_{jd} \left(1 - z_{jd}\right) && \forall j, t \label{eq:capacidade} \\
+I^{0}_{i} + \sum_{\tau \le t}\sum_{j \in J} w_{ij\tau} \cdot \Delta \cdot p_{ij} + \sum_{\tau \le t} \ell_{i\tau} &\ge \sum_{\tau \le t} d_{i\tau} && \forall i, t \label{eq:balanco} \\
+I^{0}_{i} + \sum_{\tau \le t}\sum_{j \in J} w_{ij\tau} \cdot \Delta \cdot p_{ij} + \sum_{\tau \le t} \ell_{i\tau} - \sum_{\tau \le t} d_{i\tau} &\ge \alpha \cdot d_{i(t+1)} && \forall i, t \label{eq:seguranca} \\
+\sum_{k \in O} r_{kjd} &\ge n_o \left(1 - z_{jd}\right) && \forall j, d \label{eq:cobertura} \\
 \sum_{j \in J} r_{kjd} &\le 1 && \forall k, d \label{eq:operador_unico} \\
-\sum_{d \in D} f_{kd} &= F && \forall k \in O^f \label{eq:total_ferias} \\
-g_{kd} &\ge f_{kd} - f_{k(d-1)} && \forall k \in O^f,\; d > 1 \label{eq:inicio_ferias} \\
-g_{k1} &\ge f_{k1} && \forall k \in O^f \label{eq:inicio_ferias_d1} \\
-\sum_{d \in D} g_{kd} &\le 1 && \forall k \in O^f \label{eq:ferias_contiguas}
+r_{kjd} &\le 1 - v_{kd} && \forall k \in O^v,\; \forall j, d \label{eq:ferias_bloqueio} \\
+\sum_{d \in D} v_{kd} &= F && \forall k \in O^v \label{eq:total_ferias} \\
+u_{kd} &\ge v_{kd} - v_{k(d-1)} && \forall k \in O^v,\; d > 1 \label{eq:inicio_ferias} \\
+u_{k1} &\ge v_{k1} && \forall k \in O^v \label{eq:inicio_ferias_d1} \\
+\sum_{d \in D} u_{kd} &\le 1 && \forall k \in O^v \label{eq:ferias_contiguas}
 \end{align}
 
-A função objetivo \eqref{eq:objetivo} minimiza o custo total composto por dois termos: custos de \textit{setup} das máquinas e penalidades por vendas perdidas. Paradas programadas e férias não carregam custo direto; seu impacto aparece pela redução de capacidade disponível.
+A função objetivo \eqref{eq:objetivo} minimiza o custo total composto pelos custos de \textit{setup} incorridos nas trocas de configuração das máquinas e pelas penalidades de venda perdida quando a capacidade disponível é insuficiente para atender a demanda. Paradas e férias não entram diretamente no objetivo, mas influenciam a solução ao restringir as horas disponíveis de produção.
 
-A restrição \eqref{eq:estado_unico} garante que cada máquina $j$ mantenha no máximo uma configuração ativa em cada período $t$. A desigualdade permite que nenhum estado esteja ativo quando a máquina está totalmente parada; ao retomar produção, a ausência de estado anterior força a ocorrência de \textit{setup}. As restrições \eqref{eq:setup_delta1} e \eqref{eq:setup_delta2} detectam essa ocorrência: $\delta_{ijt}$ é forçada a 1 se a máquina muda seu estado para o item $i$ ou se inicia produção vindo de um estado diferente.
+Cada máquina pode estar configurada para produzir no máximo um tipo de produto por período, conforme \eqref{eq:estado_unico}. A desigualdade permite que a máquina fique sem configuração ativa quando estiver completamente parada. Nesse caso, ao retomar a produção no período seguinte, a ausência de configuração anterior força a detecção de \textit{setup}. As restrições \eqref{eq:setup_delta1} e \eqref{eq:setup_delta2} capturam essa detecção de duas formas complementares: a variável de \textit{setup} é ativada tanto quando há mudança de configuração de produto quanto quando a produção é iniciada a partir de um estado inativo.
 
-A restrição \eqref{eq:link_prod_estado} vincula o estado de configuração à produção efetiva: se a máquina está configurada para o item $i$, ela deve estar produzindo-o. A restrição \eqref{eq:ativacao} subordina a produção $w_{ijt}$ à variável de ativação $y_{ijt}$, usando a capacidade teórica máxima $\bar{h} n_t / h$ como limitante superior.
+A configuração da máquina deve sempre corresponder a uma decisão efetiva de produção, o que é imposto por \eqref{eq:link_prod_estado}. A restrição \eqref{eq:ativacao} condiciona a produção à ativação da máquina para aquele produto no período, estabelecendo como limitante superior a capacidade total disponível do período expressa em blocos de tempo discretos.
 
-A restrição \eqref{eq:capacidade} limita o consumo total de horas — produção e \textit{setups} — à capacidade efetiva da máquina $j$ no período $t$. A capacidade é derivada diretamente da disponibilidade diária: $\bar{h} \sum_{d \in D_t}(1 - z_{jd})$.
+A restrição \eqref{eq:capacidade} controla o uso da capacidade produtiva: o somatório das horas consumidas em produção e em \textit{setups} não pode exceder as horas disponíveis no período. A paralização da produção para a garantia de férias impacta o balanço dessa restrição.
 
-As restrições \eqref{eq:balanco} e \eqref{eq:seguranca} formulam o balanço de estoque de forma acumulada e impõem o estoque de segurança mínimo, respectivamente.
+O balanço de estoque é formulado de forma acumulada em \eqref{eq:balanco}: para cada produto e período, o estoque inicial somado à produção acumulada e às vendas perdidas acumuladas deve ser suficiente para cobrir a demanda acumulada. A restrição \eqref{eq:seguranca} complementa o balanço ao impor que o estoque disponível ao final de cada período cubra uma fração da demanda do período seguinte, garantindo um nível mínimo de segurança operacional.
 
-A restrição \eqref{eq:parada_manual} fixa a ociosidade da máquina em dias com parada programada. A restrição \eqref{eq:cobertura} exige que cada máquina ativa ($z_{jd}=0$) tenha pelo menos um operador alocado. A restrição \eqref{eq:ferias_bloqueio} impede que operadores de férias sejam designados a máquinas, e \eqref{eq:operador_unico} garante que cada operador opere no máximo uma máquina por dia.
+As restrições \eqref{eq:cobertura} e \eqref{eq:operador_unico} definem a relação entre máquinas e operadores no nível diário. Toda máquina que o solver mantém em operação deve ter exatamente o número mínimo de operadores designados a ela simultaneamente — se qualquer um desses operadores estiver de férias, a máquina é obrigada a parar, pois não há como atender ao requisito de cobertura. Cada operador, por sua vez, pode ser designado a no máximo uma máquina por dia, evitando sobreposição de alocações.
 
-A restrição \eqref{eq:total_ferias} fixa o total de dias de férias de cada operador em $F$. As restrições \eqref{eq:inicio_ferias}--\eqref{eq:ferias_contiguas} garantem a contiguidade das férias: $g_{kd}$ detecta o início do bloco, e $\sum_d g_{kd} \le 1$ assegura que exista no máximo um início, formando um bloco único e sequencial.
+As restrições restantes modelam o planejamento de férias para os operadores do subconjunto que as realizará no horizonte. A restrição \eqref{eq:ferias_bloqueio} impede que um operador em férias seja designado a qualquer máquina naquele dia. A restrição \eqref{eq:total_ferias} garante que cada operador usufrua exatamente o número de dias de férias estabelecido. Por fim, as restrições \eqref{eq:inicio_ferias}, \eqref{eq:inicio_ferias_d1} e \eqref{eq:ferias_contiguas} asseguram que as férias sejam contíguas: a variável auxiliar detecta o primeiro dia do bloco de férias, e a restrição de unicidade garante que esse início ocorra no máximo uma vez por operador, formando assim um período único e ininterrupto.
     
 \bibliographystyle{abntex2-alf}
 \bibliography{referencias}     

@@ -38,6 +38,7 @@ class LotSizingSolver:
         self.days_per_period = days_per_period or {t: 30 for t in self.periods}
 
         self._build_day_mapping()
+        self._precompute_daily_capacity()
         self._map_machine_products()
         self.prob = pulp.LpProblem("LotSizing", pulp.LpMinimize)
 
@@ -55,6 +56,18 @@ class LotSizingSolver:
                 self.period_of_day[d] = t
             self.all_days.extend(days_t)
             day_idx += n_t
+
+    def _precompute_daily_capacity(self):
+        """Pré-calcula H_{jd}: hours_per_day em dias normais, 0 em dias com parada programada."""
+        stops_by_machine = {}
+        for (m, d) in self.manual_stops:
+            stops_by_machine.setdefault(m, set()).add(d)
+
+        self.daily_capacity = {}
+        for m in self.active_machines:
+            machine_stops = stops_by_machine.get(m, set())
+            for d in self.all_days:
+                self.daily_capacity[(m, d)] = 0.0 if d in machine_stops else self.hours_per_day
 
     def _map_machine_products(self):
         self.machine_products = {m: [] for m in self.active_machines}
@@ -193,9 +206,12 @@ class LotSizingSolver:
 
                     usage.append(self.H_steps[key] * self.step_hours + setup_time * self.Delta_Setup[key])
 
-                # (7) Capacidade derivada dos dias
+                # (7) Capacidade: H_{jd} já incorpora paradas programadas; z_{jd} é exclusivo para decisões do solver
                 days_t = self.days_in_period[t]
-                available_hours = self.hours_per_day * pulp.lpSum([1 - self.Z_day[(m, d)] for d in days_t])
+                available_hours = pulp.lpSum([
+                    self.daily_capacity[(m, d)] * (1 - self.Z_day[(m, d)])
+                    for d in days_t
+                ])
                 self.prob += pulp.lpSum(usage) <= available_hours
 
         # (8)-(9) Balanço de massa e estoque de segurança
@@ -216,26 +232,21 @@ class LotSizingSolver:
                     next_dem = self.demand[p].get(self.periods[t_idx + 1], dem) if t_idx + 1 < len(self.periods) else dem
                     self.prob += self.I[(p, t)] >= next_dem * self.safety_stock_pct
 
-        # (A) Parada manual fixa: z_{jd} >= 1 para (j,d) no conjunto de paradas
-        for (m, d) in self.manual_stops:
-            if m in self.active_machines and d in self.all_days:
-                self.prob += self.Z_day[(m, d)] >= 1
-
-        # (B) Cobertura de máquina — operador necessário
+        # (A) Cobertura de máquina — todos os operadores_por_máquina obrigatórios
         if self.num_operators > 0:
             for m in self.active_machines:
                 for d in self.all_days:
                     self.prob += pulp.lpSum(
                         [self.R_assign[(k, m, d)] for k in operators]
-                    ) >= 1 - self.Z_day[(m, d)]
+                    ) >= self.operators_per_machine * (1 - self.Z_day[(m, d)])
 
-        # (C) Operador de férias não trabalha
+        # (B) Operador de férias não trabalha
         for k in vacation_operators:
             for m in self.active_machines:
                 for d in self.all_days:
                     self.prob += self.R_assign[(k, m, d)] <= 1 - self.F_vac[(k, d)]
 
-        # (D) Operador em no máximo 1 máquina por dia
+        # (C) Operador em no máximo 1 máquina por dia
         if self.num_operators > 0:
             for k in operators:
                 for d in self.all_days:
@@ -243,13 +254,13 @@ class LotSizingSolver:
                         [self.R_assign[(k, m, d)] for m in self.active_machines]
                     ) <= 1
 
-        # (E) Total de dias de férias por operador
+        # (D) Total de dias de férias por operador
         for k in vacation_operators:
             self.prob += pulp.lpSum(
                 [self.F_vac[(k, d)] for d in self.all_days]
             ) == self.vacation_days
 
-        # (F) Férias contíguas (bloco sequencial)
+        # (E) Férias contíguas (bloco sequencial)
         for k in vacation_operators:
             if self.all_days:
                 first_d = self.all_days[0]
@@ -298,9 +309,16 @@ class LotSizingSolver:
             for m in self.active_machines:
                 days_t = self.days_in_period[t]
                 n_t = len(days_t)
-                days_stopped = sum(1 for d in days_t if val(self.Z_day[(m, d)]) > 0.5)
-                days_active = n_t - days_stopped
-                machine_hours_avail = self.hours_per_day * days_active
+                # Dias parados = programados (H_{jd}=0) + decididos pelo solver (z_{jd}=1)
+                days_stopped = sum(
+                    1 for d in days_t
+                    if self.daily_capacity[(m, d)] == 0.0 or val(self.Z_day[(m, d)]) > 0.5
+                )
+                # horas disponíveis = H_{jd} * (1 - z_{jd}), consistente com a restrição de capacidade
+                machine_hours_avail = sum(
+                    self.daily_capacity[(m, d)] * (1 - (1 if val(self.Z_day[(m, d)]) > 0.5 else 0))
+                    for d in days_t
+                )
                 total_machine_hours += machine_hours_avail
 
                 if days_stopped > 0:
@@ -314,7 +332,10 @@ class LotSizingSolver:
                 from_prod = "-"
                 if prev_t:
                     prev_days = self.days_in_period[prev_t]
-                    prev_all_stopped = all(val(self.Z_day[(m, d)]) > 0.5 for d in prev_days)
+                    prev_all_stopped = all(
+                        self.daily_capacity[(m, d)] == 0.0 or val(self.Z_day[(m, d)]) > 0.5
+                        for d in prev_days
+                    )
                     if prev_all_stopped:
                         from_prod = "Parada"
                     else:
