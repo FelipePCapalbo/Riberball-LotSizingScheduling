@@ -12,7 +12,7 @@ CONFIG_DIR = os.path.join(ROOT_DIR, 'config')
 SECTIONS = {
     'scenario.json': ['start_period', 'end_period', 'coverage_months'],
     'capacity.json': ['shifts_per_day', 'hours_per_shift', 'days_per_week'],
-    'machines.json': ['active_machines', 'manual_stops_ranges',
+    'machines.json': ['active_machines',
                       'high_setup_machines', 'setup_time_high', 'setup_time_low'],
     'solver.json': ['solver_name', 'time_limit', 'threads'],
 }

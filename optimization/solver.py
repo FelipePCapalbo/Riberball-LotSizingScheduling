@@ -14,7 +14,7 @@ class LotSizingSolver:
                  start_period, end_period=None, costs=None,
                  hours_per_day=24.0, days_per_period=None,
                  safety_stock_pct=0,
-                 manual_stops=None,
+                 machine_availability=None,
                  high_setup_machines=None, setup_time_high=7.0, setup_time_low=3.0):
 
         self.demand = demand
@@ -31,7 +31,8 @@ class LotSizingSolver:
         self.setup_time_high = setup_time_high
         self.setup_time_low = setup_time_low
 
-        self.manual_stops = manual_stops or set()
+        # avail[machine_id][period_str] = fração [0,1]; ausente = 1.0 (plena disponibilidade)
+        self.machine_availability = machine_availability or {}
 
         self.products = list(demand.keys())
         all_dates = sorted(demand[self.products[0]].keys()) if self.products else []
@@ -85,16 +86,24 @@ class LotSizingSolver:
             day_idx += n_t
 
     def _precompute_daily_capacity(self):
-        """Pré-calcula H_{jd}: hours_per_day em dias normais, 0 em dias com parada programada."""
-        stops_by_machine = {}
-        for (m, d) in self.manual_stops:
-            stops_by_machine.setdefault(m, set()).add(d)
+        """
+        Pré-calcula H_{jd}: hours_per_day em dias disponíveis, 0 em dias parados.
 
+        Para cada máquina j e período t, a disponibilidade avail_jt ∈ [0,1] define
+        quantos dias úteis ficam ativos: days_active = round(avail_jt * n_t).
+        Os primeiros (n_t - days_active) dias do período recebem capacity = 0.
+        """
         self.daily_capacity = {}
         for m in self.active_machines:
-            machine_stops = stops_by_machine.get(m, set())
-            for d in self.all_days:
-                self.daily_capacity[(m, d)] = 0.0 if d in machine_stops else self.hours_per_day
+            avail_m = self.machine_availability.get(m, {})
+            for t in self.periods:
+                days_t = self.days_in_period[t]
+                n_t = len(days_t)
+                avail_jt = avail_m.get(t, 1.0)
+                days_active = round(avail_jt * n_t)
+                n_stop = n_t - days_active
+                for i, d in enumerate(days_t):
+                    self.daily_capacity[(m, d)] = 0.0 if i < n_stop else self.hours_per_day
 
     def _setup_time(self, m):
         """Tempo de setup da máquina: alto para máquinas listadas, baixo nas demais."""

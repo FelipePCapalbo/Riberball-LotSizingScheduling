@@ -13,13 +13,16 @@ import json
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from processing.data import DataService, DATA_DIR, list_data_files
 from processing.settings import load_settings
 from optimization.planner import run_plan
 
 
 def main():
     settings = load_settings()
-    result = run_plan(settings)
+    files = list_data_files()
+    data_service = DataService(os.path.join(DATA_DIR, files[0]))
+    result = run_plan(settings, data_service)
 
     with open('results.json', 'w', encoding='utf-8') as f:
         json.dump(result, f, indent=4, ensure_ascii=False)

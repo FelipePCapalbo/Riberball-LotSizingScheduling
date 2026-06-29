@@ -2,13 +2,11 @@
 Orquestração da otimização: une as configurações (JSON) e os dados (Excel),
 instancia o solver e devolve o resultado. Ponto único usado pela web e pela CLI.
 """
-from processing.data import DataService, ranges_to_day_indices
+from processing.data import DataService
 from optimization.solver import LotSizingSolver
 
-data_service = DataService()
 
-
-def run_plan(settings: dict) -> dict:
+def run_plan(settings: dict, data_service: DataService) -> dict:
     start_period = settings['start_period']
     end_period = settings.get('end_period')
 
@@ -16,7 +14,7 @@ def run_plan(settings: dict) -> dict:
     hours_per_day = float(settings['shifts_per_day']) * float(settings['hours_per_shift'])
     days_in_period = round(float(settings['days_per_week']) * 4.33)
 
-    demand, initial_inventory, productivity, costs = data_service.get_scenario_data(
+    demand, initial_inventory, productivity, costs, machine_availability = data_service.get_scenario_data(
         start_period, end_period
     )
 
@@ -26,10 +24,6 @@ def run_plan(settings: dict) -> dict:
         if p >= start_period and (not end_period or p <= end_period)
     ]
     days_per_period = {t: days_in_period for t in periods_in_scope}
-
-    manual_stops = ranges_to_day_indices(
-        settings.get('manual_stops_ranges', {}), periods_in_scope, days_per_period
-    )
 
     solver = LotSizingSolver(
         demand=demand,
@@ -42,7 +36,7 @@ def run_plan(settings: dict) -> dict:
         hours_per_day=hours_per_day,
         days_per_period=days_per_period,
         safety_stock_pct=int(settings.get('coverage_months', 0)),
-        manual_stops=manual_stops,
+        machine_availability=machine_availability,
         high_setup_machines=settings.get('high_setup_machines', []),
         setup_time_high=settings.get('setup_time_high'),
         setup_time_low=settings.get('setup_time_low'),

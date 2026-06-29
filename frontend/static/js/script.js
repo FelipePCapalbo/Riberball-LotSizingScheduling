@@ -8,7 +8,7 @@
 function appShell() {
     return {
         sidebarOpen: true,
-        sec: { horizon: true, capacity: true, machines: true, solver: false },
+        sec: { data: true, horizon: true, capacity: true, machines: true, solver: false },
 
         init() {
             fetchInitData();
@@ -23,9 +23,6 @@ const AppState = {
     charts: { inventory: null, production: null, demand: null },
     data:   { summary: [], production: [], setups: [], machine_stops: [] }
 };
-
-// Intervalos de parada: {machine: [{start, end}, ...]}
-const _machineStopRanges = {};
 
 // ── Inicialização ────────────────────────────────────────────────
 
@@ -63,14 +60,46 @@ function initActionButtons() {
 
 async function fetchInitData() {
     try {
-        const resp = await fetch('/api/init-data');
-        const data = await resp.json();
-        setupDateInputs(data.periods);
-        setupMachineGrid(data.machines);
-        loadSettingsState();
+        await loadDataFiles();
+        await reloadInitData();
     } catch (e) {
         setRunStatus('Erro ao carregar dados iniciais.', 'danger');
     }
+}
+
+async function loadDataFiles() {
+    const resp  = await fetch('/api/data-files');
+    const data  = await resp.json();
+    const sel   = document.getElementById('data-file-select');
+    sel.innerHTML = '';
+    data.files.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f;
+        opt.textContent = f;
+        if (f === data.active) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    sel.addEventListener('change', handleDataFileChange);
+}
+
+async function handleDataFileChange() {
+    const file = document.getElementById('data-file-select').value;
+    setRunStatus('Carregando arquivo...', '');
+    await fetch('/api/set-data-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file })
+    });
+    await reloadInitData();
+    setRunStatus('', '');
+}
+
+async function reloadInitData() {
+    const resp = await fetch('/api/init-data');
+    const data = await resp.json();
+    setupDateInputs(data.periods);
+    setupMachineGrid(data.machines);
+    loadSettingsState();
 }
 
 function setupDateInputs(periods) {
@@ -87,8 +116,6 @@ function setupDateInputs(periods) {
 
 // ── Grade de máquinas ────────────────────────────────────────────
 
-const CALENDAR_SVG = `<svg class="machine-calendar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
-
 function setupMachineGrid(machines) {
     const grid = document.getElementById('machine-list');
     grid.innerHTML = '';
@@ -96,18 +123,10 @@ function setupMachineGrid(machines) {
     machines.forEach(m => {
         const box = _createMachineBox(m);
         box.classList.add('active');
-        const cal = box.querySelector('.machine-calendar-icon');
 
-        box.addEventListener('click', e => {
-            if (e.target.closest('.machine-calendar-icon') || e.target.closest('.machine-stops-popover')) return;
+        box.addEventListener('click', () => {
             box.classList.toggle('active');
-            closeAllPopovers();
             saveSettingsState();
-        });
-
-        cal.addEventListener('click', e => {
-            e.stopPropagation();
-            toggleStopsPopover(box, m);
         });
 
         grid.appendChild(box);
@@ -118,9 +137,8 @@ function setupMachineGrid(machines) {
     highGrid.innerHTML = '';
     highGrid.className = 'machine-grid high-setup-grid';
     machines.forEach(m => {
-        const box = _createMachineBox(m, false);
-        box.addEventListener('click', e => {
-            if (e.target.closest('.machine-stops-popover')) return;
+        const box = _createMachineBox(m);
+        box.addEventListener('click', () => {
             box.classList.toggle('selected');
             saveSettingsState();
         });
@@ -128,117 +146,12 @@ function setupMachineGrid(machines) {
     });
 }
 
-function _createMachineBox(m, withCalendar = true) {
+function _createMachineBox(m) {
     const box = document.createElement('div');
     box.className = 'machine-box';
     box.dataset.machine = m;
-    box.innerHTML = `<span>M${m}</span>${withCalendar ? CALENDAR_SVG : ''}`;
+    box.innerHTML = `<span>M${m}</span>`;
     return box;
-}
-
-// ── Popover de paradas ───────────────────────────────────────────
-
-function toggleStopsPopover(machineDiv, machine) {
-    const existing = machineDiv.querySelector('.machine-stops-popover');
-    if (existing) { existing.remove(); return; }
-    closeAllPopovers();
-
-    const popover = document.createElement('div');
-    popover.className = 'machine-stops-popover';
-    popover.addEventListener('click', e => e.stopPropagation());
-
-    const { min: hMin, max: hMax } = getHorizonDates();
-    popover.innerHTML = `
-        <div class="popover-title">Paradas — M${machine}</div>
-        <div class="popover-form">
-            <div class="popover-row">
-                <label>Início</label>
-                <input type="date" class="stop-start" ${hMin ? `min="${hMin}"` : ''} ${hMax ? `max="${hMax}"` : ''}>
-            </div>
-            <div class="popover-row">
-                <label>Fim</label>
-                <input type="date" class="stop-end" ${hMin ? `min="${hMin}"` : ''} ${hMax ? `max="${hMax}"` : ''}>
-            </div>
-            <button class="btn-add-range" type="button">+ Adicionar</button>
-        </div>
-        <div class="popover-ranges-list"></div>
-        <div class="popover-hint"></div>
-    `;
-
-    const startInput = popover.querySelector('.stop-start');
-    const endInput   = popover.querySelector('.stop-end');
-    const listDiv    = popover.querySelector('.popover-ranges-list');
-    const hint       = popover.querySelector('.popover-hint');
-
-    function renderList() {
-        const ranges = _machineStopRanges[machine] || [];
-        listDiv.innerHTML = '';
-        ranges.forEach((r, idx) => {
-            const days = countRangeDays(r.start, r.end);
-            const item = document.createElement('div');
-            item.className = 'popover-range-item';
-            item.innerHTML = `<span>${fmt2(r.start)} — ${fmt2(r.end)} <em>(${days}d)</em></span><button class="btn-remove-range" data-idx="${idx}">&times;</button>`;
-            item.querySelector('.btn-remove-range').addEventListener('click', e => {
-                e.stopPropagation();
-                ranges.splice(idx, 1);
-                if (!ranges.length) delete _machineStopRanges[machine];
-                refresh();
-            });
-            listDiv.appendChild(item);
-        });
-        const total = totalStopDays(machine);
-        hint.textContent = `${total} dias parados no horizonte`;
-        updateMachineBoxColor(machineDiv, total);
-    }
-
-    function refresh() { renderList(); saveSettingsState(); }
-
-    popover.querySelector('.btn-add-range').addEventListener('click', () => {
-        const s = startInput.value, e = endInput.value;
-        if (!s || !e) return;
-        if (!_machineStopRanges[machine]) _machineStopRanges[machine] = [];
-        const start = s <= e ? s : e;
-        const end   = s <= e ? e : s;
-        _machineStopRanges[machine].push({ start, end });
-        startInput.value = '';
-        endInput.value   = '';
-        refresh();
-    });
-
-    renderList();
-    machineDiv.appendChild(popover);
-    startInput.focus();
-}
-
-function closeAllPopovers() {
-    document.querySelectorAll('.machine-stops-popover').forEach(p => p.remove());
-}
-
-document.addEventListener('click', e => {
-    if (!e.target.closest('.machine-box')) closeAllPopovers();
-});
-
-function getHorizonDates() {
-    return {
-        min: document.getElementById('start-period')?.value || '',
-        max: document.getElementById('end-period')?.value   || ''
-    };
-}
-
-function countRangeDays(start, end) {
-    const s = new Date(start + 'T00:00:00');
-    const e = new Date(end   + 'T00:00:00');
-    if (isNaN(s) || isNaN(e) || e < s) return 0;
-    return Math.round((e - s) / 86400000) + 1;
-}
-
-function totalStopDays(machine) {
-    return (_machineStopRanges[machine] || []).reduce((sum, r) => sum + countRangeDays(r.start, r.end), 0);
-}
-
-function updateMachineBoxColor(div, stopDays) {
-    if (!div.classList.contains('active')) return;
-    div.classList.toggle('has-stops', stopDays > 0);
 }
 
 // ── Execução ─────────────────────────────────────────────────────
@@ -310,7 +223,6 @@ function collectSettings() {
         hours_per_shift:     parseFloat(v('hours-per-shift'))|| 0,
         days_per_week:       parseFloat(v('days-per-week'))  || 0,
         active_machines:     Array.from(document.querySelectorAll('#machine-list .machine-box.active')).map(el => el.dataset.machine),
-        manual_stops_ranges: JSON.parse(JSON.stringify(_machineStopRanges)),
         high_setup_machines: highSetupMachines,
         setup_time_high:     parseFloat(v('setup-time-high')) || 7.0,
         setup_time_low:      parseFloat(v('setup-time-low'))  || 3.0,
@@ -376,15 +288,6 @@ async function loadSettingsState() {
         });
     }
 
-    // Paradas manuais
-    if (state.manual_stops_ranges) {
-        Object.keys(_machineStopRanges).forEach(k => delete _machineStopRanges[k]);
-        Object.entries(state.manual_stops_ranges).forEach(([m, ranges]) => {
-            _machineStopRanges[m] = ranges;
-            const box = document.querySelector(`#machine-list .machine-box[data-machine="${m}"]`);
-            if (box) updateMachineBoxColor(box, totalStopDays(m));
-        });
-    }
 }
 
 // ── KPIs ─────────────────────────────────────────────────────────

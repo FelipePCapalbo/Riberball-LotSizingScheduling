@@ -8,21 +8,28 @@ SKUs são identificados no formato MODELO-TIPO em todas as abas.
 """
 import os
 import re
-from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 import pandas as pd
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_FILE = os.path.join(ROOT_DIR, 'data', 'inputs.xlsx')
+DATA_DIR  = os.path.join(ROOT_DIR, 'data')
 
 
 # ── Leitura do Excel ───────────────────────────────────────────────────────
 
-def _read_sheet(sheet_name: str, header: int = 0) -> pd.DataFrame:
-    """Lê uma aba do arquivo Excel centralizado de inputs."""
-    if not os.path.exists(DATA_FILE):
+def list_data_files() -> list:
+    """Retorna os arquivos .xlsx disponíveis em data/."""
+    return sorted(
+        f for f in os.listdir(DATA_DIR)
+        if f.endswith('.xlsx') and not f.startswith('~')
+    )
+
+
+def _read_sheet(data_file: str, sheet_name: str, header: int = 0) -> pd.DataFrame:
+    """Lê uma aba do arquivo Excel indicado."""
+    if not os.path.exists(data_file):
         return pd.DataFrame()
-    return pd.read_excel(DATA_FILE, sheet_name=sheet_name, header=header)
+    return pd.read_excel(data_file, sheet_name=sheet_name, header=header)
 
 
 def _normalize_date_col(col_val) -> str:
@@ -38,9 +45,9 @@ def _normalize_date_col(col_val) -> str:
         return s
 
 
-def load_productivity() -> Dict[str, Dict[str, float]]:
+def load_productivity(data_file: str) -> Dict[str, Dict[str, float]]:
     """Carrega matriz de produtividade. Chave: 'MODELO-TIPO'."""
-    df = _read_sheet('Produtividade', header=1)
+    df = _read_sheet(data_file, 'Produtividade', header=1)
     if df.empty:
         return {}
 
@@ -61,9 +68,9 @@ def load_productivity() -> Dict[str, Dict[str, float]]:
     return productivity
 
 
-def load_costs() -> Dict[str, float]:
+def load_costs(data_file: str) -> Dict[str, float]:
     """Carrega custos unitários. Chave: 'MODELO-TIPO'."""
-    df = _read_sheet('Custos', header=0)
+    df = _read_sheet(data_file, 'Custos', header=0)
     costs = {}
     for _, row in df.iterrows():
         if pd.isna(row.get('MODELO')):
@@ -76,9 +83,9 @@ def load_costs() -> Dict[str, float]:
     return costs
 
 
-def load_demand() -> Tuple[List[str], Dict]:
+def load_demand(data_file: str) -> Tuple[List[str], Dict]:
     """Carrega previsão de demanda e estende 12 meses com sazonalidade do ano anterior."""
-    df = _read_sheet('Demanda', header=1)
+    df = _read_sheet(data_file, 'Demanda', header=1)
     if df.empty:
         return [], {}
 
@@ -113,9 +120,9 @@ def _extend_dates_with_seasonality(dates: List[str], demand: Dict, months_ahead:
     return new_dates
 
 
-def load_inventory() -> Tuple[List[str], Dict]:
+def load_inventory(data_file: str) -> Tuple[List[str], Dict]:
     """Carrega saldos de estoque. Chave: 'MODELO-TIPO'."""
-    df = _read_sheet('Estoque', header=1)
+    df = _read_sheet(data_file, 'Estoque', header=1)
     if df.empty:
         return [], {}
 
@@ -130,23 +137,47 @@ def load_inventory() -> Tuple[List[str], Dict]:
     return dates, inventory
 
 
+def load_machine_availability(data_file: str) -> Dict[str, Dict[str, float]]:
+    """
+    Carrega disponibilidade mensal das máquinas.
+    Retorna avail[machine_id][period_str] = fração em [0, 1].
+    Período sem registro assume disponibilidade plena (1.0).
+    """
+    df = _read_sheet(data_file, 'Disponibilidade de maquinas', header=0)
+    if df.empty:
+        return {}
+
+    machine_cols = [c for c in df.columns if c != 'DATA']
+    avail: Dict[str, Dict[str, float]] = {}
+
+    for col in machine_cols:
+        m_id = str(int(float(col))) if str(col).replace('.', '', 1).isdigit() else str(col)
+        avail[m_id] = {}
+        for _, row in df.iterrows():
+            if pd.isna(row.get('DATA')):
+                continue
+            period = _normalize_date_col(row['DATA'])
+            val = row.get(col)
+            avail[m_id][period] = float(val) if pd.notna(val) else 1.0
+
+    return avail
+
+
 # ── Montagem do cenário ─────────────────────────────────────────────────────
 
 class DataService:
-    """Carrega os dados do Excel uma única vez e prepara cenários para o solver."""
-    _instance = None
+    """Carrega os dados do Excel e prepara cenários para o solver."""
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._load_all_data()
-        return cls._instance
+    def __init__(self, data_file: str):
+        self.data_file = data_file
+        self._load_all_data()
 
     def _load_all_data(self):
-        self.productivity = load_productivity()
-        self.demand_dates, self.demand = load_demand()
-        _, self.inventory = load_inventory()
-        self.costs = load_costs()
+        self.productivity = load_productivity(self.data_file)
+        self.demand_dates, self.demand = load_demand(self.data_file)
+        _, self.inventory = load_inventory(self.data_file)
+        self.costs = load_costs(self.data_file)
+        self.machine_availability = load_machine_availability(self.data_file)
 
     def get_initial_data(self) -> Dict:
         """Períodos disponíveis e lista de máquinas para a interface."""
@@ -156,10 +187,10 @@ class DataService:
             "machines": sorted(list(machines), key=lambda x: int(x) if x.isdigit() else 999)
         }
 
-    def get_scenario_data(self, start_period: str, end_period: Optional[str] = None) -> Tuple[Dict, Dict, Dict, Dict]:
+    def get_scenario_data(self, start_period: str, end_period: Optional[str] = None) -> Tuple[Dict, Dict, Dict, Dict, Dict]:
         """Prepara demanda, estoque inicial, produtividade e custos para o solver."""
         if not self.demand:
-            return {}, {}, {}, {}
+            return {}, {}, {}, {}, {}
 
         local_demand = {k: v.copy() for k, v in self.demand.items()}
 
@@ -180,56 +211,6 @@ class DataService:
             valid_dates = [d for d in date_vals if d <= start_period]
             initial_inventory[sku] = date_vals[max(valid_dates)] if valid_dates else 0.0
 
-        return local_demand, initial_inventory, self.productivity, self.costs
+        return local_demand, initial_inventory, self.productivity, self.costs, self.machine_availability
 
 
-# ── Transformações para o solver ────────────────────────────────────────────
-
-def ranges_to_day_indices(ranges_by_machine, periods, days_per_period) -> set:
-    """
-    Converte intervalos de datas {machine: [{start, end}, ...]} em set de
-    (machine, day_index) compatível com o solver.
-
-    Cada período (mês) tem n_t dias úteis indexados sequencialmente. Uma data
-    calendário dentro do mês é mapeada ao dia útil proporcional.
-    """
-    stop_set = set()
-    if not ranges_by_machine or not periods:
-        return stop_set
-
-    period_info = []
-    cum_day = 0
-    for t in periods:
-        date_str = t.split(' ')[0]
-        year, month = int(date_str[:4]), int(date_str[5:7])
-        next_month_start = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
-        month_start = datetime(year, month, 1)
-        cal_days = (next_month_start - month_start).days
-        n_t = days_per_period.get(t, 30)
-        period_info.append({'month_start': month_start, 'cal_days': cal_days, 'n_t': n_t, 'cum_day': cum_day})
-        cum_day += n_t
-
-    for machine, ranges in ranges_by_machine.items():
-        for rng in ranges or []:
-            try:
-                r_start = datetime.strptime(rng['start'], '%Y-%m-%d')
-                r_end = datetime.strptime(rng['end'], '%Y-%m-%d')
-            except (ValueError, KeyError):
-                continue
-            if r_end < r_start:
-                r_start, r_end = r_end, r_start
-
-            for pi in period_info:
-                ms = pi['month_start']
-                me = ms + timedelta(days=pi['cal_days'] - 1)
-                overlap_start = max(r_start, ms)
-                overlap_end = min(r_end, me)
-                if overlap_start > overlap_end:
-                    continue
-                for day_offset in range((overlap_end - overlap_start).days + 1):
-                    cal_date = overlap_start + timedelta(days=day_offset)
-                    day_in_month = (cal_date - ms).days
-                    working_day = min(int(day_in_month * pi['n_t'] / pi['cal_days']), pi['n_t'] - 1)
-                    stop_set.add((machine, pi['cum_day'] + working_day))
-
-    return stop_set

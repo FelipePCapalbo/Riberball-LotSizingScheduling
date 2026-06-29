@@ -33,6 +33,20 @@
         <!-- Corpo da sidebar — seções accordion -->
         <div class="sidebar-body" x-show="sidebarOpen" x-cloak>
 
+            <!-- Arquivo de Input -->
+            <div class="sb-section">
+                <button class="sb-section-toggle" @click="sec.data = !sec.data">
+                    Dados
+                    <svg class="chevron" :class="{ rotated: !sec.data }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <div x-show="sec.data" x-collapse>
+                    <div class="sb-field">
+                        <label>Arquivo de input</label>
+                        <select id="data-file-select" class="form-select form-select-sm"></select>
+                    </div>
+                </div>
+            </div>
+
             <!-- Horizonte de Planejamento -->
             <div class="sb-section">
                 <button class="sb-section-toggle" @click="sec.horizon = !sec.horizon">
@@ -94,7 +108,6 @@
                     <div class="machine-grid" id="machine-list"></div>
                     <div class="machine-legend">
                         <span><span class="ldot ldot-active"></span>Ativa</span>
-                        <span><span class="ldot ldot-stops"></span>Com paradas</span>
                         <span><span class="ldot ldot-off"></span>Inativa</span>
                     </div>
 
