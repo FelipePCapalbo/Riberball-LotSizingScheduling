@@ -1,134 +1,37 @@
-# Sistema de Dimensionamento de Lotes
+# Riberball — Dimensionamento de Lotes
 
-Sistema de otimização para planejamento de produção e estoques, focado em minimizar custos operacionais e maximizar o nível de serviço.
+Otimização de produção e estoques (MILP) com interface web opcional.
 
-## Arquitetura e Estrutura
+## Estrutura
 
-O sistema segue uma arquitetura modular simples, utilizando Flask para a interface web e API, e namespace packages para organização interna.
+- `optimization/` — solver MILP (`solver.py`) e orquestração (`planner.py`).
+- `processing/` — leitura do Excel e montagem do cenário (`data.py`), persistência das configurações (`settings.py`).
+- `frontend/` — servidor Flask e interface (`app.py`, `templates/`, `static/`).
+- `config/*.json` — configurações do sistema (horizonte, capacidade, máquinas, operadores, solver).
+- `data/inputs.xlsx` — dados de entrada (demanda, estoque, produtividade, custos).
 
-### Estrutura de Diretórios
+## Como usar
 
-- **app/**
-  - `main.py`: Entrypoint da aplicação. Gerencia rotas da API e renderização do frontend.
-  - **modules/etl/**: Tratamento de dados.
-    - `loader.py`: Responsável por carregar CSVs e normalizar chaves de produto para garantir consistência entre Demanda e Produtividade.
-  - **modules/optimization/**: Motor de cálculo.
-    - `solver.py`: Implementação do modelo de otimização matemática (MILP) utilizando biblioteca PuLP.
-  - **static/** e **templates/**: Interface do usuário.
+Instale as dependências:
 
-- **data/**: Repositório de dados de entrada (CSV).
-- **tests/**: Scripts de teste e benchmark de performance.
-- `run_doe.py`: Script para execução de Design of Experiments (DOE) parametrizado.
-- `doe_config.json`: Arquivo de configuração para os cenários do DOE.
-
-## Componentes Principais
-
-### ETL (`app/modules/etl`)
-- **Normalização de Produtos**: Implementa lógica heurística para alinhar nomenclaturas divergentes entre fontes de dados.
-- **Extensão de Demanda**: Replica a demanda histórica ou projeta baseada no último período para garantir horizonte de planejamento contínuo.
-
-### Otimização (`app/modules/optimization`)
-- **Solver (Mixed-Integer Linear Programming)**:
-  - **Função Objetivo**: Minimizar custos de vendas perdidas (K) e setup de máquinas.
-  - **Variáveis de Decisão**: 
-    - Produção (Quantidade/Horas).
-    - Estado da Máquina (Setup, Produzindo, Ociosa).
-    - Estoque.
-  - **Restrições**: 
-    - Capacidade de máquina (Horas produtivas + Setup).
-    - Balanço de massa de estoque e fluxo de atendimento.
-    - Estoque de segurança mínimo.
-    - **Lógica de Setup e Ociosidade**: O modelo gerencia explicitamente o estado da máquina, permitindo "carry-over" (manter setup) ou ociosidade forçada, evitando setups desnecessários.
-
-### Interface e Relatórios
-- **Parametrização Centralizada**: As configurações de Período, Cobertura de Estoque e Recursos Operacionais (Férias) estão organizadas na linha superior para acesso rápido.
-- **Resumo Mensal**: KPIs agregados de estoque, utilização e atendimento.
-- **Produção Detalhada**: Tabela granular de horas e quantidades produzidas por máquina/produto.
-- **Relatório de Setups**: Visualização detalhada de todas as trocas (setups) ocorridas.
-
-### Automação de Experimentos (DOE)
-O sistema permite rodar baterias de testes combinatórios para análise de sensibilidade e tuning de parâmetros.
-- **Configuração (`doe_config.json`)**: Define variáveis fixas e listas de valores para variáveis experimentais (Ex: número de operadores, tipo de decisão, cobertura).
-- **Execução (`run_doe.py`)**: Gera todas as combinações possíveis, executa o solver para cada cenário e exporta um CSV (`doe_results.csv`) contendo:
-  - KPIs (Custo Total, Nível de Serviço, Estoque Médio).
-  - Métricas de Solver (Lower Bound, Tempo de Execução, Status).
-
-## Performance e Limitações
-
-A complexidade computacional do problema é dominada pela combinação de variáveis inteiras (`H_steps`) e binárias (`Y`), ligadas por restrições de "Big-M" (`H <= M * Y`).
-
-- **Setup de Máquina**: Utiliza variáveis binárias (`Y`, `Delta`) para impor custo/tempo de setup e rastrear mudanças de estado.
-- **Otimização "Tight Big-M"**: O valor de `M` é calculado dinamicamente com base na demanda restante para fortalecer o relaxamento linear e acelerar a convergência.
-
-## Como Executar
-
-### Pré-requisitos
-- Python 3.10+
-- Dependências listadas em `requirements.txt`
-
-### Comandos
-Linux/Mac:
 ```bash
-./run.sh
+pip install -r requirements.txt
 ```
-Windows:
-```cmd
-run.bat
-```
-Acesse: http://127.0.0.1:5000
 
-### Executando o DOE
-Para rodar os experimentos configurados em `doe_config.json`:
+Interface web (abre o navegador em http://127.0.0.1:5000):
+
 ```bash
-python run_doe.py
-```
-Os resultados serão salvos em `doe_results.csv`.
-
----
-
-## Gerando o Executável (.exe) — Windows
-
-O sistema permite gerar um `.exe` para iniciar a aplicação sem que o usuário precise ter Python instalado.  
-Apenas o `launcher.py` é empacotado como executável; os demais módulos Python (`app/`) permanecem como `.py`.
-
-### Pré-requisitos para o build
-- Python 3.10+ com `pip` disponível no PATH
-- PyInstaller (instalado automaticamente pelo script de build)
-
-### Gerar o .exe
-
-Execute o script na raiz do projeto:
-```cmd
-build.bat
+python launcher.py
 ```
 
-O script realiza automaticamente:
-1. Instala as dependências (`requirements.txt` + `pyinstaller`)
-2. Remove builds anteriores
-3. Compila com as configurações de `riberball.spec`
-4. Copia os módulos `app/` e `data/` para a pasta de distribuição
+Execução sem interface (lê os JSONs de `config/`, grava `results.json`):
 
-### Resultado
-
-Após o build, duas pastas são geradas:
-
-- `dist/RiverballLotSizing/` — saída bruta do PyInstaller (arquivos intermediários)
-- `release/RiverballLotSizing/` — **pasta de distribuição limpa**, pronta para entregar
-
-```
-release/
-└── RiverballLotSizing/
-    ├── RiverballLotSizing.exe   ← executável principal
-    ├── app/                     ← módulos Python (obrigatório)
-    ├── data/                    ← arquivos de dados (obrigatório)
-    └── *.dll / *.pyd            ← runtime Python empacotado
+```bash
+python run.py
 ```
 
-Para distribuir, copie a pasta `release/RiverballLotSizing/` inteira.
+## Configuração
 
-### Por que não é detectado como vírus?
-
-- **UPX desabilitado**: compressão UPX causa falsos positivos — não usada.
-- **Modo `onedir`**: os arquivos ficam descompactados ao lado do `.exe`, não em `%TEMP%` (comportamento suspeito para antivírus).
-- **Console visível**: o terminal aberto pelo `.exe` mostra logs e não age em segundo plano silencioso.
-- **Sem ofuscação**: o código-fonte dos módulos `.py` permanece legível na pasta `app/`.
+A otimização lê os parâmetros dos arquivos em `config/`. A interface edita esses
+mesmos arquivos; a execução standalone os usa diretamente. Os dados de produto
+ficam em `data/inputs.xlsx`.

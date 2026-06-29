@@ -12,9 +12,45 @@ logs/
 build/
 dist/
 release/
+*.spec
 *.spec.bak
+
+# Scripts de execução/build para Windows e Unix
+*.bat
+*.sh
+
+# Histórico de execuções (gerado em runtime)
+history/
+
+# macOS
+.DS_Store
 
 # Ambiente virtual
 venv/
 .venv/
 env/
+
+# LaTeX — artefatos de compilação
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.out
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.nav
+*.snm
+*.vrb
+*.idx
+*.ind
+*.ilg
+*.glo
+*.gls
+*.acn
+*.acr
+*.alg

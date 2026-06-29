@@ -1,14 +1,19 @@
 """
 Entrypoint do executável .exe — inicia o servidor Flask e abre o navegador.
 
-Os demais módulos Python (solver, ETL, etc.) continuam como arquivos .py
-na pasta da aplicação. Este arquivo é o único empacotado como executável.
+Os módulos Python (frontend, processing, optimization) ficam como pacotes na
+raiz do projeto. Este arquivo é o único empacotado como executável.
 """
 import sys
 import os
 import threading
 import time
 import webbrowser
+
+# Garante que os logs do solver (CBC/Gurobi) apareçam no terminal sem buffering
+os.environ['PYTHONUNBUFFERED'] = '1'
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(line_buffering=True)
 
 # ---------------------------------------------------------------------------
 # Resolução de caminhos para modo congelado (PyInstaller) e modo script normal
@@ -24,7 +29,7 @@ def get_base_dir() -> str:
 
 BASE_DIR = get_base_dir()
 
-# Garante que os módulos da pasta 'app/' sejam encontrados pelo Python
+# Garante que os pacotes da raiz do projeto sejam encontrados pelo Python
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
@@ -43,13 +48,14 @@ def open_browser():
 
 
 def main():
-    # Importa a app Flask — os módulos 'app/' precisam estar no sys.path
+    # Importa a app Flask — os pacotes precisam estar no sys.path
     try:
-        from app.main import app
+        from frontend.app import app
     except ImportError as exc:
         print(
             f"[ERRO] Não foi possível importar a aplicação Flask.\n"
-            f"Verifique se a pasta 'app/' está no mesmo diretório que o executável.\n"
+            f"Verifique se os pacotes 'frontend/', 'processing/' e 'optimization/' "
+            f"estão no mesmo diretório que o executável.\n"
             f"Detalhe: {exc}"
         )
         input("\nPressione ENTER para fechar...")

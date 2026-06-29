@@ -1,0 +1,4 @@
+{
+    "solver_name": "GUROBI",
+    "time_limit": 60
+}

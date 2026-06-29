@@ -2,6 +2,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern} % Fontes vetoriais
+\usepackage[brazil]{babel}
 \usepackage{amsmath,amssymb}
 \usepackage{nccmath} % permite centralizar equações mesmo com fleqn
 \usepackage{geometry,tabularx,array}
@@ -10,6 +11,9 @@
 \onehalfspacing
 
 % TikZ e fluxogramas
+\usepackage{booktabs}
+\usepackage{caption}
+\captionsetup{labelsep=endash,justification=raggedright,singlelinecheck=false}
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning}
 
@@ -29,17 +33,24 @@
 \renewcommand{\refname}{Referências}
 
 
-\title{Modelo de Otimização da Produção de Balões de Látex com Permissividade de Atrasos}
+\title{Dimensionamento e Sequenciamento de Lotes de Produção de uma Indústria de Balões de Látex}
 \author{}
-\date{15/03/2026}
+\date{17/03/2026}
 
 \begin{document}
 \maketitle
 
 \newpage
+
 \section{Introdução}
 
+\subsection{Contextualização}
+
+\newpage
+
 \section{Revisão de literatura}
+
+\newpage
 
 \section{Processo produtivo}
 
@@ -117,115 +128,417 @@ Este trabalho tem como intuito explorar o processo de tomada de decisão nos pla
     
         \end{tikzpicture}%
     }
-    \caption{Fluxograma do processo produtivo com simbologia padrão.}
+    \caption{Fluxograma do processo produtivo}
     \label{fig:fluxo_produtivo}
 \end{figure}
 
+
 \subsection{Planejamento tático}
 
-O planejamento tático define o que, onde, quando e quanto se produzir, por meio da alocação das máquinas em cada um dos períodos, balanceando estoques e garantindo o atendimento da demanda. O estoque e a demanda são agregados por formato e acabamento dos balões, podendo a demanda derivar de previsões, para planejar períodos futuros, ou histórico realizado, para analisar decisões em \textit{backtest}. A decisão de produção segregada por cores dos balões, granularidade abaixo do formato e do acabamento, não é processada nesta fase.
+O planejamento tático determina o que, onde, quando e quanto produzir, balanceando estoques e garantindo o atendimento da demanda ao longo do horizonte. A demanda e o estoque são agregados por formato e acabamento dos balões; a segregação por cor, granularidade inferior, não é considerada nesta etapa.
 
-O nível de estoque, em determinado período, é definido conforme a demanda futura. O tomador de decisão define quantos períodos futuros de demanda o estoque atual deve cobrir, sendo um valor que se altera dinamicamente ao longo dos períodos de planejamento. O alvo de estoque do período é usado no balanço de estoque, junto da decisão da produção, a fim de determinar se os estoques serão consumidos ou repostos.
+O nível de estoque alvo de cada período é definido em função da demanda futura: o tomador de decisão estabelece quantos períodos à frente o estoque deve cobrir, com o alvo (de cada combinação de formato e acabamento de balão) assumindo valores que podem variar dinamicamente conforme a demanda (prevista ou passada). Essa cobertura orienta se a produção do período deve repor ou consumir o estoque disponível.
 
-A elaboração do plano de produção ocorre em periodicidade semanal, admitindo atualizações esporádicas conforme a necessidade da operação. A decisão de produção considera as trocas de formas, que configuram longos tempos de \textit{setup}. O \textit{setup} em um equipamento acontece, no limite mínimo, entre turnos de trabalho, ocorrendo, na prática, com intervalos de dias, por conta do alto custo de tempo e pela heterogeneidade das máquinas, cuja diversidade permite alocar o \textit{mix} de produtos simultaneamente.
+O plano de produção é elaborado em periodicidade semanal, com revisões eventuais conforme a necessidade operacional. As trocas de formas entre balões de diferentes formatos configuram longos tempos de \textit{setup}: no limite mínimo, ocorrem entre turnos de trabalho, mas na prática se dão com intervalos de dias, dado o alto custo de tempo envolvido. A heterogeneidade entre equipamentos é o fator que viabiliza a operação simultânea de diferentes balões: cada máquina pode ser alocada a um formato distinto, permitindo atender o \textit{mix} sem que todas as máquinas passem por \textit{setup} ao mesmo tempo.
 
-A alocação das máquinas e seus respectivos balões produzidos obedece às restrições dos equipamentos. Cada máquina possui suas taxas de produção para cada uma das formas e acabamentos dos balões, bem como as formas suportadas. Dentro do horizonte de planejamento, pode-se incluir momentos de ociosidade programada para cada máquina (derivado de pausas para manutenção, reformas e quebras), reduzindo a capacidade produtiva disponível.
+Cada máquina possui taxas de produção e compatibilidades próprias para cada formato e acabamento de balão. A capacidade produtiva pode ser reduzida por ociosidades programadas, decorrentes de manutenções preventivas, reformas ou paradas não planejadas.
 
-Além de determinar a alocação das máquinas, o planejamento tático dita a alocação da força de trabalho. Cada máquina em operação exige, via de regra, dois operadores. Não há restrição de capacitação: qualquer operador trabalha em qualquer máquina. Dentro do horizonte planejado, o tomador de decisão pode incluir a concessão de férias como uma das restrições operacionais, impondo a parada de máquinas em momentos estratégicos para desocupar a mão de obra.
+O objetivo do modelo de otimização proposto por este trabalho é o de minimizar custos de oportunidade: custos de \textit{setup}, pela produção não realizada durante as trocas, e vendas perdidas, quando a capacidade disponível é insuficiente para atender a demanda. O custo unitário dos balões orienta tanto a priorização do atendimento quanto o sequenciamento das trocas.
 
-Por fim, o objetivo do tomador de decisão é minimizar os custos operacionais, descritos, neste trabalho, pelos custos de \textit{setup} e pelas vendas perdidas por restrição de capacidade. A variação nos custos dos produtos baliza essa minimização, orientando a priorização do atendimento (produtos mais caros são atendidos e mais baratos são perdidos) e o sequenciamento dos \textit{setups}.
+As decisões táticas exploradas nessa modelagem tentam replicar a realidade da indústria analiticamente. 
+
+\subsection{Previsão de demanda}
+
+A previsão da demanda é um elemento chave do planejamento, pois é a partir dela que se definem a alocação das máquinas, e por consequência as decisões de estocagem e, possivelmente, priorização de perdas por não atendimento de demanda.
+
+No contexto do planejamento tático no problema de produção de balões de látex, a acurácia da previsão é fundamental e depende fortemente de conseguir capturar períodos de sazonalidade ao longo do ano, bem como  tendências da empresa e do mercado.
+
+Nessa etapa da modelagem do problema, o objetivo do estudo é explorar métodos e arquiteturas diferentes de previsão de demanda a fim de observar o impacto da acuracidade no planejamento produtivo. O parâmetro $\alpha$ no modelo de otimização, por sua vez, pode ser usado para controlar o nível de estoque e reduzir o impacto do erro dos modelos: melhores acuracidades permitem maior giro de estoque ao longo do ano.
+
 
 \subsection{Planejamento operacional}
 
+\newpage
+
+\section{Modelo de demanda}
+
+A modelagem da demanda proposta neste trabalho baseia-se em uma abordagem econométrica hierárquica \textit{top-down}. O objetivo é isolar os efeitos exógenos e sazonais em níveis agregados de histórico de vendas, onde o sinal estatístico é mais forte e o ruído é menor, e repassar esse aprendizado para os níveis mais granulares na forma de coeficientes \textit{a priori}. 
+
+O modelo extrai características (\textit{features}) exógenas e temporais através de múltiplos níveis de agregação e, em seguida, normaliza as vendas para a obtenção de uma demanda base por produto. O \textit{forecast} final é a recombinação dessa base com os efeitos sazonais projetados.
+
+\subsection*{Conjuntos}
+\begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
+$T$ & Conjunto de períodos históricos.\\
+$I$ & Conjunto de balões (combinação de formato e acabamento).\\
+$F$ & Conjunto de formatos de balões.\\
+$I_f \subseteq I$ & Subconjunto de balões pertencentes ao formato $f \in F$.\\
+$K$ & Conjunto de \textit{features} exógenas e sazonais.\\
+\end{tabularx}
+
+\subsection*{Parâmetros}
+\begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
+$y_{it}$ & Demanda real observada do balão $i$ no período $t$.\\
+$Y_{ft}$ & Demanda real agregada do formato $f$ no período $t$.\\
+$Y_{t}$ & Demanda real global agregada no período $t$.\\
+$X_{kt}$ & Valor da \textit{feature} $k$ no período $t$.\\
+$\lambda$ & Fator de penalização na transferência de coeficientes.\\
+$h$ & Horizonte futuro de previsão.\\
+\end{tabularx}
+
+\subsection*{Variáveis}
+\begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
+$\beta^{(0)}_{k}$ & Coeficiente da \textit{feature} $k$ no nível global a ser estimado.\\
+$\beta^{(1)}_{fk}$ & Coeficiente da \textit{feature} $k$ para o formato $f$ a ser estimado.\\
+$\beta^{(2)}_{ik}$ & Coeficiente da \textit{feature} $k$ para o balão $i$ a ser estimado.\\
+$\hat{\beta}$ & Parâmetros já estimados e fixados na etapa anterior de agregação.\\
+$S_{it}$ & Efeito sazonal/exógeno consolidado para o balão $i$ no período $t$.\\
+$\tilde{y}_{it}$ & Demanda dessazonalizada do balão $i$ no período $t$.\\
+$B_{i}$ & Demanda base média do balão $i$.\\
+$\hat{d}_{i,t+h}$ & Previsão final de demanda do balão $i$ para o período futuro $t+h$.\\
+\end{tabularx}
+
+\vspace{1cm}
+
+A extração dos efeitos sazonais e exógenos é feita em cascata. O modelo utiliza uma formulação log-linear (multiplicativa) em detrimento de uma abordagem aditiva devido à natureza da propagação da demanda. Em eventos de forte sazonalidade (final de ano, por exemplo), a demanda agregada pode triplicar. A transformação logarítmica permite que esse comportamento atue como um fator multiplicativo percentual, sendo repassado de forma coerente e proporcional para os níveis inferiores. Caso um modelo aditivo fosse empregado, um incremento absoluto capturado no nível global (um aumento sazonal de 10.000 kg, por exemplo) perderia o sentido ao ser cascateado para uma combinação específica de formato e acabamento, cuja escala natural de vendas é substancialmente menor. Ademais, a modelagem multiplicativa previne intrinsecamente a projeção de demandas negativas.
+
+Para a estimação destes parâmetros, utiliza-se o algoritmo RLS (\textit{Recursive Least Squares}), que atualiza os coeficientes incrementalmente a cada nova observação minimizando o erro quadrático acumulado.
+
+Nível Global: A estimação inicial ocorre sobre a demanda total consolidada.
+\begin{ceqn}
+\begin{equation}
+\hat{\beta}^{(0)} = \arg\min_{\beta} \sum_{t \in T} \left( \ln(Y_t) - \sum_{k \in K} \beta_{k} X_{kt} \right)^2
+\label{eq:demanda_nivel0}
+\end{equation}
+\end{ceqn}
+
+Nível Formato: Os coeficientes globais $\hat{\beta}^{(0)}_k$ atuam como \textit{priors} para a estimação por formato. O termo de regularização $\lambda$ penaliza desvios do comportamento global.
+\begin{ceqn}
+\begin{equation}
+\hat{\beta}^{(1)}_{f} = \arg\min_{\beta} \left( \sum_{t \in T} \left( \ln(Y_{ft}) - \sum_{k \in K} \beta_{k} X_{kt} \right)^2 + \lambda \sum_{k \in K} \left( \beta_{k} - \hat{\beta}^{(0)}_k \right)^2 \right) \quad \forall f \in F
+\label{eq:demanda_nivel1}
+\end{equation}
+\end{ceqn}
+
+Nível Formato-Acabamento: Por fim, os coeficientes do formato respectivo atuam como \textit{priors} para o balão específico.
+\begin{ceqn}
+\begin{equation}
+\hat{\beta}^{(2)}_{i} = \arg\min_{\beta} \left( \sum_{t \in T} \left( \ln(y_{it}) - \sum_{k \in K} \beta_{k} X_{kt} \right)^2 + \lambda \sum_{k \in K} \left( \beta_{k} - \hat{\beta}^{(1)}_{f,k} \right)^2 \right) \quad \forall f \in F, i \in I_f
+\label{eq:demanda_nivel2}
+\end{equation}
+\end{ceqn}
+
+Com os coeficientes granulares $\hat{\beta}^{(2)}_{ik}$ obtidos, o efeito consolidado para o balão $i$ no período $t$ retorna à escala original:
+\begin{ceqn}
+\begin{equation}
+S_{it} = \exp \left( \sum_{k \in K} \hat{\beta}^{(2)}_{ik} X_{kt} \right) \quad \forall i \in I, t \in T
+\label{eq:efeito_consolidado}
+\end{equation}
+\end{ceqn}
+
+A demanda observada é então normalizada pelo efeito consolidado, isolando a demanda base do produto naquele período:
+\begin{ceqn}
+\begin{equation}
+\tilde{y}_{it} = \frac{y_{it}}{S_{it}} \quad \forall i \in I, t \in T
+\label{eq:demanda_normalizada}
+\end{equation}
+\end{ceqn}
+
+A demanda base é definida como a média das vendas normalizadas ao longo de todo o horizonte histórico observado $|T|$:
+\begin{ceqn}
+\begin{equation}
+B_{i} = \frac{1}{|T|} \sum_{t \in T} \tilde{y}_{it} \quad \forall i \in I
+\label{eq:demanda_base}
+\end{equation}
+\end{ceqn}
+
+O \textit{forecast} para um período futuro $t+h$ projeta a demanda base multiplicando-a pelos efeitos esperados:
+\begin{ceqn}
+\begin{equation}
+\hat{d}_{i,t+h} = B_{i} \cdot \exp \left( \sum_{k \in K} \hat{\beta}^{(2)}_{ik} X_{k,t+h} \right) \quad \forall i \in I
+\label{eq:forecast_final}
+\end{equation}
+\end{ceqn}
 
 \newpage
 
-\section{Modelo matemático}
+\section{Modelo de otimização}
 
-\section*{Conjuntos}
+\subsection*{Conjuntos}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$T$ & Conjunto de períodos (meses).\\
-$I$ & Conjunto de produtos.\\
+$T$ & Conjunto de períodos.\\
+$I$ & Conjunto de balões.\\
 $J$ & Conjunto de máquinas.\\
-$D$ & Conjunto de sub-períodos (dias).\\
-$D_t \subset D$ & Subconjunto de dias pertencentes ao período $t$.\\
-$O$ & Conjunto de operadores.\\
-$O^v \subseteq O$ & Subconjunto dos operadores que tiram férias no horizonte.\\
+$D$ & Conjunto de dias do horizonte.\\
+$D_t \subseteq D$ & Dias pertencentes ao período $t \in T$.\\
 \end{tabularx}
 
-\section*{Parâmetros}
+\subsection*{Parâmetros}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$d_{it}$ & Demanda do balão $i$ no período $t$.\\
-$c^l_{i}$ & Custo de venda perdida do balão $i$.\\
-$c^s_{ij}$ & Custo de \textit{setup} do balão $i$ na máquina $j$.\\
-$p_{ij}$ & Produtividade do balão $i$ na máquina $j$.\\
+$d_{it}$ & Demanda do balão $i$ no período $t$ (kg).\\
+$c_{i}$ & Custo unitário do balão $i$ (R\$/kg).\\
+$p_{ij}$ & Produtividade do balão $i$ na máquina $j$ (kg/hora).\\
 $h_{jd}$ & Horas produtivas disponíveis da máquina $j$ no dia $d$.\\
-$\Delta$ & Discretização da decisão de produção.\\
-$t^s_{j}$ & Tempo de \textit{setup} na máquina $j$.\\
-$\alpha$ & Fração da cobertura da demanda do período seguinte.\\
-$I^{0}_{i}$ & Estoque inicial do balão $i$.\\
-$F$ & Dias de férias por operador.\\
-$n_o$ & Número de operadores necessários para operar cada máquina simultaneamente.\\
+$t^s_{j}$ & Tempo de \textit{setup} na máquina $j$ (horas).\\
+$\alpha$ & Número de períodos futuros de demanda de estoque de segurança.\\
+$I^{0}_{i}$ & Estoque do balão $i$ no início do horizonte, $t = 0$ (kg).\\
 \end{tabularx}
 
-\section*{Variáveis}
+\subsection*{Variáveis}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$w_{ijt} \ge 0$ & Blocos de $\Delta$ horas produzindo o balão $i$ na máquina $j$ no período $t$.\\
-$y_{ijt} \in \{0,1\}$ & 1 se o balão $i$ é produzido na máquina $j$ no período $t$.\\
-$s_{ijt} \in \{0,1\}$ & 1 se a máquina $j$ está configurada para o balão $i$ no período $t$.\\
-$\delta_{ijt} \in \{0,1\}$ & 1 se ocorre \textit{setup} para o balão $i$ na máquina $j$ no período $t$.\\
-$\ell_{it} \ge 0$ & Venda perdida do balão $i$ no período $t$.\\
-$z_{jd} \in \{0,1\}$ & 1 se a máquina $j$ para no dia $d$, para garantir férias.\\
-$v_{kd} \in \{0,1\}$ & 1 se o operador $k$ está de férias no dia $d$.\\
-$u_{kd} \in \{0,1\}$ & 1 se o dia $d$ é o início do bloco de férias do operador $k$.\\
-$r_{kjd} \in \{0,1\}$ & 1 se o operador $k$ opera a máquina $j$ no dia $d$.\\
+$s_{ijd} \in \{0,1\}$ & 1 se a máquina $j$ produz o balão $i$ no dia $d$.\\
+$\delta_{ijd} \in \{0,1\}$ & 1 se ocorre \textit{setup} para o balão $i$ na máquina $j$ no dia $d$.\\
+$I_{it} \ge 0$ & Estoque do balão $i$ ao final do período $t$ (kg).\\
+$l_{it} \ge 0$ & Venda perdida do balão $i$ no período $t$ (kg).\\
+$z_{jd} \in \{0,1\}$ & 1 se a máquina $j$ está parada no dia $d$.\\
 \end{tabularx}
 
-\section*{\textbf{Minimizar}}
-
+\subsection*{\textbf{Minimizar}}
+\begin{ceqn}
 \begin{equation}
-Z =
-\sum_{i \in I}\sum_{j \in J}\sum_{t \in T} c^s_{ij} \delta_{ijt}
-+
-\sum_{i \in I}\sum_{t \in T} c^l_{i} \ell_{it}
+Z = \sum_{i \in I}\sum_{j \in J}\sum_{d \in D} c_{i}\, p_{ij}\, t^s_{j}\, \delta_{ijd}
+    + \sum_{i \in I}\sum_{t \in T} c_{i}\, l_{it}
 \label{eq:objetivo}
 \end{equation}
-
+\end{ceqn}
 
 \noindent\textbf{Sujeito a}
 \begin{align}
-\sum_{i \in I} s_{ijt} &\le 1 && \forall j, t \label{eq:estado_unico} \\
-\delta_{ijt} &\ge s_{ijt} - s_{ij(t-1)} && \forall i, j, t \label{eq:setup_delta1} \\
-\delta_{ijt} &\ge y_{ijt} - s_{ij(t-1)} && \forall i, j, t \label{eq:setup_delta2} \\
-s_{ijt} &\le y_{ijt} && \forall i, j, t \label{eq:link_prod_estado} \\
-w_{ijt} &\le \left(\frac{\sum_{d \in D_t} h_{jd}}{\Delta}\right) y_{ijt} && \forall i, j, t \label{eq:ativacao} \\
-\sum_{i \in I} \left( w_{ijt} \cdot \Delta + t^s_{j} \delta_{ijt} \right) &\le \sum_{d \in D_t} h_{jd} \left(1 - z_{jd}\right) && \forall j, t \label{eq:capacidade} \\
-I^{0}_{i} + \sum_{\tau \le t}\sum_{j \in J} w_{ij\tau} \cdot \Delta \cdot p_{ij} + \sum_{\tau \le t} \ell_{i\tau} &\ge \sum_{\tau \le t} d_{i\tau} && \forall i, t \label{eq:balanco} \\
-I^{0}_{i} + \sum_{\tau \le t}\sum_{j \in J} w_{ij\tau} \cdot \Delta \cdot p_{ij} + \sum_{\tau \le t} \ell_{i\tau} - \sum_{\tau \le t} d_{i\tau} &\ge \alpha \cdot d_{i(t+1)} && \forall i, t \label{eq:seguranca} \\
-\sum_{k \in O} r_{kjd} &\ge n_o \left(1 - z_{jd}\right) && \forall j, d \label{eq:cobertura} \\
-\sum_{j \in J} r_{kjd} &\le 1 && \forall k, d \label{eq:operador_unico} \\
-r_{kjd} &\le 1 - v_{kd} && \forall k \in O^v,\; \forall j, d \label{eq:ferias_bloqueio} \\
-\sum_{d \in D} v_{kd} &= F && \forall k \in O^v \label{eq:total_ferias} \\
-u_{kd} &\ge v_{kd} - v_{k(d-1)} && \forall k \in O^v,\; d > 1 \label{eq:inicio_ferias} \\
-u_{k1} &\ge v_{k1} && \forall k \in O^v \label{eq:inicio_ferias_d1} \\
-\sum_{d \in D} u_{kd} &\le 1 && \forall k \in O^v \label{eq:ferias_contiguas}
+\sum_{i \in I} s_{ijd} &\le 1
+    && \forall\, j \in J,\; d \in D \label{eq:estado_unico} \\
+\delta_{ijd} &\ge s_{ijd} - s_{ij,d-1}
+    && \forall\, i \in I,\; j \in J,\; d \in D \label{eq:setup_delta} \\
+\sum_{i \in I} s_{ijd}
+    &\le 1 - z_{jd}
+    && \forall\, j \in J,\; d \in D \label{eq:capacidade} \\
+I_{i,t-1} + \sum_{d \in D_t}\sum_{j \in J} \bigl(h_{jd} - t^s_{j}\,\delta_{ijd}\bigr)\, s_{ijd}\, p_{ij}
+    &= I_{it} + d_{it} - l_{it}
+    && \forall\, i \in I,\; t \in T \label{eq:balanco} \\
+I_{it} &\ge \sum_{k=1}^{\alpha} d_{i,t+k}
+    && \forall\, i \in I,\; t \in T \label{eq:seguranca}
 \end{align}
 
-A função objetivo \eqref{eq:objetivo} minimiza o custo total composto pelos custos de \textit{setup} incorridos nas trocas de configuração das máquinas e pelas penalidades de venda perdida quando a capacidade disponível é insuficiente para atender a demanda. Paradas e férias não entram diretamente no objetivo, mas influenciam a solução ao restringir as horas disponíveis de produção.
+A função objetivo \eqref{eq:objetivo} minimiza o custo total de oportunidade: o custo de setup é mensurado pela receita perdida durante o tempo de troca — produção que deixa de ocorrer, ponderando o custo unitário $c_i$ e a produtividade $p_{ij}$ da máquina — e o segundo termo penaliza as vendas não atendidas, multiplicando o custo unitário pela quantidade de kg de balões perdidos $l_{it}$. Paradas programadas não entram diretamente no objetivo, mas restringem os dias disponíveis de produção.
 
-Cada máquina pode estar configurada para produzir no máximo um tipo de produto por período, conforme \eqref{eq:estado_unico}. A desigualdade permite que a máquina fique sem configuração ativa quando estiver completamente parada. Nesse caso, ao retomar a produção no período seguinte, a ausência de configuração anterior força a detecção de \textit{setup}. As restrições \eqref{eq:setup_delta1} e \eqref{eq:setup_delta2} capturam essa detecção de duas formas complementares: a variável de \textit{setup} é ativada tanto quando há mudança de configuração de produto quanto quando a produção é iniciada a partir de um estado inativo.
+Cada máquina produz no máximo um tipo de balão por dia ativo \eqref{eq:capacidade}, podendo ficar sem configuração quando parada. Isso permite que, dentro de um mesmo período, a máquina produza balões diferentes em dias distintos. A restrição \eqref{eq:setup_delta} detecta mudanças de configuração dia a dia: $\delta_{ijd}$ é ativado sempre que $s_{ijd}$ passa de inativo para ativo, cobrindo tanto trocas de balão quanto retomadas após parada. O setup ocorre no primeiro dia de cada configuração e consome $t^s_j$ horas desse dia, reduzindo a produção.
 
-A configuração da máquina deve sempre corresponder a uma decisão efetiva de produção, o que é imposto por \eqref{eq:link_prod_estado}. A restrição \eqref{eq:ativacao} condiciona a produção à ativação da máquina para aquele produto no período, estabelecendo como limitante superior a capacidade total disponível do período expressa em blocos de tempo discretos.
+A restrição \eqref{eq:capacidade} garante que cada máquina opere no máximo um balão por dia e fique inativa quando parada ($z_{jd} = 1$) ou com parada programada ($h_{jd} = 0$).
 
-A restrição \eqref{eq:capacidade} controla o uso da capacidade produtiva: o somatório das horas consumidas em produção e em \textit{setups} não pode exceder as horas disponíveis no período. A paralização da produção para a garantia de férias impacta o balanço dessa restrição.
+O balanço de estoque \eqref{eq:balanco} é formulado de forma recursiva no nível de período: o estoque anterior mais a produção acumulada equivale ao estoque corrente mais a demanda, com a venda perdida $l_{it}$ absorvendo o déficit. A produção efetiva no dia $d$ é $(h_{jd} - t^s_j\,\delta_{ijd})\,s_{ijd}\,p_{ij}$: quando há setup no dia de ativação ($\delta_{ijd}=1$), as horas de troca são descontadas das horas disponíveis $h_{jd}$, reduzindo a quantidade produzida nesse dia. A restrição \eqref{eq:seguranca} impõe que o estoque ao final de cada período cubra integralmente a demanda dos $\alpha$ períodos seguintes; quando $\alpha = 0$, a restrição é inativa e nenhum nível mínimo é exigido.
 
-O balanço de estoque é formulado de forma acumulada em \eqref{eq:balanco}: para cada produto e período, o estoque inicial somado à produção acumulada e às vendas perdidas acumuladas deve ser suficiente para cobrir a demanda acumulada. A restrição \eqref{eq:seguranca} complementa o balanço ao impor que o estoque disponível ao final de cada período cubra uma fração da demanda do período seguinte, garantindo um nível mínimo de segurança operacional.
+\newpage
 
-As restrições \eqref{eq:cobertura} e \eqref{eq:operador_unico} definem a relação entre máquinas e operadores no nível diário. Toda máquina que o solver mantém em operação deve ter exatamente o número mínimo de operadores designados a ela simultaneamente — se qualquer um desses operadores estiver de férias, a máquina é obrigada a parar, pois não há como atender ao requisito de cobertura. Cada operador, por sua vez, pode ser designado a no máximo uma máquina por dia, evitando sobreposição de alocações.
-
-As restrições restantes modelam o planejamento de férias para os operadores do subconjunto que as realizará no horizonte. A restrição \eqref{eq:ferias_bloqueio} impede que um operador em férias seja designado a qualquer máquina naquele dia. A restrição \eqref{eq:total_ferias} garante que cada operador usufrua exatamente o número de dias de férias estabelecido. Por fim, as restrições \eqref{eq:inicio_ferias}, \eqref{eq:inicio_ferias_d1} e \eqref{eq:ferias_contiguas} asseguram que as férias sejam contíguas: a variável auxiliar detecta o primeiro dia do bloco de férias, e a restrição de unicidade garante que esse início ocorra no máximo uma vez por operador, formando assim um período único e ininterrupto.
-    
 \bibliographystyle{abntex2-alf}
-\bibliography{referencias}     
+\bibliography{referencias}   
+
+\newpage
+
+\section*{Apêndice}
+
+\subsection*{Exemplo numérico: previsão de demanda}
+
+Os dados foram uniformemente escalados por um fator aleatório para descaracterizar sua
+grandeza; as relações relativas são preservadas e as análises permanecem válidas.
+Consideram-se três formatos: $f_1$, com dois acabamentos ($I_{f_1} = \{i_{11},\, i_{12}\}$);
+$f_2$ e $f_3$, com acabamento único ($I_{f_2} = \{i_{21}\}$, $I_{f_3} = \{i_{31}\}$).
+
+O produto $i_{31}$ representa ${\approx}37\%$ do volume total; $i_{21}$ é um produto de
+nicho com sazonalidade de primavera, oposta ao padrão de mercado.
+O horizonte de estimação compreende 12 períodos mensais; os 5 períodos subsequentes
+constituem o conjunto de teste.
+As \textit{features} são indicadores binários mensais
+($X_{kt} = \mathbf{1}[\text{mês}(t) = k]$, $k \in \{1,\ldots,12\}$).
+
+A Tabela~\ref{tab:dados} apresenta a demanda em quatro meses: janeiro (baixa estação
+global), abril (pico de $i_{21}$), setembro (pico global) e dezembro.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Demanda observada (kg) -- hierarquia de agregação, meses selecionados}
+\label{tab:dados}
+\begin{tabular}{lrrrr}
+\toprule
+ & \textbf{Jan} & \textbf{Abr} & \textbf{Set} & \textbf{Dez} \\
+\midrule
+$i_{21}$                &       475 &     2.091 &       807 &       440 \\
+$i_{11}$                &    11.161 &    10.455 &    18.425 &    10.065 \\
+$i_{12}$                &     8.201 &     8.697 &    13.348 &     9.829 \\
+\midrule
+$Y_{f_1 t}$ (Formato $f_1$) & 19.362 & 19.152 &  31.773 &    19.894 \\
+$Y_t$ (Global)           &   283.116 &   341.760 &   474.871 &   356.801 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Na estimação global ($\hat{\beta}^{(0)}$), o sistema da Equação~\eqref{eq:demanda_nivel0}
+é exatamente identificado com 12 observações e 12 \textit{features} ortogonais:
+$\hat{\beta}^{(0)}_k = \ln(Y_{[k]})$, onde $Y_{[k]}$ é a demanda global do mês~$k$.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Coeficientes globais $\hat{\beta}^{(0)}_k = \ln(Y_{[k]})$}
+\label{tab:beta0}
+\begin{tabular}{lrr|lrr}
+\toprule
+\textbf{Mês} & $\hat{\beta}^{(0)}$ & $e^{\hat{\beta}^{(0)}}$
+& \textbf{Mês} & $\hat{\beta}^{(0)}$ & $e^{\hat{\beta}^{(0)}}$ \\
+\midrule
+Jan & 12,554 & 283.116 & Jul & 12,756 & 346.492 \\
+Fev & 12,507 & 270.087 & Ago & 12,904 & 401.897 \\
+Mar & 12,777 & 353.971 & Set & 13,071 & 474.871 \\
+Abr & 12,742 & 341.760 & Out & 13,159 & 518.282 \\
+Mai & 12,818 & 368.521 & Nov & 13,054 & 466.601 \\
+Jun & 12,925 & 410.416 & Dez & 12,785 & 356.801 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+O pico global ocorre em outubro ($e^{13{,}159} \approx 518\,\text{mil}$) e o vale em
+fevereiro ($e^{12{,}507} \approx 270\,\text{mil}$), razão pico/vale de $1{,}92$.
+
+Na estimação por formato ($\hat{\beta}^{(1)}$), com $\lambda = 1$ e \textit{features} ortogonais:
+\begin{ceqn}
+\begin{equation*}
+\hat{\beta}^{(1)}_{fk} = \frac{\ln(Y_{f[k]}) + \hat{\beta}^{(0)}_k}{2}
+\end{equation*}
+\end{ceqn}
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Coeficientes de formato: global vs.\ $f_1$ vs.\ $f_2$}
+\label{tab:beta1}
+\begin{tabular}{lrrrrr}
+\toprule
+ & & \multicolumn{2}{c}{\textbf{Formato $f_1$}} & \multicolumn{2}{c}{\textbf{Formato $f_2$}} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+\textbf{Mês} & $\hat{\beta}^{(0)}$
+             & $\hat{\beta}^{(1)}_{f_1}$ & $e^{\hat{\beta}^{(1)}_{f_1}}$
+             & $\hat{\beta}^{(1)}_{f_2}$ & $e^{\hat{\beta}^{(1)}_{f_2}}$ \\
+\midrule
+Jan & 12,554 & 11,213 &  74.455 &  9,359 &  11.613 \\
+Abr & 12,742 & 11,301 &  81.043 & 10,194 &  26.703 \\
+Set & 13,071 & 11,719 & 122.467 &  9,883 &  19.624 \\
+Dez & 12,785 & 11,342 &  84.014 &  9,436 &  12.509 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Para $f_1$, a razão entre os efeitos sazonais de abril e setembro é $0{,}66$, consistente
+com o padrão global. Para $f_2$, essa razão é $1{,}36$: abril supera setembro em 36\%.
+
+Na estimação por produto ($\hat{\beta}^{(2)}$), aplicando o mesmo mecanismo a partir do prior de formato:
+\begin{ceqn}
+\begin{equation*}
+\hat{\beta}^{(2)}_{ik} = \frac{\ln(y_{i[k]}) + \hat{\beta}^{(1)}_{fk}}{2}
+\end{equation*}
+\end{ceqn}
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Coeficientes de produto -- cascata de estimação (4 meses selecionados)}
+\label{tab:beta2}
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Mês}
+  & $\hat{\beta}^{(1)}_{f_1}$
+  & $\hat{\beta}^{(2)}_{i_{11}}$
+  & $\hat{\beta}^{(2)}_{i_{12}}$
+  & $\hat{\beta}^{(1)}_{f_2}$
+  & $\hat{\beta}^{(2)}_{i_{21}}$ \\
+\midrule
+Jan & 11,213 & 10,267 & 10,113 &  9,359 & 7,762 \\
+Abr & 11,301 & 10,278 & 10,186 & 10,194 & 8,920 \\
+Set & 11,719 & 10,770 & 10,609 &  9,883 & 8,289 \\
+Dez & 11,342 & 10,280 & 10,268 &  9,436 & 7,762 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Para $i_{21}$, o coeficiente máximo ocorre em abril, ao contrário dos demais produtos.
+
+Os coeficientes $\hat{\beta}^{(2)}_i$ determinam $S_{it}$
+(Equação~\eqref{eq:efeito_consolidado}); a dessazonalização $\tilde{y}_{it} = y_{it}/S_{it}$
+conduz à demanda base $B_i$ (Equação~\eqref{eq:demanda_base}), e o \textit{forecast} final
+é $\hat{d}_{i,t+h} = B_i \cdot S_{i,t+h}$ (Equação~\eqref{eq:forecast_final}).
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Efeito sazonal $S_{it}$ (kg) e demanda base $B_i$ por nível}
+\label{tab:sit}
+\begin{tabular}{lrrrr}
+\toprule
+ & $i_{11}$ & $i_{12}$ & $i_{21}$ & $i_{31}$ \\
+\midrule
+$S_{it}$ -- Jan &  28.746 &  24.642 &   2.348 &  114.149 \\
+$S_{it}$ -- Abr &  29.082 &  26.525 &   7.474 &  158.842 \\
+$S_{it}$ -- Set &  47.573 &  40.493 &   3.977 &  221.173 \\
+$S_{it}$ -- Dez &  29.122 &  28.774 &   2.348 &  173.871 \\
+\midrule
+$B_i$ (Nível 0) & 0,037 & 0,028 & 0,003 & 0,365 \\
+$B_i$ (Nível 1) & 0,145 & 0,110 & 0,049 & 0,604 \\
+$B_i$ (Nível 2) & 0,380 & 0,331 & 0,218 & 0,777 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Para $i_{11}$, setembro supera abril em 64\% ($47{.}573/29{.}082$);
+para $i_{21}$, a relação é inversa -- abril supera setembro em 88\% ($7{.}474/3{.}977$).
+
+A Tabela~\ref{tab:fc_i21} compara os três cenários de parada para $i_{21}$,
+produto com maior divergência entre sazonalidade global e individual.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Previsão vs.\ demanda real -- $i_{21}$ (kg), 5 períodos de teste}
+\label{tab:fc_i21}
+\begin{tabular}{lrrrrrrr}
+\toprule
+\textbf{Período} & \textbf{Real}
+ & \textbf{Prev.\ N0} & \textbf{Erro (\%)}
+ & \textbf{Prev.\ N1} & \textbf{Erro (\%)}
+ & \textbf{Prev.\ N2} & \textbf{Erro (\%)} \\
+\midrule
+Jan &   469 &   748 & $+59\%$ &   567 & $+21\%$ &   513 &  $+9\%$ \\
+Fev &   936 &   712 & $-24\%$ &   807 & $-14\%$ &   890 &  $-5\%$ \\
+Mar & 1.319 &   935 & $-29\%$ & 1.101 & $-16\%$ & 1.241 &  $-6\%$ \\
+Abr & 2.456 &   902 & $-63\%$ & 1.307 & $-47\%$ & 1.632 & $-34\%$ \\
+Mai & 2.252 &   973 & $-57\%$ & 1.274 & $-43\%$ & 1.514 & $-33\%$ \\
+\midrule
+MAPE & & & 46,5\% & & 28,3\% & & 17,3\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Em abril, o Nível~0 projeta 902~kg frente a 2.456~kg reais; como o modelo global
+concentra o pico no outono, $i_{21}$ é subestimado sistematicamente na primavera.
+O Nível~2 reduz esse erro de $-63\%$ para $-34\%$.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{MAPE (\%) por produto e cenário de parada -- 5 períodos de teste}
+\label{tab:mape}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Produto} & \textbf{Nível 0} & \textbf{Nível 1} & \textbf{Nível 2} \\
+\midrule
+$i_{31}$ ($f_3$) & 21,8 & 23,9 & 24,8 \\
+$i_{11}$ ($f_1$) & 21,3 & 20,9 & 21,3 \\
+$i_{12}$ ($f_1$) & 29,0 & 27,1 & 29,4 \\
+$i_{21}$ ($f_2$) & 46,5 & 28,3 & 17,3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Por representar ${\approx}37\%$ da demanda agregada, $i_{31}$ domina os coeficientes
+globais: o Nível~0 é sua melhor aproximação e granularidade adicional penaliza por
+sobreajuste. Para $i_{11}$ e $i_{12}$, o Nível~1 traz melhora marginal. Para $i_{21}$
+-- cujo volume é cerca de 150 vezes inferior ao de $i_{31}$ e cuja sazonalidade diverge
+do mercado -- a cascata reduz o MAPE de $46{,}5\%$ para $17{,}3\%$.
 
 \end{document}

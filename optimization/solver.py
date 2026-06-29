@@ -1,6 +1,10 @@
 import pulp
-from app.config import Config
-from app.utils import sanitize_name
+import pandas as pd
+
+
+def sanitize_name(name) -> str:
+    """Sanitiza nomes para compatibilidade com o solver (sem espaços/símbolos)."""
+    return str(name).replace(' ', '_').replace(':', '_').replace('-', '_')
 
 
 class LotSizingSolver:
@@ -9,10 +13,9 @@ class LotSizingSolver:
     def __init__(self, demand, productivity, initial_stock, active_machines,
                  start_period, end_period=None, costs=None,
                  hours_per_day=24.0, days_per_period=None,
-                 step_hours=6.0, integer_var=True, safety_stock_pct=0.0,
+                 safety_stock_pct=0,
                  manual_stops=None,
-                 num_operators=0, operators_per_machine=1,
-                 num_operators_on_vacation=0, vacation_days=0):
+                 high_setup_machines=None, setup_time_high=7.0, setup_time_low=3.0):
 
         self.demand = demand
         self.productivity = productivity
@@ -21,15 +24,14 @@ class LotSizingSolver:
         self.costs = costs or {}
 
         self.hours_per_day = hours_per_day
-        self.step_hours = step_hours
-        self.integer_var = integer_var
-        self.safety_stock_pct = safety_stock_pct
+        self.safety_stock_pct = int(safety_stock_pct)
+
+        # Tempos de setup por máquina (config externa, antes em Config)
+        self.high_setup_machines = high_setup_machines or []
+        self.setup_time_high = setup_time_high
+        self.setup_time_low = setup_time_low
 
         self.manual_stops = manual_stops or set()
-        self.num_operators = num_operators
-        self.operators_per_machine = operators_per_machine
-        self.num_operators_on_vacation = num_operators_on_vacation
-        self.vacation_days = vacation_days
 
         self.products = list(demand.keys())
         all_dates = sorted(demand[self.products[0]].keys()) if self.products else []
@@ -37,10 +39,35 @@ class LotSizingSolver:
 
         self.days_per_period = days_per_period or {t: 30 for t in self.periods}
 
+        self._ensure_demand_coverage()
         self._build_day_mapping()
         self._precompute_daily_capacity()
         self._map_machine_products()
         self.prob = pulp.LpProblem("LotSizing", pulp.LpMinimize)
+
+    def _ensure_demand_coverage(self):
+        """Garante que self.demand contenha demanda para os α períodos além do fim do horizonte.
+
+        Se o valor não existir no dict, usa sazonalidade do ano anterior (mesmo mês, -1 ano).
+        Isso é necessário para que eq:seguranca seja corretamente aplicada nos últimos períodos.
+        """
+        if self.safety_stock_pct <= 0 or not self.periods:
+            return
+
+        last_period = self.periods[-1]
+        last_dt = pd.to_datetime(last_period)
+
+        for k in range(1, self.safety_stock_pct + 1):
+            future_dt = last_dt + pd.DateOffset(months=k)
+            future_str = str(future_dt)
+            hist_dt = future_dt - pd.DateOffset(years=1)
+            hist_str = str(hist_dt)
+
+            for p in self.products:
+                if future_str not in self.demand[p]:
+                    # Usa o mesmo mês do ano anterior como proxy sazonal
+                    fallback = self.demand[p].get(hist_str, 0.0)
+                    self.demand[p][future_str] = fallback
 
     def _build_day_mapping(self):
         """Gera mapeamentos globais dia -> período e período -> dias."""
@@ -69,6 +96,10 @@ class LotSizingSolver:
             for d in self.all_days:
                 self.daily_capacity[(m, d)] = 0.0 if d in machine_stops else self.hours_per_day
 
+    def _setup_time(self, m):
+        """Tempo de setup da máquina: alto para máquinas listadas, baixo nas demais."""
+        return self.setup_time_high if m in self.high_setup_machines else self.setup_time_low
+
     def _map_machine_products(self):
         self.machine_products = {m: [] for m in self.active_machines}
         self.product_machines = {p: [] for p in self.products}
@@ -81,7 +112,7 @@ class LotSizingSolver:
                     self.machine_products[m].append(p)
                     self.product_machines[p].append(m)
 
-    def solve(self, time_limit=600, log_path=None, solver_name='CBC', threads=None):
+    def solve(self, time_limit=600, solver_name='CBC', threads=None):
         if not self.periods:
             return {"status": "No valid periods found"}
 
@@ -89,74 +120,64 @@ class LotSizingSolver:
         self._build_objective_function()
         self._add_constraints()
 
-        solver = self._get_solver_instance(solver_name, time_limit, log_path, threads)
+        n_vars = len(self.prob.variables())
+        n_cons = len(self.prob.constraints)
+        print(f"\n{'─'*60}", flush=True)
+        print(f"  Solver : {solver_name.upper()}", flush=True)
+        print(f"  Vars   : {n_vars}  |  Restrições: {n_cons}", flush=True)
+        print(f"  Limite : {time_limit}s", flush=True)
+        print(f"{'─'*60}\n", flush=True)
+
+        solver = self._get_solver_instance(solver_name, time_limit, threads)
         self.prob.solve(solver)
 
-        return self._format_results(pulp.LpStatus[self.prob.status])
+        status = pulp.LpStatus[self.prob.status]
+        obj = pulp.value(self.prob.objective)
+        print(f"\n{'─'*60}", flush=True)
+        print(f"  Status : {status}", flush=True)
+        if obj is not None:
+            print(f"  Obj    : {obj:,.2f}", flush=True)
+        print(f"{'─'*60}\n", flush=True)
 
-    def _get_solver_instance(self, name, time_limit, log_path, threads=None):
+        return self._format_results(status)
+
+    def _get_solver_instance(self, name, time_limit, threads=None):
         name = name.upper()
         if name == 'GUROBI':
             opts = [("TimeLimit", time_limit)]
-            if log_path:
-                opts.append(("LogFile", log_path))
             if threads:
                 opts.append(("Threads", threads))
             return pulp.GUROBI_CMD(msg=1, options=opts)
 
-        args = dict(msg=1, timeLimit=time_limit, logPath=log_path)
+        args = dict(msg=1, timeLimit=time_limit)
         if threads:
             args['threads'] = threads
         return pulp.PULP_CBC_CMD(**args)
 
     def _define_variables(self):
-        var_cat = 'Integer' if self.integer_var else 'Continuous'
-
-        self.H_steps, self.Y, self.S_state, self.Delta_Setup = {}, {}, {}, {}
-        self.I, self.Q, self.K = {}, {}, {}
+        # Com granularidade em dias, S_state[m,p,d] = 1 implica produção integral do dia.
+        # H_steps não é necessário: produção = S_state * hours_per_day * productivity.
+        self.S_state, self.Delta_Setup = {}, {}
+        self.I, self.K = {}, {}
         self.Z_day = {}
-        self.F_vac, self.G_start, self.R_assign = {}, {}, {}
-
-        max_n_t = max(self.days_per_period.values()) if self.days_per_period else 30
-        global_max_steps = int(self.hours_per_day * max_n_t / self.step_hours) + 1 if self.step_hours > 0 else 1
 
         for m in self.active_machines:
             for d in self.all_days:
                 self.Z_day[(m, d)] = pulp.LpVariable(f"Z_{m}_{d}", cat='Binary')
 
-            for t in self.periods:
-                safe_t = sanitize_name(t)
                 for p in self.machine_products[m]:
-                    safe_p = sanitize_name(f"{p[0]}_{p[1]}")
-                    key = (m, p, t)
+                    safe_p = sanitize_name(p)
+                    key = (m, p, d)
 
-                    self.S_state[key] = pulp.LpVariable(f"S_{m}_{safe_p}_{safe_t}", cat='Binary')
-                    self.Delta_Setup[key] = pulp.LpVariable(f"Delta_{m}_{safe_p}_{safe_t}", cat='Binary')
-                    self.Y[key] = pulp.LpVariable(f"Y_{m}_{safe_p}_{safe_t}", cat='Binary')
-                    self.H_steps[key] = pulp.LpVariable(
-                        f"H_{m}_{safe_p}_{safe_t}", lowBound=0, upBound=global_max_steps, cat=var_cat
-                    )
-
-        operators = list(range(self.num_operators))
-        vacation_operators = list(range(self.num_operators_on_vacation))
-
-        for k in operators:
-            for d in self.all_days:
-                for m in self.active_machines:
-                    self.R_assign[(k, m, d)] = pulp.LpVariable(f"R_{k}_{m}_{d}", cat='Binary')
-
-        for k in vacation_operators:
-            for d in self.all_days:
-                self.F_vac[(k, d)] = pulp.LpVariable(f"F_{k}_{d}", cat='Binary')
-                self.G_start[(k, d)] = pulp.LpVariable(f"G_{k}_{d}", cat='Binary')
+                    self.S_state[key] = pulp.LpVariable(f"S_{m}_{safe_p}_{d}", cat='Binary')
+                    self.Delta_Setup[key] = pulp.LpVariable(f"Delta_{m}_{safe_p}_{d}", cat='Binary')
 
         for p in self.products:
-            safe_p = sanitize_name(f"{p[0]}_{p[1]}")
+            safe_p = sanitize_name(p)
             for t in self.periods:
                 safe_t = sanitize_name(t)
                 key = (p, t)
                 self.I[key] = pulp.LpVariable(f"I_{safe_p}_{safe_t}", lowBound=0)
-                self.Q[key] = pulp.LpVariable(f"Q_{safe_p}_{safe_t}", lowBound=0)
                 self.K[key] = pulp.LpVariable(f"K_{safe_p}_{safe_t}", lowBound=0)
 
     def _build_objective_function(self):
@@ -164,111 +185,73 @@ class LotSizingSolver:
 
         setup_costs = []
         for m in self.active_machines:
-            setup_time = Config.DEFAULT_SETUP_TIME_HIGH if m in Config.HIGH_SETUP_MACHINES else Config.DEFAULT_SETUP_TIME_LOW
+            setup_time = self._setup_time(m)
             for p in self.machine_products[m]:
                 cost = self.costs.get(p, 0.0) * self.productivity[p][m] * setup_time
-                setup_costs.extend([cost * self.Delta_Setup[(m, p, t)] for t in self.periods])
+                setup_costs.extend([cost * self.Delta_Setup[(m, p, d)] for d in self.all_days])
 
         self.prob += pulp.lpSum(lost_sales + setup_costs)
 
     def _add_constraints(self):
-        operators = list(range(self.num_operators))
-        vacation_operators = list(range(self.num_operators_on_vacation))
-
         for m in self.active_machines:
-            setup_time = Config.DEFAULT_SETUP_TIME_HIGH if m in Config.HIGH_SETUP_MACHINES else Config.DEFAULT_SETUP_TIME_LOW
+            setup_time = self._setup_time(m)
+            prods = self.machine_products[m]
 
-            for t_idx, t in enumerate(self.periods):
-                prods = self.machine_products[m]
-                prev_t = self.periods[t_idx - 1] if t_idx > 0 else None
-                n_t = self.days_per_period.get(t, 30)
+            for d_idx, d in enumerate(self.all_days):
+                h_jd = self.daily_capacity[(m, d)]
+                prev_d = self.all_days[d_idx - 1] if d_idx > 0 else None
 
-                # (1) Estado único por máquina — relaxada para <=
-                self.prob += pulp.lpSum([self.S_state[(m, p, t)] for p in prods]) <= 1
+                # eq:estado_unico — no máximo um balão por máquina por dia
+                self.prob += pulp.lpSum([self.S_state[(m, p, d)] for p in prods]) <= 1
 
-                usage = []
                 for p in prods:
-                    key = (m, p, t)
+                    key = (m, p, d)
                     curr_s = self.S_state[key]
-                    prev_s = self.S_state[(m, p, prev_t)] if prev_t else 0
+                    prev_s = self.S_state[(m, p, prev_d)] if prev_d else 0
 
-                    # (2)-(3) Setup logic
+                    # eq:setup_delta — detecção de setup dia a dia
                     self.prob += self.Delta_Setup[key] >= curr_s - prev_s
-                    self.prob += self.Delta_Setup[key] >= self.Y[key] - prev_s
 
-                    # (5) s <= y (simplificada, sem z_jt)
-                    self.prob += curr_s <= self.Y[key]
+                # eq:capacidade — no máximo um balão ativo por máquina por dia disponível.
+                # Paradas programadas (h_jd=0) impedem qualquer ativação.
+                if h_jd == 0:
+                    self.prob += pulp.lpSum([self.S_state[(m, p, d)] for p in prods]) == 0
+                else:
+                    self.prob += pulp.lpSum([self.S_state[(m, p, d)] for p in prods]) <= 1 - self.Z_day[(m, d)]
 
-                    # (6) Ativação Big-M constante
-                    max_cap = self.hours_per_day * n_t
-                    max_steps = int(max_cap / self.step_hours) + 1 if self.step_hours > 0 else 1
-                    self.prob += self.H_steps[key] <= max_steps * self.Y[key]
-
-                    usage.append(self.H_steps[key] * self.step_hours + setup_time * self.Delta_Setup[key])
-
-                # (7) Capacidade: H_{jd} já incorpora paradas programadas; z_{jd} é exclusivo para decisões do solver
-                days_t = self.days_in_period[t]
-                available_hours = pulp.lpSum([
-                    self.daily_capacity[(m, d)] * (1 - self.Z_day[(m, d)])
-                    for d in days_t
-                ])
-                self.prob += pulp.lpSum(usage) <= available_hours
-
-        # (8)-(9) Balanço de massa e estoque de segurança
+        # eq:balanco e eq:seguranca — nível de período, produção agregada dos dias
         for p in self.products:
             curr_init = self.initial_stock.get(p, 0)
             for t_idx, t in enumerate(self.periods):
-                prod_in = pulp.lpSum([
-                    self.H_steps[(m, p, t)] * self.step_hours * self.productivity[p][m]
-                    for m in self.product_machines[p]
-                ])
+                days_t = self.days_in_period[t]
+                # Horas efetivas no dia d: h_jd se produção contínua, (h_jd - t^s_j) no dia do setup.
+                # prod_in = Σ_{d,j} s_ijd * (h_jd - t^s_j * δ_ijd) * p_ij
+                prod_in_terms = []
+                for m in self.product_machines[p]:
+                    setup_time = self._setup_time(m)
+                    for d in days_t:
+                        h_jd = self.daily_capacity[(m, d)]
+                        if h_jd > 0:
+                            effective_hours = h_jd * self.S_state[(m, p, d)] - setup_time * self.Delta_Setup[(m, p, d)]
+                            prod_in_terms.append(effective_hours * self.productivity[p][m])
+                prod_in = pulp.lpSum(prod_in_terms)
                 prev_inv = curr_init if t_idx == 0 else self.I[(p, self.periods[t_idx - 1])]
                 dem = self.demand[p].get(t, 0)
 
                 self.prob += prev_inv + prod_in == self.I[(p, t)] + dem - self.K[(p, t)]
-                self.prob += self.Q[(p, t)] == dem - self.K[(p, t)]
 
                 if self.safety_stock_pct > 0:
-                    next_dem = self.demand[p].get(self.periods[t_idx + 1], dem) if t_idx + 1 < len(self.periods) else dem
-                    self.prob += self.I[(p, t)] >= next_dem * self.safety_stock_pct
+                    # Soma a demanda dos próximos α períodos completos (eq:seguranca).
+                    # Períodos além do horizonte são buscados diretamente em self.demand
+                    # usando a extensão sazonal já calculada pelo loader.
+                    t_dt = pd.to_datetime(t)
+                    coverage_demand = 0.0
+                    for k in range(1, self.safety_stock_pct + 1):
+                        future_dt = t_dt + pd.DateOffset(months=k)
+                        future_str = str(future_dt)
+                        coverage_demand += self.demand[p].get(future_str, 0.0)
+                    self.prob += self.I[(p, t)] >= coverage_demand
 
-        # (A) Cobertura de máquina — todos os operadores_por_máquina obrigatórios
-        if self.num_operators > 0:
-            for m in self.active_machines:
-                for d in self.all_days:
-                    self.prob += pulp.lpSum(
-                        [self.R_assign[(k, m, d)] for k in operators]
-                    ) >= self.operators_per_machine * (1 - self.Z_day[(m, d)])
-
-        # (B) Operador de férias não trabalha
-        for k in vacation_operators:
-            for m in self.active_machines:
-                for d in self.all_days:
-                    self.prob += self.R_assign[(k, m, d)] <= 1 - self.F_vac[(k, d)]
-
-        # (C) Operador em no máximo 1 máquina por dia
-        if self.num_operators > 0:
-            for k in operators:
-                for d in self.all_days:
-                    self.prob += pulp.lpSum(
-                        [self.R_assign[(k, m, d)] for m in self.active_machines]
-                    ) <= 1
-
-        # (D) Total de dias de férias por operador
-        for k in vacation_operators:
-            self.prob += pulp.lpSum(
-                [self.F_vac[(k, d)] for d in self.all_days]
-            ) == self.vacation_days
-
-        # (E) Férias contíguas (bloco sequencial)
-        for k in vacation_operators:
-            if self.all_days:
-                first_d = self.all_days[0]
-                self.prob += self.G_start[(k, first_d)] >= self.F_vac[(k, first_d)]
-                for d in self.all_days[1:]:
-                    prev_d = d - 1
-                    self.prob += self.G_start[(k, d)] >= self.F_vac[(k, d)] - self.F_vac[(k, prev_d)]
-                self.prob += pulp.lpSum([self.G_start[(k, d)] for d in self.all_days]) <= 1
 
     def _format_results(self, status):
         if status not in ['Optimal', 'Feasible']:
@@ -277,7 +260,7 @@ class LotSizingSolver:
         def val(v):
             return v.varValue if v.varValue is not None else 0.0
 
-        res_inv, res_prod, res_dem, res_setup, res_vacations = [], [], [], [], []
+        res_inv, res_prod, res_dem, res_setup = [], [], [], []
         res_machine_stops = []
         res_summary = {}
 
@@ -290,12 +273,12 @@ class LotSizingSolver:
             for p in self.products:
                 inv_val = val(self.I[(p, t)])
                 dem_val = self.demand[p].get(t, 0)
-                met_val = val(self.Q[(p, t)])
-                lost_val = val(self.K[(p, t)])
+                lost_val = min(val(self.K[(p, t)]), dem_val)
+                met_val = dem_val - lost_val
 
-                res_inv.append({"Period": t, "Product": f"{p[0]} {p[1]}", "Inventory": inv_val})
+                res_inv.append({"Period": t, "Product": p, "Inventory": inv_val})
                 res_dem.append({
-                    "Period": t, "Product": f"{p[0]} {p[1]}",
+                    "Period": t, "Product": p,
                     "Demand": dem_val, "Met": met_val, "Lost": lost_val
                 })
 
@@ -305,16 +288,15 @@ class LotSizingSolver:
 
             machine_hours_used = 0.0
             total_machine_hours = 0.0
+            days_t = self.days_in_period[t]
 
             for m in self.active_machines:
-                days_t = self.days_in_period[t]
                 n_t = len(days_t)
-                # Dias parados = programados (H_{jd}=0) + decididos pelo solver (z_{jd}=1)
+
                 days_stopped = sum(
                     1 for d in days_t
                     if self.daily_capacity[(m, d)] == 0.0 or val(self.Z_day[(m, d)]) > 0.5
                 )
-                # horas disponíveis = H_{jd} * (1 - z_{jd}), consistente com a restrição de capacidade
                 machine_hours_avail = sum(
                     self.daily_capacity[(m, d)] * (1 - (1 if val(self.Z_day[(m, d)]) > 0.5 else 0))
                     for d in days_t
@@ -327,69 +309,58 @@ class LotSizingSolver:
                         "DaysStopped": days_stopped, "TotalDays": n_t
                     })
 
-                prev_t = self.periods[t_idx - 1] if t_idx > 0 else None
-
-                from_prod = "-"
-                if prev_t:
-                    prev_days = self.days_in_period[prev_t]
-                    prev_all_stopped = all(
-                        self.daily_capacity[(m, d)] == 0.0 or val(self.Z_day[(m, d)]) > 0.5
-                        for d in prev_days
-                    )
-                    if prev_all_stopped:
-                        from_prod = "Parada"
-                    else:
-                        for p_prev in self.machine_products[m]:
-                            if val(self.S_state[(m, p_prev, prev_t)]) > 0.5:
-                                from_prod = f"{p_prev[0]} {p_prev[1]}"
-                                break
-
+                # Agrega produção e setups dos dias do período
                 for p in self.machine_products[m]:
-                    h_val = val(self.H_steps[(m, p, t)])
-                    prod_qty = h_val * self.step_hours * self.productivity[p][m]
-                    hours_used = h_val * self.step_hours
+                    setup_time_p = self._setup_time(m)
+                    hours_used = 0.0
+                    prod_qty = 0.0
+                    for d in days_t:
+                        if val(self.S_state[(m, p, d)]) > 0.5:
+                            h_jd = self.daily_capacity[(m, d)]
+                            setup_discount = setup_time_p if val(self.Delta_Setup[(m, p, d)]) > 0.5 else 0.0
+                            eff_hours = max(0.0, h_jd - setup_discount)
+                            hours_used += eff_hours
+                            prod_qty += eff_hours * self.productivity[p][m]
 
-                    if h_val > 0:
+                    if hours_used > 0:
                         res_prod.append({
-                            "Period": t, "Machine": m, "Product": f"{p[0]} {p[1]}",
-                            "Quantity": prod_qty, "Hours": hours_used
+                            "Period": t, "Machine": m, "Product": p,
+                            "Kg": prod_qty, "Hours": hours_used
                         })
                         res_summary[t]["Production"] += prod_qty
                         machine_hours_used += hours_used
 
-                    if val(self.Delta_Setup[(m, p, t)]) > 0.5:
-                        setup_time = Config.DEFAULT_SETUP_TIME_HIGH if m in Config.HIGH_SETUP_MACHINES else Config.DEFAULT_SETUP_TIME_LOW
-                        rate = self.productivity[p][m]
-                        c_p = self.costs.get(p, 0.0)
-                        setup_cost_val = c_p * rate * setup_time
+                    # Setups: um registro por dia em que ocorre setup
+                    for d_idx, d in enumerate(days_t):
+                        if val(self.Delta_Setup[(m, p, d)]) > 0.5:
+                            rate = self.productivity[p][m]
+                            c_p = self.costs.get(p, 0.0)
+                            setup_cost_val = c_p * rate * setup_time_p
 
-                        res_setup.append({
-                            "Period": t, "Machine": m,
-                            "From": from_prod,
-                            "To": f"{p[0]} {p[1]}",
-                            "Cost": setup_cost_val
-                        })
-                        machine_hours_used += setup_time
+                            # Balão anterior: último s=1 antes deste dia
+                            from_prod = "-"
+                            prev_d = days_t[d_idx - 1] if d_idx > 0 else None
+                            if prev_d is not None:
+                                for p_prev in self.machine_products[m]:
+                                    if val(self.S_state[(m, p_prev, prev_d)]) > 0.5:
+                                        from_prod = p_prev
+                                        break
+                            elif t_idx > 0:
+                                prev_days = self.days_in_period[self.periods[t_idx - 1]]
+                                for p_prev in self.machine_products[m]:
+                                    if val(self.S_state[(m, p_prev, prev_days[-1])]) > 0.5:
+                                        from_prod = p_prev
+                                        break
+
+                            res_setup.append({
+                                "Period": t, "Machine": m, "Day": d + 1,
+                                "From": from_prod,
+                                "To": p,
+                                "Cost": setup_cost_val
+                            })
+                            machine_hours_used += setup_time_p
 
             res_summary[t]["Utilization"] = machine_hours_used / total_machine_hours if total_machine_hours > 0 else 0.0
-
-        # Extract operator vacation schedules
-        vacation_operators = list(range(self.num_operators_on_vacation))
-        for k in vacation_operators:
-            vac_days = [d for d in self.all_days if val(self.F_vac[(k, d)]) > 0.5]
-            if vac_days:
-                start_d = min(vac_days)
-                end_d = max(vac_days)
-                start_period = self.period_of_day.get(start_d, "")
-                end_period = self.period_of_day.get(end_d, "")
-                res_vacations.append({
-                    "Operator": k + 1,
-                    "StartDay": start_d + 1,
-                    "EndDay": end_d + 1,
-                    "Days": len(vac_days),
-                    "StartPeriod": start_period,
-                    "EndPeriod": end_period
-                })
 
         total_cost = pulp.value(self.prob.objective)
 
@@ -399,13 +370,17 @@ class LotSizingSolver:
 
         avg_inventory = sum(i['Inventory'] for i in res_inv) / len(self.periods) if self.periods else 0.0
 
+        # Giro = demanda total atendida / estoque médio no horizonte
+        total_met = total_demand - total_lost
+        inventory_turnover = total_met / avg_inventory if avg_inventory > 0 else 0.0
+
         return {
             "status": status, "inventory": res_inv, "production": res_prod, "setups": res_setup,
-            "vacations": res_vacations, "machine_stops": res_machine_stops,
-            "demand": res_dem, "summary": list(res_summary.values()),
+            "machine_stops": res_machine_stops, "demand": res_dem, "summary": list(res_summary.values()),
             "kpis": {
                 "total_cost": total_cost,
                 "service_level": service_level,
-                "avg_inventory": avg_inventory
+                "avg_inventory": avg_inventory,
+                "inventory_turnover": inventory_turnover
             }
         }
