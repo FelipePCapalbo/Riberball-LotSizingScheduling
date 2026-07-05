@@ -81,7 +81,8 @@ def run_optimization():
             "message": f"Otimização falhou ou é inviável. Status: {result.get('status')}"
         })
 
-    run_id = save_run(settings, duration, result, label=label)
+    active_file = os.path.basename(data_service.data_file) if data_service else ''
+    run_id = save_run(settings, duration, result, label=label, data_file=active_file)
 
     payload = {k: result.get(k) for k in [
         'status', 'inventory', 'production', 'setups',
@@ -89,6 +90,7 @@ def run_optimization():
     ] if result.get(k) is not None}
     payload['run_id'] = run_id
     payload['duration_seconds'] = round(duration, 2)
+    payload['data_file'] = os.path.basename(data_service.data_file) if data_service else None
     return jsonify(payload)
 
 

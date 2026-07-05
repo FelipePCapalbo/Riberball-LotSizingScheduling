@@ -190,7 +190,7 @@ async function handleRunOptimization() {
             const solver = settings.solver_name || 'CBC';
             const label  = result.status === 'Optimal' ? 'Ótimo' : 'Viável';
             setRunStatus(`${label} — ${solver}`, result.status === 'Optimal' ? 'success' : 'warning');
-            renderKpis(result.kpis, result.duration_seconds);
+            renderKpis(result.kpis, result.duration_seconds, result.data_file);
             renderResults(result);
             // Redireciona para aba Resultados
             document.querySelector('[data-bs-target="#tab-results"]')?.click();
@@ -292,7 +292,7 @@ async function loadSettingsState() {
 
 // ── KPIs ─────────────────────────────────────────────────────────
 
-function renderKpis(kpis, durationSeconds) {
+function renderKpis(kpis, durationSeconds, dataFile) {
     const bar = document.getElementById('kpi-bar');
     bar.classList.remove('d-none');
 
@@ -310,6 +310,8 @@ function renderKpis(kpis, durationSeconds) {
 
     document.getElementById('kpi-duration').textContent =
         durationSeconds != null ? durationSeconds.toFixed(1) + ' s' : '—';
+
+    document.getElementById('kpi-data-file').textContent = dataFile || '—';
 }
 
 function updateCapacityDisplay() {
@@ -576,7 +578,7 @@ async function loadRunIntoResults(runId) {
         const record = await resp.json();
         if (!record?.result) return;
 
-        renderKpis(record.kpis, record.duration_seconds);
+        renderKpis(record.kpis, record.duration_seconds, record.data_file);
         renderResults(record.result);
         document.querySelector('[data-bs-target="#tab-results"]')?.click();
     } catch (e) {

@@ -1,0 +1,1 @@
+- Incluir parametro de 'n' tempos de setup, diferentes por máquina, ao invés de setup grande e pequeno

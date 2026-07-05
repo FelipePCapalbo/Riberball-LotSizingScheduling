@@ -18,7 +18,7 @@ def _ensure_dir():
     os.makedirs(HISTORY_DIR, exist_ok=True)
 
 
-def save_run(inputs: dict, duration_seconds: float, result: dict, label: str = '') -> str:
+def save_run(inputs: dict, duration_seconds: float, result: dict, label: str = '', data_file: str = '') -> str:
     """
     Grava a execução em history/<id>.json.
     Retorna o id gerado (timestamp no formato YYYYMMDD_HHMMSS_mmm).
@@ -30,6 +30,7 @@ def save_run(inputs: dict, duration_seconds: float, result: dict, label: str = '
         'timestamp': datetime.now().isoformat(timespec='seconds'),
         'label': label or run_id,
         'duration_seconds': round(duration_seconds, 2),
+        'data_file': data_file,
         'inputs': inputs,
         'kpis': result.get('kpis', {}),
         'result': {k: result.get(k) for k in [

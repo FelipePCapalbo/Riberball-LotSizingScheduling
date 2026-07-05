@@ -239,6 +239,10 @@ body {
     font-weight: 700;
     color: var(--accent);
 }
+.kpi-value--small {
+    font-size: 11px;
+    word-break: break-all;
+}
 
 /* ── Tabs principais ─────────────────────────────────────────── */
 .main-tabs {
