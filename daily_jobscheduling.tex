@@ -1,0 +1,359 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{placeins}
+\usepackage{graphicx}
+\usepackage[colorlinks]{hyperref}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{ragged2e}
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+
+\title{Production Scheduling -- Short Term -- Intra-Shift Job Sequencing}
+\author{LTPlabs -- APP\&HIPO}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Mixed Integer Linear Formulation}
+
+The daily model fixes which operations are processed on each machine and shift,
+as well as their production quantities. The present model only decides the
+order of those operations within the shift. Consequently, processing times are
+fixed and only sequence-dependent setup times vary with the decision.
+
+The shift length is not a feasibility constraint. Any completion after the end
+of the shift is reported as an overrun and can be used as feedback to the daily
+model.
+
+The model is solved independently for each shift and each connected component
+of machines. In the remainder, let shift $s$ and component $\kappa$ be fixed.
+
+\subsection{Job-level notation}
+
+The daily model identifies an operation through the triple $(p,r,o)$. To keep
+the sequencing formulation compact, each active operation is represented by a
+single job index
+\begin{align}
+j \equiv (p,r,o).
+\end{align}
+All product, routing, and operation information remains attached to $j$; the
+short index only avoids repeating the full triple in every expression.
+
+\begingroup
+\small
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+
+\begin{longtable}{@{}L{0.30\textwidth}L{0.64\textwidth}@{}}
+\caption{Sets and indices}
+\label{tab:seq-sets} \\
+
+\toprule
+\textbf{Set or index} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\caption[]{Sets and indices (continued)} \\
+\toprule
+\textbf{Set or index} & \textbf{Description} \\
+\midrule
+\endhead
+
+\bottomrule
+\endlastfoot
+
+$s$ & Shift being scheduled. Fixed throughout the model; shifts are solved one at a time. \\
+
+$\kappa$ & Connected component of machines within shift $s$, as defined below. Fixed throughout the model; each component is solved independently. \\
+
+$\mathcal{M}_{\kappa}$ & Machines belonging to component $\kappa$ in shift $s$. \\
+
+$\mathcal{J}_{m}$ & Jobs assigned by the daily plan to machine $m \in \mathcal{M}_{\kappa}$ in shift $s$. \\
+
+$\mathcal{J}_{\kappa}=\bigcup_{m\in\mathcal{M}_{\kappa}}\mathcal{J}_{m}$ & Jobs belonging to component $\kappa$. \\
+
+$m(j)$ & Machine to which job $j$ is assigned. \\
+
+$0_m$ & Dummy origin of machine $m$. It represents the setup state carried from the most recent previous shift in which $m$ was active. \\
+
+$\mathcal{N}_{m}=\{0_m\}\cup\mathcal{J}_{m}$ & Nodes available in the sequence of machine $m$. \\
+
+$\mathcal{A}_{m}=\{(i,j): i\in\mathcal{N}_{m},\ j\in\mathcal{J}_{m},\ i\neq j\}$ & Candidate immediate-successor arcs. Arcs enter real jobs, but never return to the dummy origin. \\
+
+$\mathcal{E}$ & Binding precedence edges $(i,j)$ inherited from the daily plan. Edge $(i,j)$ means that job $j$ depends on output produced by job $i$ in the same shift. \\
+
+\end{longtable}
+\endgroup
+
+Each component is formed by connecting machines whenever an edge in
+$\mathcal{E}$ runs between them. Therefore, no sequencing decision in one
+component constrains a decision in another component.
+
+\subsection{Parameters}
+
+The hat accent continues to denote values fixed by the daily-model solution.
+
+\begingroup
+\small
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+
+\begin{longtable}{@{}L{0.30\textwidth}L{0.64\textwidth}@{}}
+\caption{Parameters}
+\label{tab:seq-parameters} \\
+
+\toprule
+\textbf{Parameter} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\caption[]{Parameters (continued)} \\
+\toprule
+\textbf{Parameter} & \textbf{Description} \\
+\midrule
+\endhead
+
+\bottomrule
+\endlastfoot
+
+$p_j$ & Fixed processing time of job $j$. \\
+
+$d_{ij}$ & Setup time required when job $j$ immediately follows node $i$ on their shared machine. For $i=0_m$, it is the setup from the state carried into the shift. \\
+
+$\gamma_{m,t}$ & Setup time incurred on machine $m$ to satisfy one unit of setup type $t$. \\
+
+$\hat c_j\in\{0,1\}$ & Equals 1 when job $j$ is a continuation from the previous shift and must be first on its machine. \\
+
+$\hat e_j\in\{0,1\}$ & Equals 1 when job $j$ is the setup state selected by the daily plan for the end of the shift and must be last on its machine, unless $\hat c_j=1$ too, or $j$ has a same-machine binding successor (see A5). \\
+
+$M$ & Valid upper bound used to deactivate a conditional timing constraint. \\
+
+\end{longtable}
+\endgroup
+
+Because quantities are fixed, processing time is data rather than a decision:
+\begin{align}
+p_j
+=
+\hat{q}_{p,r,o,s}\,\text{standardTime}_{p,r,o},
+\qquad j\equiv(p,r,o)\in\mathcal{J}_{\kappa}.
+\label{eq:processing-time}
+\end{align}
+
+Let $\Theta_{j,m}$ be the setup characteristics required by job $j$ on machine
+$m$, and let $t(\theta)$ be the setup type of characteristic
+$\theta\in\Theta_{j,m}$. Transitioning from $i$ to $j$ pays for every
+characteristic required by $j$ and absent from $i$:
+\begin{align}
+d_{ij}
+=
+\sum_{\theta\in\Theta_{j,m}\setminus\Theta_{i,m}}
+\gamma_{m,t(\theta)},
+\qquad (i,j)\in\mathcal{A}_{m},\quad i\neq 0_m.
+\label{eq:setup-distance}
+\end{align}
+Dropping a characteristic is free, so $d_{ij}$ is directed. For the dummy
+origin, $d_{0_mj}$ is evaluated from the state carried into the shift; it is
+zero when no prior state exists.
+
+\subsection{Decision variables}
+
+\begingroup
+\small
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+
+\begin{longtable}{@{}L{0.30\textwidth}L{0.64\textwidth}@{}}
+\caption{Decision variables}
+\label{tab:seq-decision-variables} \\
+
+\toprule
+\textbf{Variable} & \textbf{Definition} \\
+\midrule
+\endfirsthead
+
+\caption[]{Decision variables (continued)} \\
+\toprule
+\textbf{Variable} & \textbf{Definition} \\
+\midrule
+\endhead
+
+\bottomrule
+\endlastfoot
+
+$y_{ij}\in\{0,1\}$ & Equals 1 if job $j$ immediately follows node $i$ on their shared machine; defined for $(i,j)\in\mathcal{A}_{m}$. In particular, $y_{0_mj}=1$ means that $j$ is first. \\
+
+$B_j\geq0$ & Start time of job $j$, measured from the beginning of shift $s$. The setup of $j$ begins at this instant. \\
+
+$C_j\geq0$ & Completion time of job $j$, after its setup and processing. \\
+
+$C^{\max}_{\kappa}\geq0$ & Completion time of the last job in component $\kappa$. \\
+
+\end{longtable}
+\endgroup
+
+\FloatBarrier
+
+\subsection{Formulation}
+
+\subsubsection{Objective function}
+
+\begin{align}
+\textbf{minimize}\qquad C^{\max}_{\kappa}.
+\label{eq:objective}
+\end{align}
+
+\subsubsection{A. Sequence structure}
+
+\noindent\textbf{A1. One sequence leaves each machine origin}
+\begin{align}
+\sum_{j\in\mathcal{J}_{m}}y_{0_mj}=1,
+\qquad
+\forall m\in\mathcal{M}_{\kappa}:\mathcal{J}_{m}\neq\emptyset.
+\label{eq:A1-origin}
+\end{align}
+
+\noindent\textbf{A2. Every job has exactly one predecessor}
+\begin{align}
+\sum_{i\in\mathcal{N}_{m}\setminus\{j\}}y_{ij}=1,
+\qquad
+\forall m\in\mathcal{M}_{\kappa},\quad
+\forall j\in\mathcal{J}_{m}.
+\label{eq:A2-predecessor}
+\end{align}
+The predecessor is either another job or the dummy origin when $j$ is first.
+
+\noindent\textbf{A3. Every job has at most one successor}
+\begin{align}
+\sum_{h\in\mathcal{J}_{m}\setminus\{j\}}y_{jh}\leq1,
+\qquad
+\forall m\in\mathcal{M}_{\kappa},\quad
+\forall j\in\mathcal{J}_{m}.
+\label{eq:A3-successor}
+\end{align}
+
+Constraints A1--A3 form one path starting at $0_m$ and covering all jobs on
+machine $m$. A disconnected cycle cannot satisfy the timing constraints below
+when every active job has $p_j>0$; following the cycle would require a job to
+finish before its own start. Thus, no separate subtour-elimination constraints
+are required.
+
+\noindent\textbf{A4. A continued job is first}
+\begin{align}
+y_{0_mj}=1,
+\qquad
+\forall j\in\mathcal{J}_{m}:\hat c_j=1.
+\label{eq:A4-continuation}
+\end{align}
+
+\noindent\textbf{A5. The selected end state is last}
+
+Let $succ^{\mathcal{E}}_{m}(j)=\{h\in\mathcal{J}_{m}:(j,h)\in\mathcal{E}\}$ be
+the same-machine binding successors of $j$.
+\begin{align}
+\sum_{h\in\mathcal{J}_{m}\setminus\{j\}}y_{jh}=0,
+\qquad
+\forall j\in\mathcal{J}_{m}:\hat e_j=1,\ \hat c_j=0,\
+succ^{\mathcal{E}}_{m}(j)=\emptyset.
+\label{eq:A5-end-state}
+\end{align}
+A5 is skipped for an end-state job in two situations where it would conflict
+with a harder requirement. First, when $\hat c_j=1$ too: the daily model
+picked the same job as both continuation and end state, so A4 already forces
+it first, and a literal A5 would additionally force it last, leaving every
+other job on the machine without a valid position. Second, when $j$ has a
+same-machine binding successor $h$ ($succ^{\mathcal{E}}_{m}(j)\neq\emptyset$):
+C1 already forces $h$ to run after $j$, so a literal A5 would again forbid
+$j$ from having any successor. In both cases A4 and C1 win because they
+reflect a real physical setup state or a genuine production dependency, while
+$\hat e_j$ is only the daily model's aggregate preference. The job the
+sequencing solution actually places last becomes $0_m$ for the next shift,
+which may then differ from the daily model's original end-state choice.
+
+\subsubsection{B. Timing}
+
+\noindent\textbf{B1. Completion time}
+
+The selected incoming arc simultaneously identifies the predecessor of $j$
+and its setup time:
+\begin{align}
+C_j
+=
+B_j+p_j
++
+\sum_{i\in\mathcal{N}_{m}\setminus\{j\}}d_{ij}y_{ij},
+\qquad
+\forall m\in\mathcal{M}_{\kappa},\quad
+\forall j\in\mathcal{J}_{m}.
+\label{eq:B1-completion}
+\end{align}
+
+\noindent\textbf{B2. Machine succession}
+\begin{align}
+B_j
+\geq
+C_i-M(1-y_{ij}),
+\qquad
+\forall m\in\mathcal{M}_{\kappa},\quad
+\forall i,j\in\mathcal{J}_{m}:i\neq j.
+\label{eq:B2-machine-succession}
+\end{align}
+If $y_{ij}=1$, the setup of $j$ starts only after job $i$ is complete.
+
+\noindent\textbf{B3. Component makespan}
+\begin{align}
+C^{\max}_{\kappa}\geq C_j,
+\qquad
+\forall j\in\mathcal{J}_{\kappa}.
+\label{eq:B3-makespan}
+\end{align}
+
+\subsubsection{C. Binding precedence}
+
+\noindent\textbf{C1. Within-shift production precedence}
+\begin{align}
+B_j\geq C_i,
+\qquad
+\forall(i,j)\in\mathcal{E}.
+\label{eq:C1-precedence}
+\end{align}
+Because $B_j$ is the beginning of setup, this is a non-anticipatory setup
+assumption: neither setup nor processing of $j$ may begin before its binding
+predecessor is complete.
+
+\subsection{Interpretation and scope}
+
+\begin{itemize}
+
+\item The daily and sequencing models are solved consecutively, never jointly.
+The daily solution fixes jobs, quantities, machines, and binding precedences;
+the present model only orders the fixed jobs.
+
+\item Shifts are solved chronologically. The last scheduled job on a machine
+determines the dummy-origin state $0_m$ used in its next active shift. An idle
+shift does not erase the carried state.
+
+\item A job is atomic and non-preemptive. Its setup and processing are
+consecutive and occupy the same machine.
+
+\item The shift duration does not bound $C^{\max}_{\kappa}$. Completion beyond
+the available minutes is an output of the model, not an infeasibility.
+
+\item For a component containing a single machine and no binding precedence,
+total processing time is fixed, so the objective reduces to choosing the
+job order that starts at $0_m$ and minimizes total setup time.
+
+\end{itemize}
+
+\end{document}

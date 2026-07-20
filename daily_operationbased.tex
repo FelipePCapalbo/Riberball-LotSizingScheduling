@@ -1,0 +1,2408 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{placeins}
+\usepackage{graphicx}
+\usepackage[colorlinks]{hyperref}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{ragged2e}
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\title{Production Planning - Short Term - Operation Based}
+\author{LTPlabs - APP\&HIPO}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Mixed Integer Linear Formulation}
+
+\subsection{Notation}
+
+%---------------------------------------------------------------------------------------------
+%-------------------------------------------- SETS -------------------------------------------
+%---------------------------------------------------------------------------------------------
+\begingroup
+\small
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+
+\begin{longtable}{@{}L{0.32\textwidth}L{0.62\textwidth}@{}}
+\caption{Sets used in the model formulation}
+\label{tab:sets} \\
+
+\toprule
+\textbf{Set} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\caption[]{Sets used in the model formulation (continued)} \\
+\toprule
+\textbf{Set} & \textbf{Description} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\emph{Continued on next page}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+$\mathcal{P}$ & Products. \\
+
+$\mathcal{P}_{finished} \subseteq \mathcal{P}$ & Finished products. \\
+
+$\mathcal{P}_{coil} \subseteq \mathcal{P}$ & Coil products / raw material products. \\
+
+$\mathcal{P}_{other} \subseteq \mathcal{P}$ & Other purchased components. \\
+
+$\mathcal{P}_{intermediate} \subseteq \mathcal{P}$ & Stockable intermediate products that can be produced and consumed as components. \\
+
+$\mathcal{P}_{boundary} \subseteq \mathcal{P}$ & Boundary products: produced in Cajamar (branch 01) but sold exclusively through a destination branch. They carry no Cajamar demand $D_{p,s}$; their demand is served from destination stock. \\
+
+$\mathcal{B}^{dest} = \{04, 07\}$ & Destination branches: An\'apolis 04 and Crici\'uma 07, supplied from Cajamar. \\
+
+$\mathcal{P}^{supply}_{b} \subseteq \mathcal{P}_{boundary}$ & Boundary products supplied to destination branch $b \in \mathcal{B}^{dest}$. \\
+
+$PBS^{supply} = \{(p,b,s) : b \in \mathcal{B}^{dest},\ p \in \mathcal{P}^{supply}_b,\ s \in \mathcal{S}\}$ & Destination product--branch--shift index grid. \\
+
+$\mathcal{S}^{tr} \subseteq \mathcal{S}$ & Transfer shifts: shifts of the configurable transfer shift type, default $T2$, in which stock may be dispatched from Cajamar to a destination branch. \\
+
+$\mathcal{S}$ & Shifts. \\
+
+$\mathcal{M}$ & Machines, excluding subcontracted ghost machines. \\
+
+$\mathcal{M}^{ghost}$ & Subcontracted ghost machines representing external or outsourced capacity. These machines are disjoint from $\mathcal{M}$ and are excluded from time-based constraints B1 and B3, and crew constraints B4 and B5. \\
+
+$\mathcal{R}^{ghost} \subseteq \bigcup_{p} \mathcal{R}_p$ & Ghost routings. Each ghost routing has a single operation processed on a ghost machine $m \in \mathcal{M}^{ghost}$, with $o^{first}_{p,r} = o^{last}_{p,r}$. \\
+
+$\mathcal{A}^{crew}$ & Production areas / crew groups. \\
+
+$\mathcal{W}$ & Weeks covered by the short-term planning horizon, used to map shifts to weekly limits. \\
+
+$\mathcal{C}^{shift} = \{1,2,3\}$ & Shift types used for weekly shift-opening limits. \\
+
+$\mathcal{S}_{c}(w)$ & Set of shifts of type $c$ belonging to week $w$. \\
+
+$\mathcal{T}$ & Types of setup, where $\mathcal{T} = \mathcal{T}^{reg} \cup \mathcal{T}^{route}$. \\
+
+$\mathcal{T}^{reg}$ & Product-based setup types, such as dimensions, families, product groups, etc. \\
+
+$\mathcal{T}^{route}$ & Routing/operation-based setup types, where $\mathcal{T}^{route} = \mathcal{T}^{ink} \cup \mathcal{T}^{var}$. \\
+
+$\mathcal{H}_{t}$ & Set of characteristic groups for setup type $t \in \mathcal{T}$. \\
+
+$\mathcal{R}_p$ & Set of feasible routings available for product $p$. \\
+
+$\mathcal{O}(p,r)$ & Ordered set of operations in routing $r$ for product $p$. \\
+
+$\mathcal{O}^{int}(p,r)$ & Set of intermediate operations of routing $r$ for product $p$, excluding the last operation. \\
+
+$\mathcal{M}(p,r) \subseteq \mathcal{M}$ & Set of machines used by routing $r$ of product $p$. \\
+
+$\mathcal{G}(p)$ & Set of optional component groups for product $p$. \\
+
+$\mathcal{C}(p,g)$ & Set of components belonging to optional component group $g$ for product $p$. \\
+
+$I_{\text{ink}} \subseteq \mathcal{P}$ & Ink product codes. \\
+
+$I_{\text{var}} \subseteq \mathcal{P}$ & Varnish product codes. \\
+
+\end{longtable}
+\endgroup
+
+For each product-routing pair $(p,r)$, let:
+\begin{align}
+o^{first}_{p,r} &\in \mathcal{O}(p,r) \\
+o^{last}_{p,r} &\in \mathcal{O}(p,r)
+\end{align}
+
+where $o^{first}_{p,r}$ is the first operation of routing $r$ for product $p$, and $o^{last}_{p,r}$ is the last operation of routing $r$ for product $p$.
+
+For every non-final operation $o \in \mathcal{O}^{int}(p,r)$, let:
+\begin{align}
+succ(p,r,o) \in \mathcal{O}(p,r)
+\end{align}
+
+be the immediate successor operation of operation $o$ in routing $r$ of product $p$.
+
+The set of intermediate operations is defined as:
+\begin{align}
+\mathcal{O}^{int}(p,r)
+=
+\mathcal{O}(p,r) \setminus \{o^{last}_{p,r}\}
+\end{align}
+
+For regular setup types $t \in \mathcal{T}^{reg}$, let:
+\begin{align}
+\eta_{p,t,h} \in \{0,1\}
+\end{align}
+
+be a precomputed parameter equal to 1 if product $p$ belongs to group $h \in \mathcal{H}_t$.
+
+For routing-based setup types, define the set of possible ink positions:
+\begin{align}
+I_{\text{ink}} = \{1,2,3,4\}
+\end{align}
+
+For ink setup, define the precomputed operation-aware parameters:
+\begin{align}
+\eta^{ink}_{p,r,o,m,t,i,h} \in \{0,1\}
+\end{align}
+
+\begin{center}
+$\forall p \in \mathcal{P},\ 
+\forall r \in \mathcal{R}_p,\ 
+\forall o \in \mathcal{O}(p,r),\ 
+\forall m \in \mathcal{M},\ 
+\forall t \in \mathcal{T}^{ink},\ 
+\forall i \in I_{\text{ink}},\ 
+\forall h \in \mathcal{H}_t$
+\end{center}
+
+where $\eta^{ink}_{p,r,o,m,t,i,h}=1$ if operation $o$ of routing $r$ for product $p$ uses ink code or ink group characteristic $(t,i,h)$ on machine $m$.
+
+For varnish setup, define:
+\begin{align}
+\eta^{var}_{p,r,o,m,t,h} \in \{0,1\}
+\end{align}
+
+\begin{center}
+$\forall p \in \mathcal{P},\ 
+\forall r \in \mathcal{R}_p,\ 
+\forall o \in \mathcal{O}(p,r),\ 
+\forall m \in \mathcal{M},\ 
+\forall t \in \mathcal{T}^{var},\ 
+\forall h \in \mathcal{H}_t$
+\end{center}
+
+where $\eta^{var}_{p,r,o,m,t,h}=1$ if operation $o$ of routing $r$ for product $p$ uses varnish characteristic $(t,h)$ on machine $m$.
+
+%---------------------------------------------------------------------------------------------
+%------------------------------------- DECISION VARIABLES ------------------------------------
+%---------------------------------------------------------------------------------------------
+\begingroup
+\small
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+
+\begin{longtable}{@{}L{0.35\textwidth}L{0.59\textwidth}@{}}
+\caption{Decision variables}
+\label{tab:decision-variables} \\
+
+\toprule
+\textbf{Variable} & \textbf{Definition} \\
+\midrule
+\endfirsthead
+
+\caption[]{Decision variables (continued)} \\
+\toprule
+\textbf{Variable} & \textbf{Definition} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\emph{Continued on next page}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+$x_{p,r,o,s} \ge 0$ & Quantity of product $p$ processed in operation $o$ of routing $r$ during shift $s$. \\
+
+$wip_{p,r,o,s} \ge 0$ & Quantity of product $p$ completed up to operation $o$ of routing $r$ at the end of shift $s$, for $o \in \mathcal{O}^{int}(p,r)$. \\
+
+$y_{p_1,p_2,s} \ge 0$ & Quantity of component $p_2$ consumed to produce product $p_1$ in shift $s$. \\
+
+$k_{p,r,o,s} \in \{0,1\}$ & Equals 1 if operation $o$ of routing $r$ for product $p$ is planned in shift $s$; 0 otherwise. \\
+
+$ss_{p,s} \ge 0$ & Inventory level of product $p$ at the end of shift $s$. \\
+
+$zsp_{p,s} \ge 0$ & Backlog of unmet total demand of product $p$ at the end of shift $s$; confirmed orders are included in $D_{p,s}$. \\
+
+$zso_{p} \ge 0$ & Shortage relative to objective stock of product $p$ at the end of the analysis period. \\
+
+$zco_{p,s} \ge 0$ & Shortage relative to confirmed orders of product $p$ in shift $s$. \\
+
+$tr_{p,b,s} \ge 0$ & Quantity of boundary product $p$ transferred from Cajamar to destination branch $b$, dispatched in transfer shift $s$; defined only for $s \in \mathcal{S}^{tr}$. \\
+
+$ss^{dest}_{p,b,s} \ge 0$ & Inventory of boundary product $p$ at destination branch $b$ at the end of shift $s$. \\
+
+$zsd_{p,b,s} \ge 0$ & Backlog of unmet destination demand for product $p$ at branch $b$ at the end of shift $s$. \\
+
+$zrp_{p,b,s} \ge 0$ & Shortfall of destination inventory of product $p$ at branch $b$ below its reposition point in shift $s$. \\
+
+$zsco_{p,b,s} \ge 0$ & Shortage relative to destination confirmed orders of product $p$ at branch $b$ in shift $s$. \\
+
+$ta_{m,s} \ge 0$ & Total available production time, in hours, for machine $m$ in shift $s$. \\
+
+$l_{m,s} \in \{0,1\}$ & Equals 1 if machine $m$ is active in shift $s$; 0 otherwise. \\
+
+$u_{p,s} \in \{0,1\}$ & Equals 1 if product $p$ is produced in any routing/operation during shift $s$; 0 otherwise. \\
+
+$z_{p,c,s} \in \{0,1\}$ & Equals 1 if component $c$ is selected for product $p$ in shift $s$; 0 otherwise. \\
+
+$cont_{p,r,o,s} \in \{0,1\}$ & Equals 1 if operation $o$ of routing $r$ for product $p$ in shift $s$ is a continuation from shift $s-1$; 0 otherwise. \\
+
+$endState_{p,r,o,s} \in \{0,1\}$ & Equals 1 if operation $(p,r,o)$ is selected as the final operation/setup state of machine $m(p,r,o)$ at the end of shift $s$; 0 otherwise. \\
+
+$lastState_{p,r,o,s} \in \{0,1\}$ & Equals 1 if, after shift $s$, machine $m(p,r,o)$ is left configured according to $(p,r,o)$. This state survives inactive shifts; 0 otherwise. \\
+
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Regular setup variables}} \\
+\midrule
+
+$ST^{reg}_{m,s,t} \ge 0$ & Setup time for regular setup type $t$ on machine $m$ in shift $s$. \\
+
+$state^{reg}_{m,s,t,h} \in \{0,1\}$ & Equals 1 if regular setup group $h$ of type $t$ is active on machine $m$ in shift $s$; 0 otherwise. \\
+
+$carry^{reg}_{m,s,t,h} \in \{0,1\}$ & Equals 1 if regular setup group $h$ of type $t$ is carried over from shift $s-1$ to shift $s$ on machine $m$; 0 for shift 1. \\
+
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Ink setup variables}} \\
+\midrule
+
+$ST^{ink}_{m,s,t,i,h} \ge 0$ & Setup time for ink setup type $t$, position $i$, group $h$ on machine $m$ in shift $s$. \\
+
+$ST^{ink}_{m,s,i} \ge 0$ & Total ink setup time for position $i$ on machine $m$ in shift $s$. \\
+
+$ST^{ink}_{m,s} \ge 0$ & Total ink setup time on machine $m$ in shift $s$. \\
+
+$state^{ink}_{m,s,t,i,h} \in \{0,1\}$ & Equals 1 if ink setup group $h$ of type $t$ in position $i$ is active on machine $m$ in shift $s$; 0 otherwise. \\
+
+$carry^{ink}_{m,s,t,i,h} \in \{0,1\}$ & Equals 1 if ink setup group $h$ of type $t$ in position $i$ is carried over from shift $s-1$ to shift $s$ on machine $m$; 0 for shift 1. \\
+
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Varnish setup variables}} \\
+\midrule
+
+$ST^{var}_{m,s,t,h} \ge 0$ & Setup time for varnish setup type $t$, group $h$ on machine $m$ in shift $s$. \\
+
+$ST^{var}_{m,s} \ge 0$ & Total varnish setup time on machine $m$ in shift $s$. \\
+
+$state^{var}_{m,s,t,h} \in \{0,1\}$ & Equals 1 if varnish setup group $h$ of type $t$ is active on machine $m$ in shift $s$; 0 otherwise. \\
+
+$carry^{var}_{m,s,t,h} \in \{0,1\}$ & Equals 1 if varnish setup group $h$ of type $t$ is carried over from shift $s-1$ to shift $s$ on machine $m$; 0 for shift 1. \\
+
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Total setup variable}} \\
+\midrule
+
+$ST_{m,s} \ge 0$ & Total setup time on machine $m$ in shift $s$. \\
+
+\end{longtable}
+\endgroup
+
+%---------------------------------------------------------------------------------------------
+%----------------------------------------- PARAMETERS ----------------------------------------
+%---------------------------------------------------------------------------------------------
+\begingroup
+\small
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+
+\begin{longtable}{@{}L{0.35\textwidth}L{0.59\textwidth}@{}}
+\caption{Parameters}
+\label{tab:parameters} \\
+
+\toprule
+\textbf{Parameter} & \textbf{Definition} \\
+\midrule
+\endfirsthead
+
+\caption[]{Parameters (continued)} \\
+\toprule
+\textbf{Parameter} & \textbf{Definition} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\emph{Continued on next page}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+$D_{p,s}$ & Total demand of product $p$ in shift $s$, including confirmed orders and predictive demand. \\
+
+$StockStart_p$ & Initial inventory of product $p$ before the first modeled shift. \\
+
+$WIPStart_{p,r,o}$ & Initial WIP quantity of product $p$ already completed up to operation $o$ of routing $r$, for $o \in \mathcal{O}^{int}(p,r)$. \\
+
+$StockArrivals_{p,s}$ & Exogenous arrivals of product $p$ in shift $s$. \\
+
+$ObjectiveStock_{p}$ & Objective stock requirement for product $p$ at the last shift of the model, set by the medium-term planning module. \\
+
+$ConsumptionFactor_{p_2,p_1}$ & Quantity of component $p_2$ required per unit of product $p_1$. \\
+
+$UnitProductionTime_{p,r,o}$ & Unit processing time, in hours, of operation $o$ of routing $r$ for product $p$. \\
+
+$m(p,r,o)$ & Machine used by operation $o$ of routing $r$ for product $p$. \\
+
+$MachineAvailableHours_{m,s}$ & Maximum production hours available for machine $m$ in shift $s$. \\
+
+$Crew_{a,s}$ & Number of available crews in production area $a$ during shift $s$. \\
+
+$\mu_{m,a} \in \{0,1\}$ & Equals 1 if machine $m$ belongs to production area $a$; 0 otherwise. \\
+
+$CrewConsumption_m$ & Number of crews required when machine $m$ is active. \\
+
+$ConfirmedOrders_{p,s}$ & Quantity of orders already confirmed by the client for product $p$ in shift $s$. \\
+
+$PenConfirmedOrders_p$ & Unit penalty cost for unmet confirmed orders of product $p$. \\
+
+$PenPredictiveDemand_p$ & Unit penalty cost for unmet predictive demand of product $p$. \\
+
+$PenObjectiveStock_p$ & Unit penalty cost for unmet objective stock of product $p$. \\
+
+$CostStockHolding_p$ & Unit inventory holding cost of product $p$. \\
+
+$CostSetup_m$ & Unit setup cost per hour on machine $m$. \\
+
+$WeightServiceLevel$ & Weight applied to service-level penalties. \\
+
+$WeightStock$ & Weight applied to inventory holding cost. \\
+
+$WeightSetup$ & Weight applied to setup cost. \\
+
+$MinLotSize_p$ & Minimum lot size for product $p$, applied at routing start. \\
+
+$\gamma_{m,t}$ & Setup time coefficient for setup type $t$ on machine $m$. \\
+
+$GhostCapacity_{m,s}$ & Per-shift quantity capacity of ghost machine $m \in \mathcal{M}^{ghost}$ in shift $s$. It is derived from the weekly subcontracting quote divided by the number of shifts in a full business week, $5 \times 3 = 15$. \\
+
+$OutsourcingCost_m$ & Unit cost of subcontracting one unit on ghost machine $m \in \mathcal{M}^{ghost}$. \\
+
+$L$ & Outsourcing lead time, in shifts: production placed on a ghost machine in shift $s$ becomes available in stock in shift $s+L$. \\
+
+$StockStart^{dest}_{p,b}$ & Initial inventory of boundary product $p$ at destination branch $b$ before the first modeled shift. \\
+
+$RepositionPoint_{p,b}$ & Target reposition point, or reorder point, of boundary product $p$ at destination branch $b$. \\
+
+$D^{supply}_{p,b,s}$ & Destination demand of boundary product $p$ at branch $b$ in shift $s$. \\
+
+$ConfirmedOrders^{supply}_{p,b,s}$ & Confirmed client orders of boundary product $p$ at destination branch $b$ in shift $s$. \\
+
+$Arrivals^{dest}_{p,b,s}$ & Exogenous purchase-order arrivals of product $p$ at destination branch $b$ in shift $s$. \\
+
+$L^{tr}$ & Transfer lead time, in shifts: a transfer dispatched from Cajamar in shift $s$ is received at the destination branch in shift $s + L^{tr}$. The default is 3 shifts: dispatch in $T2$ arrives in $T2$ the following day. \\
+
+\end{longtable}
+\endgroup
+
+The domain of shifts is:
+\begin{align}
+\mathcal{S} = \{1,\dots,45\}
+\end{align}
+
+Before the model starts, the mapping between shifts, shift types, and weeks is precomputed through the sets $\mathcal{S}_c(w)$.
+
+\FloatBarrier
+
+\subsection{Formulation}
+
+%---------------------------------------------------------------------------------------------
+%------------------------------------- OBJECTIVE FUNCTION ------------------------------------
+%---------------------------------------------------------------------------------------------
+\subsubsection{Objective Function}
+
+\begin{align}
+\textbf{\textit{minimize}} \quad 
+&
+\sum_{p \in \mathcal{P}} \sum_{s \in \mathcal{S}}
+\Big(
+zco_{p,s} \, PenConfirmedOrders_p
+\nonumber \\
+& + zsp_{p,s} \, PenPredictiveDemand_p
+\Big)
+\nonumber \\
+&+
+\sum_{(p,b,s) \in PBS^{supply}}
+\Big(
+zsco_{p,b,s} \, PenConfirmedOrders_p
++ zsd_{p,b,s} \, PenPredictiveDemand_p
++ zrp_{p,b,s} \, PenObjectiveStock_p
+\Big)
+\nonumber \\
+&+
+\sum_{p \in \mathcal{P}} zso_{p} \, PenObjectiveStock_p \cdot WeightServiceLevel
+\nonumber \\
+&+
+\sum_{p \in \mathcal{P}} \sum_{s \in \mathcal{S}} \Big( WACC \cdot UnitCost_{P} \cdot \frac{ss_{p,w-1}+ss_{p,w}}{2} \Big)
+\cdot WeightStock
+\nonumber \\
+&+
+\sum_{m \in \mathcal{M}} \sum_{s \in \mathcal{S}}
+ST_{m,s} \, CostSetup_m \cdot WeightSetup
+\nonumber \\
+&+
+\sum_{m \in \mathcal{M}^{ghost}} \sum_{s \in \mathcal{S}}
+\sum_{\substack{p \in \mathcal{P},\ r \in \mathcal{R}_p \cap \mathcal{R}^{ghost},\ o \in \mathcal{O}(p,r):\\ m(p,r,o)=m}}
+OutsourcingCost_m \, x_{p,r,o,s}
+\label{eq:objective_function}
+\end{align}
+
+The outsourcing cost is incurred at the production (order placement) shift $s$, independent of the lead time $L$ before the material is received into stock.
+
+%---------------------------------------------------------------------------------------------
+%---------------------------------------- CONSTRAINTS ----------------------------------------
+%---------------------------------------------------------------------------------------------
+\subsubsection{Constraints}
+
+\noindent\text{---------------------------------------------------------------------------------------------------------}
+
+\subsubsection*{A. Inventory, Consumption, and Routing Flow}
+
+To capture the outsourcing lead time, define the quantity of product $p$ \emph{made available into stock} in shift $s$ as the last-operation output of in-house routings produced in shift $s$ plus the last-operation output of ghost routings produced $L$ shifts earlier:
+\begin{align}
+AvailProd_{p,s}
+=
+\sum_{\substack{r \in \mathcal{R}_p \\ r \notin \mathcal{R}^{ghost}}}
+x_{p,r,o^{last}_{p,r},s}
+\;+\;
+\sum_{\substack{r \in \mathcal{R}_p \\ r \in \mathcal{R}^{ghost}}}
+x_{p,r,o^{last}_{p,r},\,s-L}
+\label{eq:avail_prod}
+\end{align}
+where ghost terms with $s-L < 1$ are omitted (production placed before the horizon start cannot be received within it). All stock balances below use $AvailProd_{p,s}$ in place of the plain sum $\sum_{r \in \mathcal{R}_p} x_{p,r,o^{last}_{p,r},s}$.
+
+\noindent\textbf{A1. Stock balance of coil products and other purchased components}
+\begin{align}
+ss_{p,s}
+&=
+ss_{p,s-1}
+- \sum_{p_1 \in \mathcal{P}} y_{p_1,p,s}
++ StockArrivals_{p,s}
+\label{eq:A1_coil_balance}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}_{coil} \, \cup \, \mathcal{P}_{other}, \quad s = 2,\dots,45$
+\end{center}
+
+\noindent\textbf{A2. Stock balance of coil products and other purchased components, initial shift}
+\begin{align}
+ss_{p,1}
+&=
+StockStart_p
+- \sum_{p_1 \in \mathcal{P}} y_{p_1,p,1}
++ StockArrivals_{p,1}
+\label{eq:A2_coil_initial}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}_{coil} \, \cup \, \mathcal{P}_{other}$
+\end{center}
+
+\noindent\textbf{A3. Stock balance of intermediate products}
+\begin{align}
+ss_{p,s}
+&=
+ss_{p,s-1}
+- \sum_{p_1 \in \mathcal{P}} y_{p_1,p,s}
++ AvailProd_{p,s}
+\label{eq:A3_intermediate_balance}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}_{intermediate}, \quad s = 2,\dots,45$
+\end{center}
+
+\noindent\textbf{A4. Stock balance of intermediate products, initial shift}
+\begin{align}
+ss_{p,1}
+&=
+StockStart_p
+- \sum_{p_1 \in \mathcal{P}} y_{p_1,p,1}
++ AvailProd_{p,1}
+\label{eq:A4_intermediate_initial}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}_{intermediate}$
+\end{center}
+
+
+\noindent\textbf{A5. Stock balance of finished products}
+\begin{align}
+ss_{p,s}
+&=
+ss_{p,s-1}
+- D_{p,s}
++ AvailProd_{p,s}
++ zsp_{p,s}
+- zsp_{p,s-1}
+\label{eq:A5_finished_balance}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}_{finished}, \quad s = 2,\dots,45$
+\end{center}
+
+\noindent\textbf{A6. Stock balance of finished products, initial shift}
+\begin{align}
+ss_{p,1}
+&=
+StockStart_p
+- D_{p,1}
++ AvailProd_{p,1}
++ zsp_{p,1}
+\label{eq:A6_finished_initial}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}_{finished}$
+\end{center}
+
+
+\noindent\textbf{A5b. Stock balance of boundary products (Cajamar)}
+
+Boundary products carry no Cajamar demand $D_{p,s}$; instead they are dispatched to their destination branch through the transfer variable $tr$. Only transfers dispatched in the current shift drain Cajamar stock, and $tr_{p,b,s}=0$ whenever $s \notin \mathcal{S}^{tr}$.
+\begin{align}
+ss_{p,s}
+&=
+ss_{p,s-1}
++ AvailProd_{p,s}
+- \sum_{p_1 \in \mathcal{P}} y_{p_1,p,s}
+- \sum_{\substack{b \in \mathcal{B}^{dest}:\\ p \in \mathcal{P}^{supply}_b}} tr_{p,b,s}
+\label{eq:A9b_boundary_balance}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}_{boundary}, \quad s = 2,\dots,45$
+\end{center}
+
+\noindent\textbf{A6b. Stock balance of boundary products (Cajamar), initial shift}
+\begin{align}
+ss_{p,1}
+&=
+StockStart_p
++ AvailProd_{p,1}
+- \sum_{p_1 \in \mathcal{P}} y_{p_1,p,1}
+- \sum_{\substack{b \in \mathcal{B}^{dest}:\\ p \in \mathcal{P}^{supply}_b}} tr_{p,b,1}
+\label{eq:A10b_boundary_initial}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}_{boundary}$
+\end{center}
+
+
+
+\noindent\textbf{A7. WIP balance between routing operations}
+\begin{align}
+wip_{p,r,o,s}
+&=
+wip_{p,r,o,s-1}
++ x_{p,r,o,s}
+- x_{p,r,succ(p,r,o),s}
+\label{eq:A7_wip_balance}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall o \in \mathcal{O}^{int}(p,r), \quad
+s = 2,\dots,45$
+\end{center}
+
+\noindent\textbf{A8. WIP balance between routing operations, initial shift}
+\begin{align}
+wip_{p,r,o,1}
+&=
+WIPStart_{p,r,o}
++ x_{p,r,o,1}
+- x_{p,r,succ(p,r,o),1}
+\label{eq:A8_wip_initial}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall o \in \mathcal{O}^{int}(p,r)$
+\end{center}
+
+Because $wip_{p,r,o,s} \ge 0$, constraints \eqref{eq:A7_wip_balance} and \eqref{eq:A8_wip_initial} ensure that operation $succ(p,r,o)$ cannot process more than the quantity already available from previous WIP plus the quantity processed in operation $o$ in the same shift.
+
+\noindent\textbf{A9. Component consumption linked to first-operation production start}
+\begin{align}
+\sum_{c \in \mathcal{C}(p,g)}
+\frac{y_{p,c,s}}{ConsumptionFactor_{c,p}}
+&=
+\sum_{r \in \mathcal{R}_p}
+x_{p,r,o^{first}_{p,r},s}
+\label{eq:A9_component_consumption}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall g \in \mathcal{G}(p), \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+\noindent\textbf{A10. Stock precedence for component consumption}
+\begin{align}
+\sum_{p_1 \in \mathcal{P}} y_{p_1,p,s}
+&\le
+ss_{p,s-1}
+\label{eq:A10_stock_precedence}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}_{coil} \cup \mathcal{P}_{other} \cup \mathcal{P}_{intermediate}, \quad
+s = 2,\dots,45$
+\end{center}
+
+\begin{align}
+\sum_{p_1 \in \mathcal{P}} y_{p_1,p,1}
+&\le
+StockStart_p
+\label{eq:A10_stock_precedence_initial}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}_{coil} \cup \mathcal{P}_{other} \cup \mathcal{P}_{intermediate}$
+\end{center}
+
+\noindent\textbf{A11. Single component selection per group}
+\begin{align}
+\sum_{c \in \mathcal{C}(p,g)}
+z_{p,c,s}
+&=
+u_{p,s}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall g \in \mathcal{G}(p), \quad
+\forall s \in \mathcal{S}$
+\end{center}
+\begin{align}
+u_{p,s}
+&\ge
+k_{p,r,o^0_{p,r},s}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+\begin{align}
+u_{p,s}
+&\le
+\sum_{r \in \mathcal{R}_p}
+k_{p,r,o^0_{p,r},s}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+Both in-house and ghost routings drive $u_{p,s}$: a subcontracted start must also select and consume BOM components (we supply the materials to the subcontractor).
+
+\noindent\textbf{A12. Consumption only from selected component}
+\begin{align}
+y_{p,c,s}
+&\le
+M \, z_{p,c,s}
+\label{eq:A12_selected_component}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall g \in \mathcal{G}(p), \quad
+\forall c \in \mathcal{C}(p,g), \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+\noindent\textbf{A13. Routing activation and exclusivity - at most one in-house routing of product active in a shift}
+
+Ghost routings $r \in \mathcal{R}^{ghost}$ are exempt from in-house exclusivity (subcontracting may run in parallel with an in-house routing of the same product in the same shift), but still activate $u_{p,s}$ so that the component-selection chain (A11/A12/A9) consumes BOM materials for subcontracted production.
+\begin{align}
+\sum_{r \in \mathcal{R}_p \setminus \mathcal{R}^{ghost}}
+k_{p,r,o^0_{p,r},s}
+&\le
+u_{p,s}
+\label{eq:A13_in_house_exclusivity}
+\\
+u_{p,s}
+&\le
+\sum_{r \in \mathcal{R}_p}
+k_{p,r,o^0_{p,r},s}
+\label{eq:A13_u_upper}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+\begin{align}
+u_{p,s}
+&\ge
+k_{p,r,o^0_{p,r},s}
+\label{eq:A13_ghost_activation}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p \cap \mathcal{R}^{ghost}, \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+Since $u_{p,s} \in \{0,1\}$, inequality \eqref{eq:A13_in_house_exclusivity} simultaneously forces $u_{p,s}=1$ when any in-house routing starts and limits in-house starts to at most one per product-shift.
+
+\noindent\textbf{A15. Operation production activation - added tight version}
+\begin{align}
+x_{p,r,o,s} &\le M \, k_{p,r,o,s} \label{eq:A15_operation_activation_up} \\
+x_{p,r,o,s} &\ge \epsilon \, k_{p,r,o,s} \label{eq:A15_operation_activation_low}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall o \in \mathcal{O}(p,r), \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+Ghost routings retain their activation binary $k$ (so subcontracted production drives component selection through A11/A12/A9); for a ghost operation the big-$M$ equals the per-shift capacity $GhostCapacity_{m(p,r,o),s}$.
+
+\noindent\textbf{A16. Minimum lot size enforced at the first operation only}
+
+Let $o^0_{p,r}=o^{first}_{p,r}$. A lot is defined locally as either a single active shift or an adjacent pair of shifts in which production continues. The minimum lot size is enforced separately for each of these two cases.
+
+\noindent\textbf{A16.1 Minimum lot for a standalone shift}
+
+If operation $(p,r,o^0)$ is active in shift $s$ and is not a continuation from $s-1$, then shift $s$ constitutes a standalone lot and must meet the minimum lot size on its own:
+\begin{align}
+x_{p,r,o^0_{p,r},s}
+&\ge
+MinLotSize_p
+\left(
+k_{p,r,o^0_{p,r},s}
+-
+cont_{p,r,o^0_{p,r},s}
+\right)
+\label{eq:A16_min_lot_single}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p \setminus \mathcal{R}^{ghost}, \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\begin{align}
+x_{p,r,o^0_{p,r},1}
+&\ge
+MinLotSize_p \,
+k_{p,r,o^0_{p,r},1}
+\label{eq:A16_min_lot_single_first}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p \setminus \mathcal{R}^{ghost}$
+\end{center}
+
+\noindent\textbf{A16.2 Minimum lot for an adjacent-shift pair}
+
+If operation $(p,r,o^0)$ continues from shift $s-1$ to shift $s$, the combined production of the two shifts must meet the minimum lot size:
+\begin{align}
+x_{p,r,o^0_{p,r},s-1}
++
+x_{p,r,o^0_{p,r},s}
+&\ge
+MinLotSize_p \,
+cont_{p,r,o^0_{p,r},s}
+\label{eq:A16_min_lot_pair}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p \setminus \mathcal{R}^{ghost}, \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\noindent\textbf{A17. Operation continuation between consecutive shifts, with one continuation per machine}
+
+Constraint A17.2 (upper bound on $cont$ by current-shift activation) is always active. Constraints A17.1 and A17.3 form the \emph{previous implementation} (\texttt{CONT\_EQUALS\_K\_AND = True}): together they force $cont_{p,r,o,s} = k_{p,r,o,s-1} \wedge k_{p,r,o,s}$, i.e.\ continuation is mandatory whenever the same operation is active in both consecutive shifts. \textbf{These two constraints are not active in the current model} (\texttt{CONT\_EQUALS\_K\_AND = False}); instead, A18.3 (new approach) replaces A17.1 as the relevant upper bound on $cont$, making continuation a free choice bounded by the previous shift's selected $endState$.
+
+\noindent\textbf{A17.1} \emph{(previous implementation — inactive when \texttt{CONT\_EQUALS\_K\_AND = False})}
+\begin{align}
+cont_{p,r,o,s}
+&\le
+k_{p,r,o,s-1}
+\label{eq:A17_cont_1}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p \setminus \mathcal{R}^{ghost}, \quad
+\forall o \in \mathcal{O}(p,r), \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\noindent\textbf{A17.2} \emph{(always active)}
+\begin{align}
+cont_{p,r,o,s}
+&\le
+k_{p,r,o,s}
+\label{eq:A17_cont_2}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p \setminus \mathcal{R}^{ghost}, \quad
+\forall o \in \mathcal{O}(p,r), \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\noindent\textbf{A17.3} \emph{(previous implementation — inactive when \texttt{CONT\_EQUALS\_K\_AND = False})}
+\begin{align}
+cont_{p,r,o,s}
+&\ge
+k_{p,r,o,s-1}
++
+k_{p,r,o,s}
+- 1
+\label{eq:A17_cont_3}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p \setminus \mathcal{R}^{ghost}, \quad
+\forall o \in \mathcal{O}(p,r), \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\begin{align}
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+m(p,r,o)=m
+}}
+cont_{p,r,o,s}
+&\le
+1
+\label{eq:A17_one_continuation_per_machine}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\noindent\textbf{A18. End of shift state by operation}
+\begin{align}
+\sum_{(p,r,o)\in \mathcal{Q}^{mach}_{m}}
+endState_{p,r,o,s}
+=
+l_{m,s}
+\label{eq:A18_setup_reference_unique}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\begin{align}
+endState_{p,r,o,s}
+\le
+k_{p,r,o,s}
+\label{eq:A18_setup_reference_prev_active}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p \setminus \mathcal{R}^{ghost}, \quad
+\forall o \in \mathcal{O}(p,r), \quad
+s \in \mathcal{S}$
+\end{center}
+
+\noindent\textbf{A18.3} \emph{(new approach, active when \texttt{CONT\_EQUALS\_K\_AND = False}; replaces A17.1)}
+
+If production continues into shift $s$ from shift $s-1$, the machine must already be set up for $(p,r,o)$ at the end of shift $s-1$. Together with A17.2, this makes $cont$ a free binary choice: the solver may set it to 1 only for the operation actually selected as the previous shift's $endState$, rather than forcing it to 1 for every operation active in both shifts.
+\begin{align}
+cont_{p,r,o,s}
+\le
+endState_{p,r,o,s-1}
+\label{eq:A18_continuation_implies_prev_endstate}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p \setminus \mathcal{R}^{ghost}, \quad
+\forall o \in \mathcal{O}(p,r), \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\noindent\textbf{A19. Last seen machine state, propagated trough inactive shifts}
+\begin{align}
+lastState_{p,r,o,1}
+=
+endState_{p,r,o,1}
+\label{eq:A19_define_last_state}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p \setminus \mathcal{R}^{ghost}, \quad
+\forall o \in \mathcal{O}(p,r)$
+\end{center}
+
+\begin{align}
+lastState_{p,r,o,s}
+\ge
+endState_{p,r,o,s}
+\label{eq:A19_endState_drives_lastState}
+\end{align}
+
+
+\begin{align}
+lastState_{p,r,o,s}
+\le
+endState_{p,r,o,s}
++
+1-l_{m,s}
+\label{eq:A19_if_active_lastState_match_endState}
+\end{align}
+
+\begin{align}
+lastState_{p,r,o,s}
+\ge
+lastState_{p,r,o,s-1}
+-
+l_{m,s}
+\label{eq:A19_propagate_inactive_up}
+\end{align}
+
+\begin{align}
+lastState_{p,r,o,s}
+\le
+lastState_{p,r,o,s-1}
++
+l_{m,s}
+\label{eq:A19_propagate_inactive_down}
+\end{align}
+
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall (p,r,o) \in \mathcal{Q}^{mach}_{m}, \quad
+\forall s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\begin{align}
+\sum_{(p,r,o)\in \mathcal{Q}^{mach}_{m}}
+lastState_{p,r,o,s}
+\le
+1
+\label{eq:A19_lastState_pro_machine}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+
+\noindent\textbf{A20. First shift carryover of setup state}
+
+\begin{align}
+carry^{reg}_{m,1,t,h}
+&\le
+state^{reg}_{m,1,t,h}
+\label{eq:A20_reg_first_shift_carry_current_state}
+\\
+\sum_{h\in\mathcal{H}_t}
+carry^{reg}_{m,1,t,h}
+&\le
+l_{m,1}
+\label{eq:A20_reg_first_shift_carry_limit}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall t \in \mathcal{T}^{reg}, \quad
+\forall h \in \mathcal{H}_t$
+\end{center}
+
+\begin{align}
+carry^{ink}_{m,1,t,i,h}
+&\le
+state^{ink}_{m,1,t,i,h}
+\label{eq:A20_ink_first_shift_carry_current_state}
+\\
+\sum_{h\in\mathcal{H}_t}
+carry^{ink}_{m,1,t,i,h}
+&\le
+l_{m,1}
+\label{eq:A20_ink_first_shift_carry_limit}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall t \in \mathcal{T}^{ink}, \quad
+\forall i \in \mathcal{I}_t, \quad
+\forall h \in \mathcal{H}_t$
+\end{center}
+
+\begin{align}
+carry^{var}_{m,1,t,h}
+&\le
+state^{var}_{m,1,t,h}
+\label{eq:A20_var_first_shift_carry_current_state}
+\\
+\sum_{h\in\mathcal{H}_t}
+carry^{var}_{m,1,t,h}
+&\le
+l_{m,1}
+\label{eq:A20_var_first_shift_carry_limit}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall t \in \mathcal{T}^{var}, \quad
+\forall h \in \mathcal{H}_t$
+\end{center}
+\noindent\textbf{A21. Fulfillment of objective stock at the last shift}
+\begin{align}
+ss_{p,s^{last}} + zso_p
+&\ge
+ObjectiveStock_p
+\label{eq:A21_objective_stock}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}$
+\end{center}
+
+\noindent\textbf{A22. Final stock cap at the last shift}
+\begin{align}
+ss_{p,s^{last}}
+&\le
+FinalStockCap_p
+\label{eq:A22_final_stock_cap}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}^{final\_stock\_cap}$
+\end{center}
+
+\noindent\textbf{A23. Destination supply stock balance}
+
+Transfers arrive at the destination after the transfer lead time $L^{tr}$: a transfer dispatched in shift $s-L^{tr}$ is received in shift $s$ (terms with $s-L^{tr} < 1$ are omitted, since a transfer placed before the horizon start cannot be received within it).
+\begin{align}
+ss^{dest}_{p,b,s}
+&=
+ss^{dest}_{p,b,s-1}
+- D^{supply}_{p,b,s}
++ tr_{p,b,s-L^{tr}}
++ Arrivals^{dest}_{p,b,s}
++ zsd_{p,b,s}
+- zsd_{p,b,s-1}
+\label{eq:A23_dest_supply_balance}
+\end{align}
+\begin{center}
+$\forall (p,b,s) \in PBS^{supply}, \quad s = 2,\dots,45$
+\end{center}
+
+\noindent\textbf{A24. Destination supply stock balance, initial shift}
+\begin{align}
+ss^{dest}_{p,b,1}
+&=
+StockStart^{dest}_{p,b}
+- D^{supply}_{p,b,1}
++ Arrivals^{dest}_{p,b,1}
++ zsd_{p,b,1}
+\label{eq:A24_dest_supply_initial}
+\end{align}
+\begin{center}
+$\forall (p,b,1) \in PBS^{supply}$
+\end{center}
+
+\noindent\textbf{A25. Destination reposition point}
+
+The destination inventory is kept at or above the reposition point; any shortfall is penalized through $zrp$.
+\begin{align}
+ss^{dest}_{p,b,s}
+&\ge
+RepositionPoint_{p,b}
+- zrp_{p,b,s}
+\label{eq:A25_dest_reposition_point}
+\end{align}
+\begin{center}
+$\forall (p,b,s) \in PBS^{supply}$
+\end{center}
+
+
+
+\noindent\text{---------------------------------------------------------------------------------------------------------}
+
+\subsubsection*{B. Capacity and Shift Opening}
+
+\noindent\textbf{B1. Production time per machine}
+\begin{align}
+\sum_{p \in \mathcal{P}}
+\sum_{r \in \mathcal{R}_p}
+\sum_{\substack{o \in \mathcal{O}(p,r):\\ m(p,r,o)=m}}
+x_{p,r,o,s} \, UnitProductionTime_{p,r,o}
++
+ST_{m,s}
+&\le
+ta_{m,s}
+\label{eq:B1_machine_capacity}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad \forall s \in \mathcal{S}$
+\end{center}
+
+\noindent\textbf{B3. Shift opening time with machine-specific availability}
+\begin{align}
+ta_{m,s}
+&\le
+MachineAvailableHours_{m,s}\, l_{m,s}
+\label{eq:B3_machine_available_hours}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+\noindent\textbf{B4. Operation-machine activity link}
+\begin{align}
+k_{p,r,o,s}
+&\le
+l_{m(p,r,o),s}
+\label{eq:B4_machine_activity_link}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall o \in \mathcal{O}(p,r), \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+\begin{align}
+l_{m,s}
+&\le
+\sum_{\substack{p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\ m(p,r,o)=m}}
+k_{p,r,o,s}
+\label{eq:B4_only_open_processed}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+
+\noindent\textbf{B5. Crew capacity per production area and shift}
+\begin{align}
+\sum_{m \in \mathcal{M}}
+\mu_{m,a}\,
+CrewConsumption_m\,
+l_{m,s}
+&\le
+Crew_{a,s}
+\label{eq:B5_crew_capacity}
+\end{align}
+\begin{center}
+$\forall a \in \mathcal{A}^{crew}, \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+\noindent\textbf{B\_GHOST. Subcontracted (ghost) machine per-shift capacity}
+
+Constraints B1, B3, B4 and B5 range over $m \in \mathcal{M}$ and therefore never reference ghost machines. The sole capacity limit on a ghost machine is the per-shift quantity cap:
+\begin{align}
+\sum_{\substack{p \in \mathcal{P},\ r \in \mathcal{R}_p \cap \mathcal{R}^{ghost},\ o \in \mathcal{O}(p,r):\\ m(p,r,o)=m}}
+x_{p,r,o,s}
+&\le
+GhostCapacity_{m,s}
+\label{eq:Bghost_capacity}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}^{ghost}, \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+\noindent\text{---------------------------------------------------------------------------------------------------------}
+
+\subsubsection*{C. Confirmed Orders}
+
+\noindent\textbf{C1. Confirmed customer order satisfaction}
+\begin{align}
+&
+StockStart_p
++
+zco_{p,s_{\text{target}}}
++
+\sum_{s=1}^{s_{\text{target}}}
+AvailProd_{p,s}
+\nonumber \\
+&\ge
+\sum_{s=1}^{s_{\text{target}}}
+ConfirmedOrders_{p,s}
+\label{eq:C1_confirmed_orders}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}_{finished}, \quad
+\forall s_{\text{target}} \in \mathcal{S}$
+\end{center}
+
+Using $AvailProd_{p,s}$ ensures subcontracted production counts toward confirmed-order fulfillment only once it has actually been received (i.e. ghost production placed in shift $s$ contributes from shift $s+L$ onward).
+
+\noindent\textbf{C2. Destination confirmed customer order satisfaction}
+
+Confirmed orders at a destination branch are met from its starting stock plus transfers received (lagged by $L^{tr}$) and exogenous arrivals up to the target shift.
+\begin{align}
+&
+StockStart^{dest}_{p,b}
++
+zsco_{p,b,s_{\text{target}}}
++
+\sum_{s=1}^{s_{\text{target}}}
+\big( tr_{p,b,s-L^{tr}} + Arrivals^{dest}_{p,b,s} \big)
+\nonumber \\
+&\ge
+\sum_{s=1}^{s_{\text{target}}}
+ConfirmedOrders^{supply}_{p,b,s}
+\label{eq:C2_dest_confirmed_orders}
+\end{align}
+\begin{center}
+$\forall (p,b) \in \mathcal{P}^{supply}, \quad
+\forall s_{\text{target}} \in \mathcal{S}$
+\end{center}
+
+
+
+\noindent\text{---------------------------------------------------------------------------------------------------------}
+
+\subsubsection*{D. Setup Constraints}
+
+Before defining the regular setup activation constraints, define:
+
+\begin{align}
+\mathcal{Q}^{mach}_{m}
+=
+\left\{
+(p,r,o):
+p \in \mathcal{P},
+r \in \mathcal{R}_p,
+o \in \mathcal{O}(p,r),
+m(p,r,o)=m
+\right\}
+\end{align}
+
+\begin{align}
+\mathcal{Q}^{reg}_{m,t,h}
+=
+\left\{
+(p,r,o)
+\in {Q}^{mach}_{m}:
+\eta_{p,t,h}=1
+\right\}
+\end{align}
+We also need to define the routing setup activation constraints:
+\begin{align}
+\mathcal{Q}^{ink}_{m,t,i,h}
+=
+\left\{
+(p,r,o)
+\in {Q}^{mach}_{m}:
+\eta^{ink}_{p,r,o,m,t,i,h}=1
+\right\}
+\end{align}
+
+\begin{align}
+\mathcal{Q}^{var}_{m,t,h}
+=
+\left\{
+(p,r,o)
+\in \mathcal{Q}^{mach}_{m}:
+\eta^{var}_{p,r,o,m,t,h}=1
+\right\}
+\end{align}
+
+\noindent\textbf{D1. Regular setup activation}
+\begin{align}
+state^{reg}_{m,s,t,h}
+&\ge
+k_{p,r,o,s}
+\label{eq:D1_regular_setup_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall t \in \mathcal{T}^{reg}, \quad
+\forall h \in \mathcal{H}_t, \quad
+\forall (p,r,o) \in \mathcal{Q}^{reg}_{m,t,h}$
+\end{center}
+
+\begin{align}
+state^{reg}_{m,s,t,h}
+&\le
+\sum_{(p,r,o) \in \mathcal{Q}^{reg}_{m,t,h}}
+k_{p,r,o,s}
+\label{eq:D1_regular_setup_ub}
+\\
+state^{reg}_{m,s,t,h}
+&\le
+1
+\label{eq:D1_exclusivity}
+\end{align}
+
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall t \in \mathcal{T}^{reg}, \quad
+\forall h \in \mathcal{H}_t$
+\end{center}
+
+
+
+\noindent\textbf{D2. Regular setup carryover from setup reference operation}
+\begin{align}
+carry^{reg}_{m,s,t,h}
+&\le
+state^{reg}_{m,s,t,h}
+\label{eq:D2_regular_carry_current_state}
+\\
+carry^{reg}_{m,s,t,h}
+&\le
+\sum_{(p,r,o) \in \mathcal{Q}^{reg}_{m,t,h}}
+lastState_{p,r,o,s-1}
+\label{eq:D2_regular_carry_reference_ub}
+\\
+carry^{reg}_{m,s,t,h}
+&\ge
+state^{reg}_{m,s,t,h}
++
+\sum_{(p,r,o) \in \mathcal{Q}^{reg}_{m,t,h}}
+lastState_{p,r,o,s-1}
+- 1
+\label{eq:D2_regular_carry_reference_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall t \in \mathcal{T}^{reg}, \quad
+\forall h \in \mathcal{H}_t, \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+
+
+\noindent\textbf{D3. Regular setup time}
+\begin{align}
+ST^{reg}_{m,s,t}
+=
+\gamma_{m,t}
+\big( \sum_{h \in \mathcal{H}_t}
+state^{reg}_{m,s,t,h} - \sum_{h \in \mathcal{H}_t}carry^{reg}_{m,s,t,h} \big)
+\label{eq:D3_regular_setup_time}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall t \in \mathcal{T}^{reg}$
+\end{center}
+
+
+\noindent\textbf{D4. Ink setup state activation (as D1 in the model)}
+\begin{align}
+state^{ink}_{m,s,t,i,h}
+&\ge
+k_{p,r,o,s}
+\label{eq:D4_ink_state_lb}
+\end{align}
+
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall t \in \mathcal{T}^{reg}, \quad
+\forall h \in \mathcal{H}_t, \quad
+\forall (p,r,o) \in \mathcal{Q}^{ink}_{m,t,i,h}$
+\end{center}
+
+\begin{align}
+state^{ink}_{m,s,t,i,h}
+&\le
+\sum_{(p,r,o) \in \mathcal{Q}^{ink}_{m,t,i,h}}
+k_{p,r,o,s}
+\label{eq:D4_ink_state_ub}
+\\
+state^{ink}_{m,s,t,i,h}
+&\le
+1
+\label{eq:D4_ink_exclusivity}
+\end{align}
+
+
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall t \in \mathcal{T}^{ink}, \quad
+\forall i \in \mathcal{I}_t, \quad
+\forall h \in \mathcal{H}_t$
+\end{center}
+
+\noindent\textbf{D5. Ink setup carryover eligibility (as D2 in model)}
+\begin{align}
+carry^{ink}_{m,s,t,i,h}
+&\le
+state^{ink}_{m,s,t,i,h}
+\label{eq:D5_ink_carry_current_state}
+\\
+carry^{ink}_{m,s,t,i,h}
+&\le
+\sum_{(p,r,o) \in \mathcal{Q}^{ink}_{m,t,i,h}}
+lastState_{p,r,o,s-1}
+\label{eq:D5_ink_carry_reference_ub}
+\\
+carry^{ink}_{m,s,t,i,h}
+&\ge
+state^{ink}_{m,s,t,i,h}
++
+\sum_{(p,r,o) \in \mathcal{Q}^{ink}_{m,t,i,h}}
+lastState_{p,r,o,s-1}
+- 1
+\label{eq:D5_ink_carry_reference_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}\setminus\{1\}, \quad
+\forall t \in \mathcal{T}^{ink}, \quad
+\forall i \in \mathcal{I}_t, \quad
+\forall h \in \mathcal{H}_t$
+\end{center}
+
+
+\noindent\textbf{D6. Ink setup time per position (first part in D3)}
+\begin{align}
+ST^{ink}_{m,s,t,i,h}
+&=
+\gamma_{m,t}
+\left(
+state^{ink}_{m,s,t,i,h}
+-
+carry^{ink}_{m,s,t,i,h}
+\right)
+\label{eq:D6_ink_time}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall t \in \mathcal{T}^{ink}, \quad
+\forall i \in \mathcal{I}_t, \quad
+\forall h \in \mathcal{H}_t$
+\end{center}
+
+\begin{align}
+ST^{ink}_{m,s,i}
+&=
+\sum_{t \in \mathcal{T}^{ink}}
+\sum_{h \in \mathcal{H}_t}
+ST^{ink}_{m,s,t,i,h}
+\label{eq:D6_ink_position_total}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall i \in \mathcal{I}$
+\end{center}
+
+\noindent\textbf{D7. Total ink setup time across positions}
+\begin{align}
+ST^{ink}_{m,s}
+&\ge
+ST^{ink}_{m,s,i}
+\label{eq:D7_ink_total_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall i \in \mathcal{I}$
+\end{center}
+
+\noindent\textbf{D8. Varnish setup state activation (as D1 in model)}
+\begin{align}
+state^{var}_{m,s,t,h}
+&\ge
+k_{p,r,o,s}
+\label{eq:D8_var_state_lb}
+\end{align}
+
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall t \in \mathcal{T}^{reg}, \quad
+\forall h \in \mathcal{H}_t, \quad
+\forall (p,r,o) \in \mathcal{Q}^{var}_{m,t,h}$
+\end{center}
+
+\begin{align}
+state^{var}_{m,s,t,h}
+&\le
+\sum_{(p,r,o) \in \mathcal{Q}^{var}_{m,t,h}}
+k_{p,r,o,s}
+\label{eq:D8_var_state_ub}
+\\
+state^{var}_{m,s,t,h}
+&\le
+1
+\label{eq:D8_var_exclusivity}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall t \in \mathcal{T}^{var}, \quad
+\forall h \in \mathcal{H}_t$
+\end{center}
+
+\noindent\textbf{D9. Varnish setup carryover eligibility  (as D2 in model)}
+\begin{align}
+carry^{var}_{m,s,t,h}
+&\le
+state^{var}_{m,s,t,h}
+\label{eq:D9_var_carry_current_state}
+\\
+carry^{var}_{m,s,t,h}
+&\le
+\sum_{(p,r,o) \in \mathcal{Q}^{var}_{m,t,h}}
+lastState_{p,r,o,s-1}
+\label{eq:D9_var_carry_reference_ub}
+\\
+carry^{var}_{m,s,t,h}
+&\ge
+state^{var}_{m,s,t,h}
++
+\sum_{(p,r,o) \in \mathcal{Q}^{var}_{m,t,h}}
+lastState_{p,r,o,s-1}
+- 1
+\label{eq:D9_var_carry_reference_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}\setminus\{1\}, \quad
+\forall t \in \mathcal{T}^{var}, \quad
+\forall h \in \mathcal{H}_t$
+\end{center}
+
+\noindent\textbf{D10. Varnish setup time (first part in D3)}
+\begin{align}
+ST^{var}_{m,s,t,h}
+&=
+\gamma_{m,t}
+\left(
+state^{var}_{m,s,t,h}
+-
+carry^{var}_{m,s,t,h}
+\right)
+\label{eq:D10_var_time}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall t \in \mathcal{T}^{var}, \quad
+\forall h \in \mathcal{H}_t$
+\end{center}
+
+
+\begin{align}
+ST^{var}_{m,s}
+&=
+\sum_{t \in \mathcal{T}^{var}}
+\sum_{h \in \mathcal{H}_t}
+ST^{var}_{m,s,t,h}
+\label{eq:D10_var_total}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad \forall s \in \mathcal{S}$
+\end{center}
+
+\noindent\textbf{D11. Total setup time per machine and shift}
+\begin{align}
+ST_{m,s}
+&=
+\sum_{t \in \mathcal{T}^{reg}}
+ST^{reg}_{m,s,t}
++
+ST^{ink}_{m,s}
++
+ST^{var}_{m,s}
+\label{eq:D11_total_setup}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+\begin{itemize}
+
+\item The model is a shift-bucketed planning model. It decides production quantities by product, routing, operation, and shift, but does not sequence products or operations within each shift.
+
+\item Each operation belongs to one routing and is assigned to one machine. Machine capacity is checked at aggregate shift level using $UnitProductionTime_{p,r,o}$.
+
+\item Routing flow is represented through operation-indexed WIP variables. Operation $o+1$ may be processed in the same shift as operation $o$, but no explicit intra-shift sequence is modeled.
+
+\item Each product active in a shift is assigned to exactly one routing, enforced directly through the first-operation activity flags $k_{p,r,o^{first}_{p,r},s}$. At most one routing's first operation may be active per product per shift. Once quantity enters a routing, it cannot switch routing because WIP is indexed by product and routing.
+
+\item Minimum lot size is enforced locally at the first operation of each routing. A lot is defined as either a single active shift or an adjacent pair of shifts connected by a continuation. If the first operation is active in shift $s$ with no continuation from $s-1$, its production alone must meet $MinLotSize_p$. If it continues from $s-1$ to $s$, the combined production of the two shifts must meet $MinLotSize_p$. No campaign memory beyond one shift is maintained; three or more consecutive shifts are evaluated only as overlapping adjacent pairs.
+
+\item Stockable intermediate products are represented as products in $\mathcal{P}_{intermediate}$ and have inventory balance constraints. Non-stockable intermediate states inside a routing are represented only through $wip_{p,r,o,s}$.
+
+\item Component consumption is assumed to occur when the first operation of the selected routing is processed. Component choices are made at product-shift level, and each component choice group is mandatory whenever the product starts production.
+
+\item Components consumed in a shift must be available at the start of that shift. Same-shift arrivals and same-shift production of stockable intermediate products are not available for component consumption unless explicitly included in the stock-precedence constraints.
+
+\item Demand $D_{p,s}$ includes confirmed orders and predictive demand. The slack $zsp_{p,s}$ represents cumulative unmet total demand, while $zco_{p,s}$ measures priority-service violation for the confirmed-order subset of demand.
+
+\item Objective stock targets are modeled as soft constraints through penalized shortage variables and may be violated when capacity or material availability is insufficient.
+
+\item Setup times are approximated from the set of distinct setup characteristics active in each machine-shift bucket. The formulation does not sequence setup transitions within a shift.
+
+\item Setup carryover is represented through a single setup reference operation per machine and shift boundary. If an operation is continued from shift $s-1$ to shift $s$, that operation is forced to be the setup reference operation. If no operation is continued, the setup reference chooses one operation from the previous shift to be the last operation processed on the machine.
+
+\item All regular, ink, and varnish carryover variables are derived from the same setup reference operation, ensuring that the carried setup characteristics are mutually consistent.
+
+\item Ink setup is computed by ink position, and the total ink setup time of a machine-shift is approximated as the maximum setup time across ink positions.
+
+\item Machine availability is constrained at shift level through $MachineAvailableHours_{m,s}$. This parameter captures the number of production hours that machine $m$ may operate in shift $s$, including planned shutdowns, reduced availability, or maintenance windows.
+
+\item Crew availability is modeled at area level through $Crew_{a,s}$. Each machine belongs to exactly one production area, represented by a fixed mapping parameter $\mu_{m,a} \in \{0,1\}$. The total number of active machines in each area is limited by the number of available crews in that area and shift.
+
+\item Each active machine consumes a fixed crew requirement, optionally machine-specific through $CrewConsumption_m$. If all machines consume one crew, then $CrewConsumption_m=1$ for all $m \in \mathcal{M}$.
+
+\item Demand, processing times, setup coefficients, arrivals, stock targets, and consumption factors are deterministic inputs.
+
+\item Subcontracting is modeled through \emph{ghost machines} $\mathcal{M}^{ghost}$, disjoint from the in-house machines $\mathcal{M}$. Each subcontracted product is given a single-operation ghost routing $r \in \mathcal{R}^{ghost}$ on a ghost machine, whose only operation is simultaneously the first and last operation, so its output feeds the product stock balance like a one-step in-house routing. Ghost machines carry no processing time, setup, lot-sizing, continuation, or crew logic, and are therefore excluded from in-house routing exclusivity (A13), minimum-lot (A16), continuation (A17), setup (A18--A19, D) and machine-time / crew (B1, B3--B5) constraints; their only capacity limit is the per-shift quantity cap B\_GHOST. They do, however, keep the activation binary $k$ (A15) and consume BOM components like an in-house routing (A9--A12): we supply the input materials to the subcontractor, who performs the operation.
+
+\item The ghost per-shift capacity $GhostCapacity_{m,s}$ is obtained from the weekly subcontracting quote divided by the number of shifts in a full business week ($5 \times 3 = 15$). Applying this per-shift cap to every modeled shift prorates a partial first week linearly (a week with fewer modeled shifts receives a proportionally smaller effective weekly capacity) and prevents the solver from front-loading a whole week's subcontracting into a single shift. This is an approximation; it does not yet discount volume already firmed with the subcontractor.
+
+\item Subcontracted material is subject to an outsourcing lead time of $L$ shifts: production placed on a ghost machine in shift $s$ becomes available in stock in shift $s+L$, captured through $AvailProd_{p,s}$ in the stock balances (A3--A6) and the confirmed-order constraint (C1). Its cost $OutsourcingCost_m$ is charged in the objective at the production (order-placement) shift, independent of $L$.
+
+\end{itemize}
+
+\pagebreak
+\noindent\text{---------------------------------------------------------------------------------------------------------}
+
+\subsubsection*{ANNEX CEMETERY}
+
+\noindent\textbf{D4. Ink code state activation}
+\begin{align}
+state^{inkCode}_{m,s,k,i}
+&\ge
+k_{p,r,o,s}
+\label{eq:D4_ink_code_state_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall k \in K_{\text{ink}}, \quad
+\forall i \in I_{\text{ink}},$
+\\
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall o \in \mathcal{O}(p,r):
+\eta^{ink}_{p,r,o,m,k,i}=1$
+\end{center}
+
+\begin{align}
+state^{inkCode}_{m,s,k,i}
+&\le
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+\eta^{ink}_{p,r,o,m,k,i}=1
+}}
+k_{p,r,o,s}
+\label{eq:D4_ink_code_state_ub}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall k \in K_{\text{ink}}, \quad
+\forall i \in I_{\text{ink}}$
+\end{center}
+
+\noindent\textbf{D5. Ink code carryover eligibility}
+\noindent\textbf{D5. Ink code carryover from setup reference operation}
+\begin{align}
+carry^{inkCode}_{m,s,k,i}
+&\le
+state^{inkCode}_{m,s,k,i}
+\label{eq:D5_ink_code_carry_current_state}
+\\
+carry^{inkCode}_{m,s,k,i}
+&\le
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+m(p,r,o)=m,\ \eta^{ink}_{p,r,o,m,k,i}=1
+}}
+ref_{p,r,o,s}
+\label{eq:D5_ink_code_carry_reference_ub}
+\\
+carry^{inkCode}_{m,s,k,i}
+&\ge
+state^{inkCode}_{m,s,k,i}
++
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+m(p,r,o)=m,\ \eta^{ink}_{p,r,o,m,k,i}=1
+}}
+ref_{p,r,o,s}
+- 1
+\label{eq:D5_ink_code_carry_reference_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall k \in K_{\text{ink}}, \quad
+\forall i \in I_{\text{ink}}, \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\begin{align}
+carry^{inkCode}_{m,1,k,i}
+&=
+0
+\label{eq:D5_ink_code_carry_initial}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall k \in K_{\text{ink}}, \quad
+\forall i \in I_{\text{ink}}$
+\end{center}
+
+\noindent\textbf{D6. Ink group state activation}
+\begin{align}
+state^{inkGrp}_{m,s,k,g}
+&\ge
+k_{p,r,o,s}
+\label{eq:D6_ink_group_state_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall k \in K_{\text{ink}}, \quad
+\forall g \in \mathcal{H}_{\text{ink}},$
+\\
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall o \in \mathcal{O}(p,r):
+\eta^{inkgrp}_{p,r,o,m,k,g}=1$
+\end{center}
+
+\begin{align}
+state^{inkGrp}_{m,s,k,g}
+&\le
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+\eta^{inkgrp}_{p,r,o,m,k,g}=1
+}}
+k_{p,r,o,s}
+\label{eq:D6_ink_group_state_ub}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall k \in K_{\text{ink}}, \quad
+\forall g \in \mathcal{H}_{\text{ink}}$
+\end{center}
+
+\noindent\textbf{D7. Ink group carryover eligibility}
+\noindent\textbf{D7. Ink group carryover from setup reference operation}
+\begin{align}
+carry^{inkGrp}_{m,s,k,g}
+&\le
+state^{inkGrp}_{m,s,k,g}
+\label{eq:D7_ink_group_carry_current_state}
+\\
+carry^{inkGrp}_{m,s,k,g}
+&\le
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+m(p,r,o)=m,\ \eta^{inkgrp}_{p,r,o,m,k,g}=1
+}}
+ref_{p,r,o,s}
+\label{eq:D7_ink_group_carry_reference_ub}
+\\
+carry^{inkGrp}_{m,s,k,g}
+&\ge
+state^{inkGrp}_{m,s,k,g}
++
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+m(p,r,o)=m,\ \eta^{inkgrp}_{p,r,o,m,k,g}=1
+}}
+ref_{p,r,o,s}
+- 1
+\label{eq:D7_ink_group_carry_reference_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall k \in K_{\text{ink}}, \quad
+\forall g \in \mathcal{H}_{\text{ink}}, \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\begin{align}
+carry^{inkGrp}_{m,1,k,g}
+&=
+0
+\label{eq:D7_ink_group_carry_initial}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall k \in K_{\text{ink}}, \quad
+\forall g \in \mathcal{H}_{\text{ink}}$
+\end{center}
+\noindent\textbf{D8. Setup time per ink position}
+\begin{align}
+ST^{inkCode}_{m,s,k}
+&=
+\alpha_{\text{ink}}
+\left(
+\sum_{i \in I_{\text{ink}}}
+state^{inkCode}_{m,s,k,i}
+-
+\sum_{i \in I_{\text{ink}}}
+carry^{inkCode}_{m,s,k,i}
+\right)
+\label{eq:D8_ink_code_time}
+\\
+ST^{inkGrp}_{m,s,k}
+&=
+\beta_{\text{ink}}
+\left(
+\sum_{g \in \mathcal{H}_{\text{ink}}}
+state^{inkGrp}_{m,s,k,g}
+-
+\sum_{g \in \mathcal{H}_{\text{ink}}}
+carry^{inkGrp}_{m,s,k,g}
+\right)
+\label{eq:D8_ink_group_time}
+\\
+ST^{ink}_{m,s,k}
+&=
+ST^{inkCode}_{m,s,k}
++
+ST^{inkGrp}_{m,s,k}
+\label{eq:D8_ink_position_time}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall k \in K_{\text{ink}}$
+\end{center}
+
+\noindent\textbf{D9. Shift-level ink setup time}
+
+\begin{align}
+ST^{ink}_{m,s}
+&\ge
+ST^{ink}_{m,s,k}
+\label{eq:D9_ink_shift_time}
+\end{align}
+
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall k \in K_{\text{ink}}$
+\end{center}
+
+
+\noindent\textbf{D10. Varnish code state activation}
+\begin{align}
+state^{varCode}_{m,s,i}
+&\ge
+k_{p,r,o,s}
+\label{eq:D10_var_code_state_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall i \in I_{\text{var}},$
+\\
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall o \in \mathcal{O}(p,r):
+\eta^{var}_{p,r,o,m,i}=1$
+\end{center}
+
+\begin{align}
+state^{varCode}_{m,s,i}
+&\le
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+\eta^{var}_{p,r,o,m,i}=1
+}}
+k_{p,r,o,s}
+\label{eq:D10_var_code_state_ub}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall i \in I_{\text{var}}$
+\end{center}
+
+\noindent\textbf{D11. Varnish code carryover eligibility}
+\noindent\textbf{D11. Varnish code carryover from setup reference operation}
+\begin{align}
+carry^{varCode}_{m,s,i}
+&\le
+state^{varCode}_{m,s,i}
+\label{eq:D11_var_code_carry_current_state}
+\\
+carry^{varCode}_{m,s,i}
+&\le
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+m(p,r,o)=m,\ \eta^{var}_{p,r,o,m,i}=1
+}}
+ref_{p,r,o,s}
+\label{eq:D11_var_code_carry_reference_ub}
+\\
+carry^{varCode}_{m,s,i}
+&\ge
+state^{varCode}_{m,s,i}
++
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+m(p,r,o)=m,\ \eta^{var}_{p,r,o,m,i}=1
+}}
+ref_{p,r,o,s}
+- 1
+\label{eq:D11_var_code_carry_reference_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall i \in I_{\text{var}}, \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\begin{align}
+carry^{varCode}_{m,1,i}
+&=
+0
+\label{eq:D11_var_code_carry_initial}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall i \in I_{\text{var}}$
+\end{center}
+\noindent\textbf{D12. Varnish group state activation}
+\begin{align}
+state^{varGrp}_{m,s,g}
+&\ge
+k_{p,r,o,s}
+\label{eq:D12_var_group_state_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall g \in \mathcal{H}_{\text{var}},$
+\\
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall o \in \mathcal{O}(p,r):
+\eta^{vargrp}_{p,r,o,m,g}=1$
+\end{center}
+
+\begin{align}
+state^{varGrp}_{m,s,g}
+&\le
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+\eta^{vargrp}_{p,r,o,m,g}=1
+}}
+k_{p,r,o,s}
+\label{eq:D12_var_group_state_ub}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall s \in \mathcal{S}, \quad
+\forall g \in \mathcal{H}_{\text{var}}$
+\end{center}
+
+\noindent\textbf{D13. Varnish group carryover eligibility}
+\noindent\textbf{D13. Varnish group carryover from setup reference operation}
+\begin{align}
+carry^{varGrp}_{m,s,g}
+&\le
+state^{varGrp}_{m,s,g}
+\label{eq:D13_var_group_carry_current_state}
+\\
+carry^{varGrp}_{m,s,g}
+&\le
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+m(p,r,o)=m,\ \eta^{vargrp}_{p,r,o,m,g}=1
+}}
+ref_{p,r,o,s}
+\label{eq:D13_var_group_carry_reference_ub}
+\\
+carry^{varGrp}_{m,s,g}
+&\ge
+state^{varGrp}_{m,s,g}
++
+\sum_{\substack{
+p \in \mathcal{P},\ r \in \mathcal{R}_p,\ o \in \mathcal{O}(p,r):\\
+m(p,r,o)=m,\ \eta^{vargrp}_{p,r,o,m,g}=1
+}}
+ref_{p,r,o,s}
+- 1
+\label{eq:D13_var_group_carry_reference_lb}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall g \in \mathcal{H}_{\text{var}}, \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\begin{align}
+carry^{varGrp}_{m,1,g}
+&=
+0
+\label{eq:D13_var_group_carry_initial}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad
+\forall g \in \mathcal{H}_{\text{var}}$
+\end{center}
+
+\noindent\textbf{D14. Total varnish setup time}
+\begin{align}
+ST^{varCode}_{m,s}
+&=
+\alpha_{\text{var}}
+\left(
+\sum_{i \in I_{\text{var}}}
+state^{varCode}_{m,s,i}
+-
+\sum_{i \in I_{\text{var}}}
+carry^{varCode}_{m,s,i}
+\right)
+\label{eq:D14_var_code_time}
+\\
+ST^{varGrp}_{m,s}
+&=
+\beta_{\text{var}}
+\left(
+\sum_{g \in \mathcal{H}_{\text{var}}}
+state^{varGrp}_{m,s,g}
+-
+\sum_{g \in \mathcal{H}_{\text{var}}}
+carry^{varGrp}_{m,s,g}
+\right)
+\label{eq:D14_var_group_time}
+\\
+ST^{var}_{m,s}
+&=
+ST^{varCode}_{m,s}
++
+ST^{varGrp}_{m,s}
+\label{eq:D14_var_time}
+\end{align}
+\begin{center}
+$\forall m \in \mathcal{M}, \quad \forall s \in \mathcal{S}$
+\end{center}
+
+
+\pagebreak
+\noindent\text{---------------------------------------------------------------------------------------------------------}
+
+
+\subsubsection*{Trial 1 for minimum lot size}
+
+
+\noindent\textbf{A16. Minimum lot size over continued first-operation production blocks}
+
+Let $o^0_{p,r}=o^{first}_{p,r}$.
+
+\begin{align}
+startLot_{p,r,1}
+&=
+k_{p,r,o^0_{p,r},1}
+\label{eq:A16_start_lot_first_shift}
+\end{align}
+
+\begin{align}
+startLot_{p,r,s}
+&=
+k_{p,r,o^0_{p,r},s}
+-
+cont_{p,r,o^0_{p,r},s}
+\label{eq:A16_start_lot_continuation}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\begin{align}
+v_{p,r,s}
+&=
+startLot_{p,r,s}
+\label{eq:A16_routing_start_lot_link}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+\begin{align}
+endLot_{p,r,s}
+&\ge
+k_{p,r,o^0_{p,r},s}
+-
+k_{p,r,o^0_{p,r},s+1}
+\\
+endLot_{p,r,s}
+&\le
+k_{p,r,o^0_{p,r},s}
+\\
+endLot_{p,r,s}
+&\le
+1-k_{p,r,o^0_{p,r},s+1}
+\label{eq:A16_end_lot}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+s \in \mathcal{S}\setminus\{s^{last}\}$
+\end{center}
+
+\begin{align}
+endLot_{p,r,s^{last}}
+&=
+k_{p,r,o^0_{p,r},s^{last}}
+\label{eq:A16_end_lot_last_shift}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p$
+\end{center}
+
+\begin{align}
+lotBlock_{p,r,a,b}
+&\le
+startLot_{p,r,a}
+\\
+lotBlock_{p,r,a,b}
+&\le
+endLot_{p,r,b}
+\\
+lotBlock_{p,r,a,b}
+&\le
+k_{p,r,o^0_{p,r},t}
+\qquad
+\forall t \in \{a,\dots,b\}
+\\
+lotBlock_{p,r,a,b}
+&\ge
+startLot_{p,r,a}
++
+endLot_{p,r,b}
++
+\sum_{t=a}^{b}
+k_{p,r,o^0_{p,r},t}
+-
+(b-a+2)
+\label{eq:A16_lot_block_definition}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall a,b \in \mathcal{S}: a \le b$
+\end{center}
+
+\begin{align}
+\sum_{t=a}^{b}
+x_{p,r,o^0_{p,r},t}
+&\ge
+MinLotSize_p \, lotBlock_{p,r,a,b}
+\label{eq:A16_min_lot_continued_block}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+\forall a,b \in \mathcal{S}: a \le b$
+\end{center}
+
+
+
+
+
+
+\noindent\textbf{A16. Minimum lot size over continued production}
+
+Let $o^0_{p,r}=o^{first}_{p,r}$.
+
+\begin{align}
+startLot_{p,r,1}
+&=
+k_{p,r,o^0_{p,r},1}
+\label{eq:A16_start_lot_first_shift}
+\end{align}
+
+\begin{align}
+startLot_{p,r,s}
+&=
+k_{p,r,o^0_{p,r},s}
+-
+cont_{p,r,o^0_{p,r},s}
+\label{eq:A16_start_lot_cont}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P},\quad
+\forall r \in \mathcal{R}_p,\quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+
+
+\pagebreak
+\noindent\text{---------------------------------------------------------------------------------------------------------}
+
+
+\subsubsection*{Trial 2 for minimum lot size}
+
+\noindent\textbf{A16. Minimum lot size over continued production}
+
+Let $o^0_{p,r}=o^{first}_{p,r}$.
+
+\begin{align}
+startLot_{p,r,1}
+&=
+k_{p,r,o^0_{p,r},1}
+\label{eq:A16_start_lot_first_shift}
+\end{align}
+
+\begin{align}
+startLot_{p,r,s}
+&=
+k_{p,r,o^0_{p,r},s}
+-
+cont_{p,r,o^0_{p,r},s}
+\label{eq:A16_start_lot_cont}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P},\quad
+\forall r \in \mathcal{R}_p,\quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\begin{align}
+v_{p,r,s}
+&=
+startLot_{p,r,s}
+\label{eq:A16_routing_start_lot_start}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P},\quad
+\forall r \in \mathcal{R}_p,\quad
+\forall s \in \mathcal{S}$
+\end{center}
+
+
+\noindent\textbf{A16. Minimum lot size enforced at the first operation only}
+
+Let $o^0_{p,r}=o^{first}_{p,r}$.
+
+\noindent\textbf{A16.1 Lot start definition}
+\begin{align}
+startLot_{p,r,1}
+&=
+k_{p,r,o^0_{p,r},1}
+\label{eq:A16_lot_start_shift1}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p$
+\end{center}
+
+\begin{align}
+startLot_{p,r,s}
+&=
+k_{p,r,o^0_{p,r},s}
+-
+cont_{p,r,o^0_{p,r},s}
+\label{eq:A16_lot_start}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\noindent\textbf{A16.2 Lot end definition}
+\begin{align}
+endLot_{p,r,s}
+&=
+k_{p,r,o^0_{p,r},s}
+-
+cont_{p,r,o^0_{p,r},s+1}
+\label{eq:A16_lot_end}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+s \in \mathcal{S}\setminus\{s^{last}\}$
+\end{center}
+
+\begin{align}
+endLot_{p,r,s^{last}}
+&=
+k_{p,r,o^0_{p,r},s^{last}}
+\label{eq:A16_lot_end_last}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p$
+\end{center}
+
+\noindent\textbf{A16.3 Linearized cumulative lot quantity at the first operation}
+\begin{align}
+lotQty_{p,r,1}
+&=
+x_{p,r,o^0_{p,r},1}
+\label{eq:A16_lotqty_initial}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p$
+\end{center}
+
+\begin{align}
+lotQty_{p,r,s}
+&\ge
+x_{p,r,o^0_{p,r},s}
+\label{eq:A16_lotqty_ge_shiftprod}
+\\
+lotQty_{p,r,s}
+&\le
+x_{p,r,o^0_{p,r},s}
++
+M \, cont_{p,r,o^0_{p,r},s}
+\label{eq:A16_lotqty_le_shiftprod_if_no_cont}
+\\
+lotQty_{p,r,s}
+&\ge
+lotQty_{p,r,s-1}
++
+x_{p,r,o^0_{p,r},s}
+-
+M \, (1-cont_{p,r,o^0_{p,r},s})
+\label{eq:A16_lotqty_sum_prev_shift}
+\\
+lotQty_{p,r,s}
+&\le
+lotQty_{p,r,s-1}
++
+x_{p,r,o^0_{p,r},s}
++
+M \, (1-cont_{p,r,o^0_{p,r},s})
+\label{eq:A16_lotqty_tight_prev_shift}
+\\
+lotQty_{p,r,s}
+&\le
+M \, k_{p,r,o^0_{p,r},s}
+\label{eq:A16_lotqty_activate_lot}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+s \in \mathcal{S}\setminus\{1\}$
+\end{center}
+
+\noindent\textbf{A16.4 Enforce minimum lot size at lot end}
+\begin{align}
+lotQty_{p,r,s}
+&\ge
+MinLotSize_p \, endLot_{p,r,s}
+\label{eq:A16_min_lot_at_end}
+\end{align}
+\begin{center}
+$\forall p \in \mathcal{P}, \quad
+\forall r \in \mathcal{R}_p, \quad
+s \in \mathcal{S}$
+\end{center}
+
+
+
+\end{document}

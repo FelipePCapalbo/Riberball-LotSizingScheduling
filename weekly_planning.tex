@@ -1,0 +1,674 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{placeins}
+\usepackage{graphicx}
+\usepackage[colorlinks]{hyperref}
+\usepackage{longtable}
+
+\title{Production Planning - Medium Term}
+\author{LTPlabs - APP\&HIPO}
+\date{}
+
+\begin{document}
+
+\maketitle
+\section{Mixed Integer Linear Formulation}
+
+\subsection{Notation}
+
+%---------------------------------------------------------------------------------------------
+%-------------------------------------------- SETS -------------------------------------------
+%---------------------------------------------------------------------------------------------
+\begin{longtable}{l p{8cm}}
+\caption{Sets and subsets}\label{tab:sets}\\
+\hline
+\textbf{Set} & Description \\
+\hline
+\endfirsthead
+
+\hline
+\textbf{Set} & Description \\
+\hline
+\endhead
+$P$ & Set of all products \\ 
+$W = \{1, \ldots, 32\}$ & Set of all weeks in the planning horizon \\ 
+$M$ & Set of all machines \\
+$R$ & Set of all routings \\
+$A$ & Set of all warehouses \\ 
+$MG$ & Set of all macrogroups \\ 
+$C = \{1, 2, 3, 4\}$ & Crew groups: 1 -- Varnishing; 2 -- Lithography; 3 -- Stamping; 4 -- Assembly \\
+\hline
+$P_{finished} \subset P$ & Subset of products that complete their production process at Factory 01, including products transferred to Factory 02 for further processing \\
+$P_{boundary} \subset P_{finished}$ & Subset of intermediate products at Factory 01 that serve as proxies for finished products completed at Factory 02 \\
+$P_{06} \subset P_{finished}$ & Subset of fully assembled finished metal cans (Type 06) \\
+$P_{03} \subset P$ & Subset of lithographed sheet products (Type 03) \\
+$P_{intermediate} \subset P$ & Subset of intermediate products not including $P_{boundary}$ \\ 
+$P_{coil} \subset P$ & Subset of steel coil products \\
+$P_{other} \subset P$ & Subset of other purchased input components \\ 
+$G(p)$ & Subset of optional component groups for product $p$ \\
+$C(p,g) \subset P$ & Subset of components belonging to group $g$ for product $p$ \\
+$Services(p_{03}) \subset P_{06}$ & Subset of Type 06 products served by Type 03 product $p_{03}$ \\
+$p_{03}(p) \in P_{03}$ & The Type 03 product associated with Type 06 product $p \in P_{06}$ \\
+$P(mg) \subset P$ & Subset of products belonging to macrogroup $mg$ \\ 
+$P_a \subset P$ & Subset of products assigned to warehouse $a$ \\
+$R_p \subset R$ & Set of valid routings for product $p$ \\ 
+$R_{out} \subset R$ & Subset of outsourced routings \\
+$M_{r} \subset M$ & Subset of machines belonging to routing $r$ \\
+$c(m) \in C$ & Crew group to which machine $m$ belongs \\
+$M_c \subset M$ & Subset of machines belonging to crew group $c \in C$ \\
+$MW \subseteq M \times W$ & Subset of active machine-week combinations \\ 
+$PRW \subseteq P \times R \times W$ & Subset of active product-routing-week combinations \\ 
+$PW \subseteq P \times W$ & Subset of active product-week combinations \\ 
+$PW_{cap} \subseteq P \times W$ & Subset of product-week 
+combinations subject to a stock cap constraint \\
+\hline
+$B$ & Set of branches / plants considered in the inventory balance \\
+$B^{prod} = \{b^{01}\} \subset B$ & Subset of branches where production is planned; in the current model, only Cajamar \\
+$B^{dest} = \{b^{04}, b^{07}\} \subset B$ & Subset of destination branches supplied by Cajamar; Anápolis and Criciúma \\
+$P^{supply}_b \subseteq P$ & Set of products for which Cajamar is responsible for supplying and controlling stock at destination branch $b \in B^{dest}$. These products may belong to any Cajamar product category, including finished products, boundary products, intermediate products, coil products, or other purchased inputs \\
+$PB^{supply} = \{(p,b): b \in B^{dest},\ p \in P^{supply}_b\}$ & Product-destination-branch combinations under Cajamar supply responsibility \\
+$PBW^{supply} \subseteq P \times B^{dest} \times W$ & Active product-destination-branch-week combinations under Cajamar supply responsibility \\
+
+\hline
+\label{tab:sets} 
+\end{longtable}
+%---------------------------------------------------------------------------------------------
+%------------------------------------- DECISION VARIABLES ------------------------------------
+%---------------------------------------------------------------------------------------------
+\begin{table}[h]
+\centering
+\begin{tabular}{l p{9cm}}
+\hline
+\textbf{Variable} & \textbf{Definition} \\
+\hline
+$x_{p,w,r} \geq 0$ & Quantity of product $p$ produced in week $w$ using routing $r$ \\
+$y_{p_1,p_2,w} \geq 0$ & Quantity of component $p_2$ consumed to produce product $p_1$ in week $w$ \\
+$k_{p,w,r} \in \{0,1\}$ & 1 if product $p$ is produced in week $w$ using routing $r$; 0 otherwise \\
+$q_{p,w} \geq 0$ & Quantity of coil product $p$ purchased and arriving in week $w$ \\
+$ss_{p,w} \geq 0$ & Inventory level of product $p$ at the end of week $w$ \\
+$zsp_{p,w} \geq 0$ & Shortage relative to demand of product $p$ in week $w$ \\
+$zco_{p,w} \geq 0$ & Shortage relative to confirmed orders of product $p$ up to week $w$ \\
+$zss_{p,w} \geq 0$ & Shortage relative to safety stock of product $p$ in week $w$ \\
+$zcs_{p,w} \geq 0$ & Shortage relative to cycle stock of product $p$ in week $w$ \\
+$zcs^{macro}_{mg,w} \geq 0$ & Shortage relative to macrogroup cycle stock of macrogroup $mg$ in week $w$ \\
+$ta_{m,w} \geq 0$ & Total production time (hours) available on machine $m$ in week $w$ \\
+$tt1_{m,w} \geq 0$ & Number of shift-1 days allocated to production on machine $m$ in week $w$ \\
+$tt2_{m,w} \geq 0$ & Number of shift-2 days allocated to production on machine $m$ in week $w$ \\
+$tt3_{m,w} \geq 0$ & Number of shift-3 days allocated to production on machine $m$ in week $w$ \\
+\hline
+$ss^{dest}_{p,b,w} \geq 0$ & Inventory level of product $p$ at destination branch $b$ at the end of week $w$ \\
+$tr_{p,b,w} \geq 0$ & Quantity of product $p$ transferred from Cajamar to destination branch $b$ in week $w$ \\
+$zsd_{p,b,w} \geq 0$ & Shortage relative to supply demand of product $p$ at destination branch $b$ in week $w$ \\
+$zsco_{p,b,w} \geq 0$ & Shortage relative to confirmed orders of product $p$ at destination branch $b$ up to week $w$ \\
+$zrp_{p,b,w} \geq 0$ & Shortage relative to the reposition point / objective stock of product $p$ at destination branch $b$ in week $w$ \\
+\hline
+\end{tabular}
+\caption{Decision variables}
+\label{tab:decisionvars}
+\end{table}
+
+%---------------------------------------------------------------------------------------------
+%----------------------------------------- PARAMETERS ----------------------------------------
+%---------------------------------------------------------------------------------------------
+\begin{longtable}{l p{8cm}}
+\caption{Parameters} \label{tab:parameters} \\
+\hline
+\textbf{Parameter} & \textbf{Definition} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Parameter} & \textbf{Definition} \\
+\hline
+\endhead
+\hline
+\endfoot
+$ConfirmedOrders_{p,w}$ & Confirmed order quantity of product $p$ for week $w$ \\
+$D_{p,w}$ & Demand of product $p$ in week $w$ \\
+$StockStart_p$ & Initial inventory of product $p$ at week 1 \\
+$StockArrivals_{p,w}$ & Exogenous stock arrivals of product $p$ in week $w$ \\
+$SafetyStock_{p,w}$ & Safety stock target for product $p$ in week $w$ \\
+$CycleStock_{p,w}$ & Cycle stock target for product $p$ in week $w$ \\
+$CycleStock^{macro}_{mg,w}$ & Cycle stock target for macrogroup $mg$ in week $w$ \\
+$Cap_{p,w}$ & Maximum allowed stock of product $p$ in week $w$ \\
+$MinLotSize_p$ & Minimum production lot size for product $p$ \\
+$CoilPurchase^{max}_{p,w}$ & Maximum quantity of coil product $p$ that can arrive in week $w$ \\
+$CostPurchase_{p,w}$ & Unit purchase cost of product $p$ in week $w$ \\
+$NextPurchaseArrivalWeek_p$ & Earliest week in which a purchase of product $p$ placed now could arrive \\
+$ConsumptionFactor_{p_2,p_1}$ & Quantity of component $p_2$ required to produce one unit of product $p_1$ \\
+$Multiplier_{p}$ & Number of units of product $p \in P_{06}$ obtainable from one unit of Type 03 product $p \in P_{03}$ \\
+$\eta_{p_2,p_1}$ & Average scrap of component $p_2$ per unit of product $p_1$ produced \\
+$UnitProductionTime_{p,r,m}$ & Unit production time (hours) of product $p$ in routing $r$ on machine $m$ \\
+$AvgSetupTime_{p,r,m}$ & Average setup time (hours) for product $p$ in routing $r$ on machine $m$ \\
+$WarehouseCapacity_a$ & Storage capacity of warehouse $a$ \\
+$NetWeight_p$ & Net weight per unit of product $p$ \\
+$Crew_m$ & Number of workers required to operate machine $m$ \\
+$TotalCrewShift1_{w,c}$ & Total available workers of crew group $c$ for shift 1 in week $w$ \\
+$TotalCrewShift2_{w,c}$ & Total available workers of crew group $c$ for shift 2 in week $w$ \\
+$TotalCrewShift3_{w,c}$ & Total available workers of crew group $c$ for shift 3 in week $w$ \\
+$PreventiveMaintenance1_{m,w}$ & Time consumed by preventive maintenance on machine $m$ in shift 1 of week $w$, expressed in days \\
+$PreventiveMaintenance2_{m,w}$ & Time consumed by preventive maintenance on machine $m$ in shift 2 of week $w$, expressed in days \\
+$PreventiveMaintenance3_{m,w}$ & Time consumed by preventive maintenance on machine $m$ in shift 3 of week $w$, expressed in days \\
+$WorkingDays1_{w,c}$ & Number of working days in shift 1 of week $w$ \\
+$WorkingDays2_{w,c}$ & Number of working days in shift 2 of week $w$ \\
+$WorkingDays3_{w,c}$ & Number of working days in shift 3 of week $w$ \\
+$Capacity_{r,w}$ & Maximum quantity producible via outsourced routing $r$ in week $w$ \\
+$PenalizationConfirmedOrders_p$ & Unit penalty cost for unmet confirmed orders of product $p$ \\
+$PenalizationDemand_p$ & Unit penalty cost for unmet predicted demand of product $p$ \\
+$PenalizationSafetyStock_p$ & Unit penalty cost for safety stock violation of product $p$ \\
+$PenalizationCycleStock_p$ & Unit penalty cost for cycle stock violation of product $p$ \\
+$UnitCost_p$ &  Unit cost of product $p$ \\
+$CostSetup_p$ & Setup cost per hour for product $p$ \\
+$CostOutsourcing_{p,r}$ & Unit cost of producing product $p$ via outsourced routing $r$ \\
+$WACC$ & Weighted Average Cost of Capital (annualised)\\
+$\alpha$ & Weight of service level costs in the objective function \\
+$\beta$ & Weight of coil purchase costs in the objective function \\
+$\gamma$ & Weight of stock holding costs in the objective function \\
+$\delta$ & Weight of setup costs in the objective function \\
+$\epsilon$ & Weight of outsourcing costs in the objective function \\
+\hline
+$D^{supply}_{p,b,w}$ & Preprocessed demand of product $p$ at destination branch $b$ in week $w$. This demand is obtained by expanding destination-branch requirements backward to Cajamar-supplied products, net of relevant downstream stock at the destination branch \\
+$ConfirmedOrders^{supply}_{p,b,w}$ & Confirmed order quantity of product $p$ at destination branch $b$ in week $w$, for products under Cajamar supply responsibility \\
+$StockStart^{dest}_{p,b}$ & Initial inventory of product $p$ at destination branch $b$ at the beginning of week 1 \\
+$RepositionPoint_{p,b}$ & Objective stock / reposition point for product $p$ at destination branch $b$ \\
+$PenalizationRepositionPoint_{p,b}$ & Unit penalty cost for violating the reposition point of product $p$ at destination branch $b$ \\
+\end{longtable}
+
+\FloatBarrier
+
+The destination-branch stock balance is applied only to products in $P^{supply}_b$. 
+These are products for which Cajamar is responsible for supplying and controlling stock at destination branch $b$. 
+The model does not track the full inventory of branches 04 or 07, nor does it model their production processes. 
+
+A product may simultaneously belong to one of Cajamar's product categories, such as 
+$P_{intermediate}$, $P_{coil}$, $P_{other}$, $P_{boundary}$, or $P_{06}$, 
+and to $P^{supply}_b$ for one or more destination branches. 
+The first classification defines its role in Cajamar's stock balance, production structure, purchase logic, and BOM consumption logic. 
+The second classification defines whether Cajamar is responsible for supplying and controlling that product as stock at destination branch $b$. 
+
+For each classification, if a product is $P^{supply}_b$, we should add the transfer term and remove $D_{p,1}$. A product should only have demand coming from one branch, for the model purpose.
+
+Demand $D^{supply}_{p,b,w}$ is a preprocessed input obtained by expanding destination-branch downstream demand backward to Cajamar-supplied products, net of relevant downstream stock at the destination branch.
+
+Example: 
+06 Demand = 1000
+06 Stock = 200
+
+- 06 expandable demand = 800
+Exploding factor = 0.5
+
+- 03 Demand = 400
+
+ConfirmedOrders$^{supply}_{p,b,w}$ represents confirmed customer orders assigned to destination branch $b$ for products under Cajamar supply responsibility.
+
+\subsection{Formulation}
+
+%---------------------------------------------------------------------------------------------
+%------------------------------------- OBJECTIVE FUNCTION ------------------------------------
+%---------------------------------------------------------------------------------------------
+\subsubsection{Objective Function}
+
+\begin{equation}
+\begin{aligned}
+\min \quad & \alpha \cdot \Biggl[
+    \Big(\sum_{p \in P_{finished}} \sum_{w \in W} \!\!  zco_{p,w}  + \\ 
+    & \sum_{(p,b,w) \in PBW^{supply}} zsco_{p,b,w} \Big) \cdot PenalizationConfirmedOrders_p\\
+    \\
+    & + \Big( \sum_{p \in P_{finished}} \sum_{w \in W}  \!\!  zsp_{p,w}  + \\
+    & \sum_{(p,b,w) \in PBW^{supply}} zsd_{p,b,w} \Big) \cdot PenalizationDemand_p \\
+    \\
+    & + \sum_{(p,b,w) \in PBW^{supply}} PenalizationRepositionPoint_{p,b} \cdot zrp_{p,b,w} \\
+    & + \sum_{p \in P_{06}} \sum_{w \in W}  \!\! PenalizationSafetyStock_p \cdot zss_{p,w} \\
+    & + \sum_{p \in P_{06}} \sum_{w \in W}  \!\! PenalizationCycleStock_p \cdot zcs_{p,w} \\
+    & + \sum_{mg \in MG} \sum_{w \in W}  \!\! PenalizationCycleStock_{mg} \cdot zcs^{macro}_{mg,w} \Biggr] \\
+    & + \beta \cdot \Biggl[ \sum_{p \in P_{coil}} \sum_{w \in W} CostPurchase_{p,w} \cdot q_{p,w} \Biggr] \\
+    & + \gamma \cdot \Biggl[
+    \sum_{(p,w) \in PW} \frac{WACC}{52} \cdot UnitCost_p \cdot 
+    \frac{ss_{p,w-1} + ss_{p,w}}{2}
+    \Biggr] \\    & + \delta \cdot \Biggl[\sum_{p \in P} \sum_{r \in R_p} \sum_{m \in M_r} \sum_{w \in W} CostSetup_p \cdot AvgSetupTime_{p,r,m} \cdot k_{p,r,w}
+    \Biggr]\\
+    & + \epsilon \cdot \Biggl[
+    \sum_{p \in P} \sum_{r \in R_p \cap R_{out}} 
+    \sum_{w \in W} CostOutsourcing_{p,r} \cdot x_{p,w,r}
+    \Biggr]
+\end{aligned}
+\label{eq:of}
+\end{equation}
+
+
+%---------------------------------------------------------------------------------------------
+%---------------------------------------- CONSTRAINTS ----------------------------------------
+%---------------------------------------------------------------------------------------------
+
+\subsubsection{Constraints}
+
+\text{---------------------------------------------------------------------------------------------------------}
+
+\subsubsection*{A1--A2. Stock Balance of Intermediate Products}
+
+\begin{equation}
+ss_{p,w} = ss_{p,w-1} - \sum_{p_1 \in P} y_{p_1,p,w} + \sum_{r \in R_p} x_{p,w,r} 
+\quad \forall p \in P_{intermediate},\ w = 2,\ldots,32
+\label{eq:A1}
+\end{equation}
+
+\begin{equation}
+ss_{p,1} = StockStart_p - \sum_{p_1 \in P} y_{p_1,p,1} + \sum_{r \in R_p} x_{p,1,r}
+\quad \forall p \in P_{intermediate}
+\label{eq:A2}
+\end{equation}
+
+
+\noindent\textbf{A3\_1. Cycle stock definition: finished products \& lito products (soft constraint)}
+\begin{equation}
+ss_{p,w} + Multiplier_{p_{03}(p)} \cdot ss_{p_{03}(p),w}
+\geq CycleStock_{p,w} - zcs_{p,w}
+\quad \forall p \in P_{06},\ \forall w \in W
+\label{eq:A3_1}
+\end{equation}
+
+
+
+\noindent\textbf{A3\_2. Safety stock definition: finished products \& lito products (soft constraint)}
+\begin{equation}
+\begin{gathered}
+ss_{p,w} + Multiplier_{p_{03}(p)} \cdot ss_{p_{03}(p),w} 
+- CycleStock_{p,w} + zcs_{p,w} \\
+\geq SafetyStock_{p,w} - zss_{p,w}
+\quad \forall p \in P_{06},\ \forall w \in W
+\end{gathered}
+\label{eq:A3_2}
+\end{equation}
+
+
+
+\noindent\textbf{A3\_3. Macrogroup cycle stock constraint}
+\begin{equation}
+\sum_{p \in P(mg)} ss_{p,w} \geq CycleStock^{macro}_{mg,w} 
+- zcsmg_{mg,w}
+\quad \forall mg \in MG,\ \forall w \in W
+\label{eq:A3_5}
+\end{equation}
+
+
+
+\noindent\textbf{A3\_4. Group-level cycle stock constraint}
+\begin{equation}
+\begin{gathered}
+\sum_{p \in Services(p_{03})} ss_{p,w} + 
+Multiplier_{p_{03}} \cdot ss_{p_{03},w}
+\geq \sum_{p \in Services(p_{03})} 
+\left( CycleStock_{p,w} - zcs_{p,w} \right) \\
+\quad \forall p_{03} \in P_{03},\ \forall w \in W
+\end{gathered}
+\label{eq:A3_3}
+\end{equation}
+
+\noindent\textbf{A3\_5. Group-level safety stock constraint}
+\begin{equation}
+\begin{gathered}
+\sum_{p \in Services(p_{03})} ss_{p,w}
++ Multiplier_{p_{03}} \cdot ss_{p_{03},w} \\
+\geq \sum_{p \in Services(p_{03})}
+\left(
+CycleStock_{p,w} - zcs_{p,w}
++ SafetyStock_{p,w} - zss_{p,w}
+\right) \\
+\forall p_{03} \in P_{03},\ \forall w \in W
+\end{gathered}
+\label{eq:A3_4}
+\end{equation}
+
+
+
+
+\subsubsection*{A4--A5. Stock Balance of Steel Coil}
+
+\begin{equation}
+ss_{p,w} = ss_{p,w-1} - \sum_{p_1 \in P} y_{p_1,p,w} 
++ StockArrivals_{p,w} + q_{p,w}
+\quad \forall p \in P_{coil},\ w = 2,\ldots,32
+\label{eq:A4}
+\end{equation}
+
+\begin{equation}
+ss_{p,1} = StockStart_p - \sum_{p_1 \in P} y_{p_1,p,1} 
++ StockArrivals_{p,1} + q_{p,1}
+\quad \forall p \in P_{coil}
+\label{eq:A5}
+\end{equation}
+
+\noindent\textbf{A6. Maximum weekly coil purchase}
+
+\begin{equation}
+q_{p,w} \leq CoilPurchase^{max}_{p,w}
+\quad \forall p \in P_{coil},\ \forall w \in W
+\label{eq:A6}
+\end{equation}
+
+
+\subsubsection*{A7--A8. Stock Balance of Other Purchased 
+Components}
+
+
+\begin{equation}
+\begin{gathered}
+ss_{p,w} = ss_{p,w-1} - \sum_{p_1 \in P} y_{p_1,p,w} 
++ StockArrivals_{p,w} \\
+\quad \forall p \in P_{other},\ w = 2,\ldots,NextPurchaseArrivalWeek_p
+\end{gathered}
+\label{eq:A7}
+\end{equation}
+
+\begin{equation}
+ss_{p,1} = StockStart_p - \sum_{p_1 \in P} y_{p_1,p,1} 
++ StockArrivals_{p,1}
+\quad \forall p \in P_{other}
+\label{eq:A8}
+\end{equation}
+
+
+\subsubsection*{A9--A10. Stock Balance of Finished Products}
+
+\begin{align}
+ss_{p,w} &= ss_{p,w-1} - D_{p,w} + \sum_{r \in R_p} x_{p,w,r}
++ zsp_{p,w} - zsp_{p,w-1}
+\quad \forall p \in P_{06},\ w = 2,\ldots,32 \label{eq:A9}\\
+ss_{p,1} &= StockStart_p - D_{p,1} + \sum_{r \in R_p} x_{p,1,r}
++ zsp_{p,1}
+\quad \forall p \in P_{06} \label{eq:A10}
+\end{align}
+
+\subsubsection*{A9b--A10b. Stock Balance of Boundary Products - this products should not have $D_{p,w}$. They should exclusively be subject to the demand from the destination branch} 
+
+Rodrigo's notes: 
+- if they are final product, then they should be considered to be sold exclusively trough their assigned branch. If branch is 01, they must be produced in Cajamar. If branch 04, final product should be produced in Anápolis. If 07 Criciuma, suppplied by Cajamar only (we will not have transfers between Anápolis and Criciuma)
+
+\begin{equation} 
+\begin{gathered} 
+ss_{p,w} = ss_{p,w-1} + \sum_{r \in R_p} x_{p,w,r} - \sum_{p_1 \in P} y_{p_1,p,w} - \sum_{\substack{b \in B^{dest}:
+\\ p \in P^{supply}_b}} tr_{p,b,w} \end{gathered} 
+\label{eq:A9b} 
+\end{equation} 
+
+\begin{center} 
+$\quad \forall p \in P_{boundary},\ w = 2,\ldots,32$ 
+\end{center} 
+
+\begin{equation} 
+ss_{p,1} = StockStart_p + \sum_{r \in R_p} x_{p,1,r} - \sum_{p_1 \in P} y_{p_1,p,1} - \sum_{\substack{b \in B^{dest}:\\ p \in P^{supply}_b}} tr_{p,b,1}
+\label{eq:A10b} zsco
+\end{equation} 
+\begin{center} 
+$\quad \forall p \in P_{boundary}$ 
+\end{center}
+
+
+\noindent\textbf{A11. Consumed products per production}
+\begin{equation}
+\begin{gathered}
+\sum_{r \in R_{p_1}} x_{p_1,w,r} = 
+\sum_{p_2 \in C(p_1,g)} y_{p_1,p_2,w} \cdot 
+\left(\frac{1}{ConsumptionFactor_{p_2,p_1} + \eta_{p_2,p_1}} \right) \\
+\quad \forall p_1 \in P,\ \forall g \in G(p_1),\ \forall w \in W
+\end{gathered}
+\label{eq:A11}
+\end{equation}
+
+
+\noindent\textbf{A12. Warehouse capacity}
+
+\begin{equation}
+\sum_{p \in P_a} ss_{p,w} \cdot NetWeight_p 
+\leq WarehouseCapacity_a
+\quad \forall a \in A,\ \forall w \in W
+\label{eq:A12}
+\end{equation}
+
+
+\noindent\textbf{A13. Minimum lot size}
+\begin{equation}
+x_{p,w,r} \geq MinLotSize_p \cdot k_{p,w,r}
+\quad \forall (p,w,r) \in PRW
+\label{eq:A13}
+\end{equation}
+
+
+\noindent\textbf{A14. Maximum production}
+\begin{equation}
+ss_{p,w} \leq Cap_{p,w}
+\quad \forall (p,w) \in PW_{cap}
+\label{eq:A14}
+\end{equation}
+
+
+\subsubsection*{A15--A16. Destination Supply Stock Balance}
+
+\begin{align}
+ss^{dest}_{p,b,w}
+&=
+ss^{dest}_{p,b,w-1}
+- D^{supply}_{p,b,w}
++ tr_{p,b,w}
++ zsd_{p,b,w}
+- zsd_{p,b,w-1}
+\\
+&\quad \forall (p,b,w) \in PBW^{supply},\ w = 2,\ldots,32
+\label{eq:A15_dest_supply_stock}
+\\[6pt]
+ss^{dest}_{p,b,1}
+&=
+StockStart^{dest}_{p,b}
+- D^{supply}_{p,b,1}
++ tr_{p,b,1}
++ zsd_{p,b,1}
+\\
+&\quad \forall (p,b,1) \in PBW^{supply}
+\label{eq:A16_dest_supply_stock}
+\end{align}
+
+
+\noindent\textbf{A17. Destination Supply Reposition Point}
+
+\begin{equation}
+ss^{dest}_{p,b,w}
+\geq
+RepositionPoint_{p,b} - zrp_{p,b,w}
+\quad
+\forall (p,b,w) \in PBW^{supply}
+\label{eq:A17_dest_reposition_point}
+\end{equation}
+
+\noindent\text{---------------------------------------------------------------------------------------------------------}
+
+
+
+\noindent\textbf{B1. Production time per machine}
+\begin{equation}
+\begin{gathered}
+\sum_{\substack{p,r : \\ (p,r,w) \in PRW,\ r \notin R_{out},\ 
+m \in M_r}} 
+\left( x_{p,w,r} \cdot UnitProductionTime_{p,r,m} + 
+k_{p,w,r} \cdot AvgSetupTime_{p,r,m} \right)
+\leq ta_{m,w} \\
+\quad \forall (m,w) \in MW
+\label{eq:B1}
+\end{gathered}
+\end{equation}
+
+\noindent\textbf{B1b. Production Capacity of Outsourced Routings}
+
+\begin{equation}
+\sum_{p \in P : (p,r,w) \in PRW} x_{p,w,r} \leq Capacity_{r,w}
+\quad \forall r \in R_{out},\ \forall w \in W
+\label{eq:B1b}
+\end{equation}
+
+    
+\noindent\textbf{B2--B4. Workforce Constraints}
+
+\begin{align}
+\sum_{m \in M_c} tt1_{m,w} \cdot Crew_m &\leq TotalCrewShift1_{w,c}
+\quad \forall w \in W,\ \forall c \in C \label{eq:B2}\\
+\sum_{m \in M_c} tt2_{m,w} \cdot Crew_m &\leq TotalCrewShift2_{w,c}
+\quad \forall w \in W,\ \forall c \in C \label{eq:B3}\\
+\sum_{m \in M_c} tt3_{m,w} \cdot Crew_m &\leq TotalCrewShift3_{w,c}
+\quad \forall w \in W,\ \forall c \in C \label{eq:B4}
+\end{align}
+
+
+
+
+\noindent\textbf{B5--B7. Maximum Number of Shifts per Machine}
+
+\begin{align}
+tt1_{m,w} + PreventiveMaintenance1_{m,w} &\leq 
+WorkingDays1_{w,c(m)}
+\quad \forall (m,w) \in MW \label{eq:B5}\\
+tt2_{m,w} + PreventiveMaintenance2_{m,w} &\leq 
+WorkingDays2_{w,c(m)}
+\quad \forall (m,w) \in MW \label{eq:B6}\\
+tt3_{m,w} + PreventiveMaintenance3_{m,w} &\leq 
+WorkingDays3_{w,c(m)}
+\quad \forall (m,w) \in MW \label{eq:B7}
+\end{align}
+
+
+\noindent\textbf{B8. Total Production Hours per Machine}
+
+\begin{equation}
+\left( tt1_{m,w} + tt2_{m,w} + tt3_{m,w} \right) \cdot 8 
+= ta_{m,w}
+\quad \forall (m,w) \in MW
+\label{eq:B8}
+\end{equation}
+
+
+% \noindent\textbf{B7. Setups definition}
+% \begin{equation}
+% \begin{aligned}
+% x_{p,w,m} &\le M \, k_{p,w,m} \\
+% &\forall w \in \mathcal{W}, \;
+%   \forall m \in \mathcal{M}, \;
+%   \forall p \in \mathcal{P}
+% \end{aligned}
+% \label{eq:B7}
+% \end{equation}
+
+\noindent\textbf{B9. Setups definition}
+\begin{equation}
+\begin{gathered}
+x_{p,w,r} \cdot UnitProductionTime_{p,r,m} \\
+\leq 8 \cdot (WorkingDays1_{w,c(m)} + 
+WorkingDays2_{w,c(m)} + 
+WorkingDays3_{w,c(m)}) \cdot k_{p,w,r} \\
+\forall (p,w,r) \in PRW,\ r \notin R_{out},\ \forall m \in M_r
+\end{gathered}
+\label{eq:B9}
+\end{equation}
+
+
+\noindent\text{---------------------------------------------------------------------------------------------------------}
+
+\noindent\textbf{C1. Additional constraint to enforce delivery of confirmed customer orders not included in the original plan}
+\begin{equation}
+StockStart_p + zco_{p,w^*} + 
+\sum_{w \leq w^*} \sum_{ r \in R_p} x_{p,w,r}
+\geq \sum_{w \leq w^*} ConfirmedOrders_{p,w}
+\label{eq:C1}
+\end{equation}
+
+\begin{center}
+$\quad \forall p \in P_{06},\ \forall w^* \in W   $
+\end{center}
+
+
+
+
+\noindent\textbf{C1b. Confirmed Orders Fulfillment for Boundary Products - I believe we should exclude this restriction. If products have Demand in other branches, it should be exclusively trough the other branches - we guarantee} 
+
+\begin{equation}
+\begin{gathered}
+StockStart_p + zco_{p,w^*} + 
+\sum_{w \leq w^*} \sum_{ r \in R_p} x_{p,w,r}
+- \sum_{w \leq w^*} \sum_{p_1 \in P} y_{p_1,p,w}
+\geq \sum_{w \leq w^*} ConfirmedOrders_{p,w} \\
+\quad \forall p \in P_{boundary},\ \forall w^* \in W
+\end{gathered}
+\label{eq:C1b}
+\end{equation}
+
+\noindent\textbf{C2. Destination Confirmed Orders Fulfilment}
+
+\begin{equation}
+StockStart^{dest}_{p,b}
++ zsco_{p,b,w^*}
++ \sum_{w \leq w^*} tr_{p,b,w}
+\geq
+\sum_{w \leq w^*} ConfirmedOrders^{supply}_{p,b,w}
+\label{eq:C2_dest_confirmed_orders}
+\end{equation}
+\begin{center}
+$
+\forall (p,b) \in PB^{supply},\ \forall w^* \in W
+$
+\end{center}
+
+    
+\subsubsection{Assumptions:}
+
+\begin{enumerate}
+    \item \textbf{Demand is deterministic.} All demand inputs --- confirmed orders, predicted demand, and safety stock and cycle stock targets --- are treated as known and fixed for the duration of each model run. These values are provided by the demand planning module prior to each weekly execution and are not updated within a run.
+
+    \item \textbf{Setup times and unit production times are deterministic.} Both parameters are introduced in the web application (WebApp), as described in Section~\ref{sec:input_data}, and treated as fixed inputs. Variability in operator performance, machine condition, and product-specific complexity is implicitly captured through the historical estimation process.
+
+    \item \textbf{Setups are sequence-independent.} A setup is activated whenever a product is produced on a given routing in a given week, regardless of what was produced on that routing in the previous week. Sequence-dependent changeover times are not modelled, as the weekly granularity of the model makes detailed sequencing decisions the responsibility of the short-term planning module.
+
+    \item \textbf{The shift calendar is a fixed input.} The number of available working days per shift per machine per week is defined by the company's operational calendar and provided as 
+    a parameter. The model decides how much of that available capacity to utilise, but does not determine the shift schedule itself.
+
+    \item \textbf{Operators are fully interchangeable within the same production area.} Workers are not assigned to specific machines but to one of four crew groups: lithography, varnishing, stamping, and assembly. All operators within a group are assumed to be equally capable of operating any machine in that group.
+
+    \item \textbf{The availability of non-steel inputs is modelled up to the earliest possible replenishment date, and assumed unlimited thereafter.} For non-steel raw materials and consumables --- such as varnishes and inks --- the model tracks stock levels and scheduled arrivals only up to the week in which a purchase placed at the current moment could first arrive, given the procurement lead time. Beyond that week, availability is assumed to be unlimited, as procurement decisions for these materials fall outside the scope of the model. This ensures that the capacity constraints imposed by current stock levels are respected in the near term, while avoiding the need to model procurement decisions for materials outside the optimisation scope. Only steel coil purchases are explicitly optimised across the full planning horizon.
+
+    \item \textbf{Backordering is allowed, subject to penalisation.} Unmet demand --- whether confirmed orders, predicted demand, or stock target violations --- is penalised in the objective function rather than strictly forbidden. This allows the solver to find feasible solutions under tight capacity conditions. Confirmed orders carry the highest penalty weight, making their fulfilment the model's primary priority.
+
+    \item \textbf{Warehouse capacity is treated as a hard constraint.} The available capacity of each warehouse is adjusted in the data preparation stage to account for stock of products outside the model scope, as described in Section~\ref{sec:data_preparation}. The remaining capacity is enforced as a strict upper bound on the total stock held in each warehouse in each week.
+
+    \item \textbf{The scrap rate is deterministic and estimated per parent product-component pair.} The average quantity of component scrapped per unit of parent product produced is computed from historical production records and incorporated into the BOM consumption factor as a fixed additive term.
+
+    \item \textbf{The model is scoped exclusively to Factory 01.} Production operations at Factory 02 are treated as external events. Finished products that require further processing at Factory 02 are represented in the model through their last intermediate product produced at Factory 01, with demand signals shifted back in time by the corresponding inter-factory lead time, as described in Section~\ref{sec:data_preparation}.
+
+    \item \textbf{Minimum lot sizes are enforced per product-routing combination.} A binary setup variable ensures that production only occurs in quantities at or above the defined minimum lot size, preventing the model from planning economically meaningless micro-batches.
+
+    \item \textbf{Destination branches are represented only through products under Cajamar supply responsibility.}
+    The model does not control the full inventory of branches 04 and 07. It only tracks stock for products in $P^{supply}_b$, which are products supplied by Cajamar and required either by the destination branch's operation or by customer demand served from that branch.
+    
+    \item \textbf{Destination-branch supply demand is preprocessed.}
+     The demand $D^{supply}_{p,b,w}$ is calculated before the optimization. It is obtained by expanding destination-branch downstream demand backward to Cajamar-supplied products, after netting available downstream stock at the destination branch and applying the relevant multipliers, and scrap factors.
+    
+    \item \textbf{Destination-branch confirmed orders are explicitly protected.}
+    Confirmed orders assigned to branches 04 or 07 for products in $P^{supply}_b$ are included through $ConfirmedOrders^{supply}_{p,b,w}$ and penalised through $zsco_{p,b,w}$. This allows the model to prioritise confirmed customer orders served from destination branches in the same way it prioritises confirmed orders served from Cajamar.
+    
+    \item \textbf{Production is planned only at Cajamar.}
+    Branches 04 and 07 may have their own production processes, but these are outside the scope of the model. The model only decides how much Cajamar should produce, stock, and transfer to support those branches.
+    
+    \item \textbf{Transfers from Cajamar to destination branches are available within the same week.}
+    At the weekly planning granularity, the transfer time from Cajamar to branches 04 and 07 is assumed to be less than one week. Therefore, a transfer decision $tr_{p,b,w}$ decreases Cajamar stock and increases destination-branch stock in the same week.
+    
+    \item \textbf{A product may have multiple modelling roles.}
+    A product may belong to any Cajamar product category and simultaneously belong to $P^{supply}_b$ for one or more destination branches. The Cajamar product category determines its production, purchase, consumption, and stock balance in Cajamar, while membership in $P^{supply}_b$ determines whether destination stock, destination demand, confirmed orders, and transfers are also modelled - to review how to apply in Pyomo these distinctions!!
+    
+
+
+    
+\end{enumerate}
+
+
+
+
+
+
+
+\end{document}

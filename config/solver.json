@@ -1,4 +1,4 @@
 {
-    "solver_name": "GUROBI",
+    "solver_name": "CBC",
     "time_limit": 60
 }
