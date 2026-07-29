@@ -9,9 +9,9 @@ __pycache__/
 logs/
 
 # PyInstaller - artefatos de build
-build/
-dist/
-release/
+/build/
+/dist/
+/release/
 *.spec
 *.spec.bak
 
@@ -21,6 +21,9 @@ release/
 
 # Histórico de execuções (gerado em runtime)
 history/
+
+# Frontend (frontend/dist/ é commitado para rodar offline sem Node)
+node_modules/
 
 # macOS
 .DS_Store

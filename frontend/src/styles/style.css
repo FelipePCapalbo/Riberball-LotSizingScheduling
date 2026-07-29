@@ -393,6 +393,10 @@ body {
 
 .data-table tbody td { padding: 7px 10px; vertical-align: middle; }
 
+/* Colunas com largura ajustada ao conteúdo, em vez de esticadas a 100% */
+.table-fit-content { width: auto; }
+.table-fit-content th, .table-fit-content td { white-space: nowrap; }
+
 .table-empty td {
     text-align: center;
     color: #6c757d;

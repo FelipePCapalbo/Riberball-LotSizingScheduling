@@ -1,4 +1,6 @@
 pandas
 openpyxl
 pulp
-flask
+fastapi
+uvicorn
+pydantic

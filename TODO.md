@@ -1,1 +1,10 @@
-- Incluir parametro de 'n' tempos de setup, diferentes por máquina, ao invés de setup grande e pequeno
+- Incluir parametro de 'n' tempos de setup, diferentes por máquina, ao invés de setup grande e pequeno;
+- Diferenciar terminologias de setup MODELO-TIPO e MODELO-TIPO-COR;
+- Melhorar nomenclaturas de scripts;
+- Incluir decisão de produção contra pedido e contra demanda prevista;
+    - Diferenciar a decisão de produção, colocando prioridade sempre para produzir contra pedido;
+        - Custos de perda diferentes;
+        - Acrescentar parametro na interface e explorar manualmente posteriormente;
+- Melhorar a decisão entre modelo semanal e modelo diário.
+    - Modelo diário deve receber puramente o input do modelo semanal;
+- Acrescentar lote mínimo;

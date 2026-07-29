@@ -15,6 +15,7 @@ SECTIONS = {
     'machines.json': ['active_machines',
                       'high_setup_machines', 'setup_time_high', 'setup_time_low'],
     'solver.json': ['solver_name', 'time_limit', 'threads'],
+    'color.json': ['color_method', 'color_solver_name', 'color_time_limit', 'setup_time_color_default'],
 }
 
 
