@@ -1,0 +1,6 @@
+{
+    "latex-workshop.latex.autoBuild.run": "onSave",
+    "latex-workshop.latex.autoClean.run": "onBuilt",
+    "latex-workshop.latex.recipe.default": "latexmk",
+    "latex-workshop.view.pdf.viewer": "tab"
+}

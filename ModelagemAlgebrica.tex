@@ -50,6 +50,69 @@
 
 \section{Revisão de literatura}
 
+\subsection{Planejamento hierárquico de produção}
+
+O planejamento de produção organiza-se em níveis de decisão com horizontes e granularidades distintos --- estratégico, tático e operacional \cite{anthony1965}. Decisões de nível superior fixam metas e restrições para o nível inferior; o nível inferior devolve ao superior o que de fato foi executado, fechando o ciclo.
+
+\citeonline{haxmeal1975} formalizam esse esquema para produção multi-planta sob demanda sazonal: um plano agregado de estoque por família de produtos é obtido por programação linear e desagregado, em seguida, em programações detalhadas por item através de regras clássicas de controle de estoque. \citeonline{bitranhax1977} generalizam a proposta: o problema é particionado em subproblemas por nível, cada um resolvido por um procedimento próprio, com mecanismos explícitos de agregação (de baixo para cima) e desagregação (de cima para baixo) conectando os níveis.
+
+Esse padrão é a base dos sistemas avançados de planejamento (\textit{Advanced Planning Systems}); \citeonline{stadtler2005} descreve a \textit{Supply Chain Planning Matrix}, que posiciona módulos de planejamento por horizonte --- longo, médio e curto prazo --- e por função, entre produção, distribuição e vendas, sendo a referência corrente para separar decisão tática de decisão operacional.
+
+A correspondência família$\to$item de Hax e Meal mapeia diretamente o problema dos balões: formato e acabamento definem a família decidida no nível tático; a cor é o item desagregado no nível operacional. Essa fronteira não é uma escolha arbitrária de modelagem --- ela coincide com a separação real entre os dois tipos de \textit{setup} do processo produtivo: a troca de forma, custosa e decidida com semanas de antecedência, e a troca de cor, uma limpeza decidida dia a dia.
+
+\subsection{Dimensionamento de lotes capacitado}
+
+O dimensionamento de lotes (\textit{lot sizing}) tem origem no modelo de \citeonline{wagnerwhitin1958}, que resolve por programação dinâmica o tamanho de lote ótimo de um único item sob demanda determinística variável no tempo, sem restrição de capacidade. A versão capacitada --- \textit{Capacitated Lot Sizing Problem} (CLSP) --- introduz um limite de capacidade por período e já é NP-difícil no caso de dois itens com \textit{setups} independentes \cite{bitranyanasse1982,chenthizy1990}.
+
+O CLSP é dito de \textit{big-bucket}: cada período (tipicamente uma semana ou um mês) admite a produção de mais de um item, e a granularidade interna ao período não é modelada. \citeonline{karimi2003} revisam formulações e algoritmos exatos e heurísticos para essa classe. \citeonline{jansdegraeve2008} cobrem extensões que aproximam o modelo de aplicações industriais --- máquinas paralelas, múltiplos níveis de estrutura de produto, \textit{setups} dependentes de sequência. \citeonline{buschkuhl2010} classificam quatro décadas de abordagens de solução. Para o caso de item único, \citeonline{brahimi2006,brahimi2017} cobrem formulações e métodos de solução em dois levantamentos que, juntos, resumem a literatura até 2016.
+
+O nível tático do problema dos balões é um CLSP em máquinas paralelas não relacionadas --- produtividade $p_{ij}$ distinta por par máquina-balão, compatibilidades próprias ---, com venda perdida em vez de atraso (\textit{backorder}) na camada de previsão de demanda, e sem custo de estoque explícito na função objetivo. Essa combinação, detalhada na Seção~\ref{sec:posicionamento}, é o que distingue o problema do CLSP canônico.
+
+\subsection{Dimensionamento e sequenciamento integrados}
+
+Quando o \textit{setup} depende da sequência de produção --- como ocorre na troca de cor --- o \textit{big-bucket} deixa de bastar: sem ordem definida dentro do período, não há como cobrar o \textit{setup} certo. A literatura resolve isso fundindo tamanho de lote e sequenciamento num único modelo de \textit{small-bucket}, com microperíodos dentro de cada período maior. O \textit{General Lotsizing and Scheduling Problem} (GLSP), de \citeonline{fleischmannmeyr1997}, é uma das formulações canônicas dessa família. O \textit{Capacitated Lot-sizing and Scheduling Problem with Sequence-Dependent setups} (CLSD), de \citeonline{haase1996}, é a outra. \citeonline{drexlkimms1997} organizam a taxonomia completa de modelos \textit{small-bucket}: o \textit{Discrete Lotsizing and Scheduling Problem} (DLSP), o \textit{Continuous Setup Lotsizing Problem} (CSLP), o \textit{Proportional Lotsizing and Scheduling Problem} (PLSP), além do GLSP e do CLSD já apresentados.
+
+Um mecanismo central dessa literatura é o \textit{setup carryover}: a configuração da máquina persiste entre períodos consecutivos sem pagar novo \textit{setup}, desde que o mesmo item seja produzido em ambos. \citeonline{soxgao1999} introduzem o conceito para o CLSP; \citeonline{suriestadtler2003} formalizam a versão com lotes ligados (\textit{linked lot sizes}), permitindo que um lote atravesse a fronteira de dois períodos sem interrupção. \citeonline{copil2017} revisam e classificam toda essa família de modelos simultâneos de dimensionamento e sequenciamento; \citeonline{guimaraes2014} tratam especificamente da modelagem de \textit{setups} dependentes de sequência dentro desses modelos.
+
+A troca de cor no problema dos balões é um \textit{setup} dependente de sequência e, além disso, direcional: a limpeza de claro para escuro é barata; de escuro para claro, cara. O carryover de estado --- forma e cor montadas na máquina --- atravessando dias e mesmo paradas é o mecanismo desta literatura reaproveitado no nível operacional diário do modelo proposto.
+
+\subsection{Aplicações em indústria de processo}
+
+Uma via alternativa para o dimensionamento e sequenciamento integrados evita inflar um único MILP (\textit{Mixed-Integer Linear Programming}, programação linear inteira mista): decompõe o problema em dois módulos, um de quantidade e outro de sequência, ou resolve a sequência por regra e não por otimização exata. Essa abordagem é comum em indústrias de processo com estrutura de dois estágios, onde um insumo intermediário é preparado numa etapa e diferenciado --- por sabor, cor ou aroma --- numa etapa seguinte.
+
+A indústria de bebidas é a aplicação mais estudada e mais próxima estruturalmente do problema dos balões: xarope preparado num tanque, envasado em seguida em diferentes sabores e tamanhos. \citeonline{ferreira2009,ferreira2010} modelam esse problema de dois estágios --- preparo do xarope e envase --- com \textit{setups} dependentes de sequência e de tempo, comparando estratégias de \textit{relax-and-fix}; \citeonline{toledo2012} resolvem a mesma classe de problema com algoritmos meméticos. A analogia com os balões é direta: composto pigmentado é o xarope, moldagem é o envase.
+
+A indústria têxtil de fiação oferece uma analogia ainda mais próxima, porque acrescenta uma restrição de sincronização que a de bebidas não tem. \citeonline{camargo2014} tratam um problema de dois estágios em que uma mistura de fibras (\textit{fiber blend}) alimenta múltiplas máquinas de fiação em paralelo; na formulação MSGLSP (\textit{Multi-Stage General Lot-sizing and Scheduling Problem}) que adotam, de \citeonline{camargo2012}, todas as máquinas ativas num mesmo microperíodo devem processar fios da mesma família de mistura, sincronizadas por uma variável binária de qualidade. Essa restrição --- só uma mistura disponível por vez, e todas as máquinas do segundo estágio precisam respeitá-la --- é exatamente o que emergiria se a pigmentação do composto de látex fosse modelada como etapa própria, com múltiplas moldagens em paralelo consumindo o mesmo composto pigmentado corrente. Duas diferenças, porém, mantêm o problema dos balões fora dessa formulação: os autores tratam a troca de mistura como \textit{setup} nulo (o oposto da troca de forma dos balões, que é o \textit{setup} caro) e adotam atraso (\textit{backorder}) com custo de estoque explícito, não venda perdida por custo de oportunidade.
+
+\citeonline{gunther2006} descrevem o \textit{block planning}, aplicado originalmente à indústria de tintura de cabelo e depois generalizado para produção do tipo \textit{make-and-pack}: a sequência de produção segue uma ordem fixa e pré-definida de variantes, tipicamente por contaminação crescente --- do tom mais claro para o mais escuro ---, evitando limpeza entre trocas. É a mesma lógica de sequenciamento por cor da moldagem de balões, com o mesmo argumento de fundo: claro antes de escuro minimiza limpeza.
+
+\subsection{Síntese e posicionamento}
+\label{sec:posicionamento}
+
+A Tabela~\ref{tab:gap} resume o problema dos balões frente às quatro classes revisadas. Nenhuma delas reúne, isolada, a combinação completa de características do problema; a contribuição está na interseção, não em qualquer elemento tomado sozinho.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Posicionamento do problema dos balões frente às classes revisadas (\checkmark: presente; parcial: presente em parte; --: ausente)}
+\label{tab:gap}
+\begin{tabular}{@{}L{3.6cm}ccccc@{}}
+\toprule
+ & \textbf{CLSP clássico} & \textbf{GLSP/CLSD} & \textbf{Bebidas} & \textbf{Fiação} & \textbf{Balões} \\
+\midrule
+Máquinas paralelas não relacionadas    & \checkmark & parcial    & --         & \checkmark & \checkmark \\
+\textit{Setup} dependente de sequência & --         & \checkmark & \checkmark & \checkmark & \checkmark \\
+\textit{Setup} direcional (assimétrico) & -- & parcial & -- & -- & \checkmark \\
+Dois tipos de \textit{setup}, escalas distintas & -- & -- & parcial & -- & \checkmark \\
+Venda perdida (sem \textit{backorder}) & parcial    & parcial    & --         & --         & \checkmark \\
+Custo de oportunidade puro (sem \textit{holding}) & -- & -- & -- & -- & \checkmark \\
+Previsão de demanda própria integrada  & --         & --         & --         & --         & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Duas características do problema dos balões não têm equivalente direto na literatura revisada. A primeira é a perecibilidade do látex --- recebimento diário, estoque em tanques ---, uma restrição de matéria-prima incomum na literatura de CLSP, que em geral assume insumo disponível sob demanda. A segunda é a coexistência de dois tipos de \textit{setup} em escalas de tempo muito diferentes --- troca de forma, decidida no tático, e troca de cor, decidida no operacional --- o que motiva diretamente a estrutura hierárquica adotada neste trabalho, e não apenas a reaproveita por conveniência de modelagem.
+
 \newpage
 
 \section{Processo produtivo}
@@ -139,19 +202,19 @@ O planejamento tático determina o que, onde, quando e quanto produzir, balancea
 
 O nível de estoque alvo de cada período é definido em função da demanda futura: o tomador de decisão estabelece quantos períodos à frente o estoque deve cobrir, com o alvo (de cada combinação de formato e acabamento de balão) assumindo valores que podem variar dinamicamente conforme a demanda (prevista ou passada). Essa cobertura orienta se a produção do período deve repor ou consumir o estoque disponível.
 
-O plano de produção é elaborado em periodicidade semanal, com revisões eventuais conforme a necessidade operacional. As trocas de formas entre balões de diferentes formatos configuram longos tempos de \textit{setup}: no limite mínimo, ocorrem entre turnos de trabalho, mas na prática se dão com intervalos de dias, dado o alto custo de tempo envolvido. A heterogeneidade entre equipamentos é o fator que viabiliza a operação simultânea de diferentes balões: cada máquina pode ser alocada a um formato distinto, permitindo atender o \textit{mix} sem que todas as máquinas passem por \textit{setup} ao mesmo tempo.
+O plano de produção é elaborado em periodicidade semanal, com revisões eventuais conforme a necessidade operacional. As trocas de formas entre balões de diferentes formatos configuram longos tempos de \textit{setup}: no limite mínimo, ocorrem entre turnos de trabalho, mas na prática se dão com intervalos de dias, dado o alto custo de tempo envolvido. A heterogeneidade entre equipamentos é o fator que viabiliza a operação simultânea de diferentes balões: cada máquina pode ser alocada a um formato distinto, permitindo atender o \textit{mix} (a combinação de formatos demandados) sem que todas as máquinas passem por \textit{setup} ao mesmo tempo.
 
 Cada máquina possui taxas de produção e compatibilidades próprias para cada formato e acabamento de balão. A capacidade produtiva pode ser reduzida por ociosidades programadas, decorrentes de manutenções preventivas, reformas ou paradas não planejadas.
 
 O objetivo do modelo de otimização proposto por este trabalho é o de minimizar custos de oportunidade: custos de \textit{setup}, pela produção não realizada durante as trocas, e vendas perdidas, quando a capacidade disponível é insuficiente para atender a demanda. O custo unitário dos balões orienta tanto a priorização do atendimento quanto o sequenciamento das trocas.
 
-As decisões táticas exploradas nessa modelagem tentam replicar a realidade da indústria analiticamente. 
+Essa lógica de custo de oportunidade é formalizada na função objetivo do modelo de otimização, apresentado na Seção~\ref{sec:modelo_otimizacao}.
 
 \subsection{Previsão de demanda}
 
 A previsão da demanda é um elemento chave do planejamento, pois é a partir dela que se definem a alocação das máquinas, e por consequência as decisões de estocagem e, possivelmente, priorização de perdas por não atendimento de demanda.
 
-No contexto do planejamento tático no problema de produção de balões de látex, a acurácia da previsão é fundamental e depende fortemente de conseguir capturar períodos de sazonalidade ao longo do ano, bem como  tendências da empresa e do mercado.
+No contexto do planejamento tático no problema de produção de balões de látex, a acurácia da previsão é fundamental e depende fortemente de conseguir capturar períodos de sazonalidade ao longo do ano, bem como tendências da empresa e do mercado.
 
 Nessa etapa da modelagem do problema, o objetivo do estudo é explorar métodos e arquiteturas diferentes de previsão de demanda a fim de observar o impacto da acuracidade no planejamento produtivo. O parâmetro $\alpha$ no modelo de otimização, por sua vez, pode ser usado para controlar o nível de estoque e reduzir o impacto do erro dos modelos: melhores acuracidades permitem maior giro de estoque ao longo do ano.
 
@@ -201,9 +264,9 @@ $\hat{d}_{i,t+h}$ & Previsão final de demanda do balão $i$ para o período fut
 
 A extração dos efeitos sazonais e exógenos é feita em cascata. O modelo utiliza uma formulação log-linear (multiplicativa) em detrimento de uma abordagem aditiva devido à natureza da propagação da demanda. Em eventos de forte sazonalidade (final de ano, por exemplo), a demanda agregada pode triplicar. A transformação logarítmica permite que esse comportamento atue como um fator multiplicativo percentual, sendo repassado de forma coerente e proporcional para os níveis inferiores. Caso um modelo aditivo fosse empregado, um incremento absoluto capturado no nível global (um aumento sazonal de 10.000 kg, por exemplo) perderia o sentido ao ser cascateado para uma combinação específica de formato e acabamento, cuja escala natural de vendas é substancialmente menor. Ademais, a modelagem multiplicativa previne intrinsecamente a projeção de demandas negativas.
 
-Para a estimação destes parâmetros, utiliza-se o algoritmo RLS (\textit{Recursive Least Squares}), que atualiza os coeficientes incrementalmente a cada nova observação minimizando o erro quadrático acumulado.
+Para a estimação destes parâmetros, utiliza-se o algoritmo \textit{Recursive Least Squares} (RLS), que atualiza os coeficientes incrementalmente a cada nova observação minimizando o erro quadrático acumulado.
 
-Nível Global: A estimação inicial ocorre sobre a demanda total consolidada.
+A estimação inicial, no nível global, ocorre sobre a demanda total consolidada:
 \begin{ceqn}
 \begin{equation}
 \hat{\beta}^{(0)} = \arg\min_{\beta} \sum_{t \in T} \left( \ln(Y_t) - \sum_{k \in K} \beta_{k} X_{kt} \right)^2
@@ -211,7 +274,7 @@ Nível Global: A estimação inicial ocorre sobre a demanda total consolidada.
 \end{equation}
 \end{ceqn}
 
-Nível Formato: Os coeficientes globais $\hat{\beta}^{(0)}_k$ atuam como \textit{priors} para a estimação por formato. O termo de regularização $\lambda$ penaliza desvios do comportamento global.
+No nível de formato, os coeficientes globais $\hat{\beta}^{(0)}_k$ atuam como \textit{priors} para a estimação, e o termo de regularização $\lambda$ penaliza desvios do comportamento global:
 \begin{ceqn}
 \begin{equation}
 \hat{\beta}^{(1)}_{f} = \arg\min_{\beta} \left( \sum_{t \in T} \left( \ln(Y_{ft}) - \sum_{k \in K} \beta_{k} X_{kt} \right)^2 + \lambda \sum_{k \in K} \left( \beta_{k} - \hat{\beta}^{(0)}_k \right)^2 \right) \quad \forall f \in F
@@ -219,7 +282,7 @@ Nível Formato: Os coeficientes globais $\hat{\beta}^{(0)}_k$ atuam como \textit
 \end{equation}
 \end{ceqn}
 
-Nível Formato-Acabamento: Por fim, os coeficientes do formato respectivo atuam como \textit{priors} para o balão específico.
+No nível de formato-acabamento, por fim, os coeficientes do formato respectivo atuam como \textit{priors} para o balão específico:
 \begin{ceqn}
 \begin{equation}
 \hat{\beta}^{(2)}_{i} = \arg\min_{\beta} \left( \sum_{t \in T} \left( \ln(y_{it}) - \sum_{k \in K} \beta_{k} X_{kt} \right)^2 + \lambda \sum_{k \in K} \left( \beta_{k} - \hat{\beta}^{(1)}_{f,k} \right)^2 \right) \quad \forall f \in F, i \in I_f
@@ -262,6 +325,7 @@ O \textit{forecast} para um período futuro $t+h$ projeta a demanda base multipl
 \newpage
 
 \section{Modelo de otimização}
+\label{sec:modelo_otimizacao}
 
 \subsection*{Conjuntos}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
@@ -277,7 +341,7 @@ $D_t \subseteq D$ & Dias pertencentes ao período $t \in T$.\\
 $d_{it}$ & Demanda do balão $i$ no período $t$ (kg).\\
 $c_{i}$ & Custo unitário do balão $i$ (R\$/kg).\\
 $p_{ij}$ & Produtividade do balão $i$ na máquina $j$ (kg/hora).\\
-$h_{jd}$ & Horas produtivas disponíveis da máquina $j$ no dia $d$.\\
+$b_{jd}$ & Horas produtivas disponíveis da máquina $j$ no dia $d$.\\
 $t^s_{j}$ & Tempo de \textit{setup} na máquina $j$ (horas).\\
 $\alpha$ & Número de períodos futuros de demanda de estoque de segurança.\\
 $I^{0}_{i}$ & Estoque do balão $i$ no início do horizonte, $t = 0$ (kg).\\
@@ -310,20 +374,20 @@ Z = \sum_{i \in I}\sum_{j \in J}\sum_{d \in D} c_{i}\, p_{ij}\, t^s_{j}\, \delta
 \sum_{i \in I} s_{ijd}
     &\le 1 - z_{jd}
     && \forall\, j \in J,\; d \in D \label{eq:capacidade} \\
-I_{i,t-1} + \sum_{d \in D_t}\sum_{j \in J} \bigl(h_{jd} - t^s_{j}\,\delta_{ijd}\bigr)\, s_{ijd}\, p_{ij}
+I_{i,t-1} + \sum_{d \in D_t}\sum_{j \in J} \bigl(b_{jd} - t^s_{j}\,\delta_{ijd}\bigr)\, s_{ijd}\, p_{ij}
     &= I_{it} + d_{it} - l_{it}
     && \forall\, i \in I,\; t \in T \label{eq:balanco} \\
 I_{it} &\ge \sum_{k=1}^{\alpha} d_{i,t+k}
     && \forall\, i \in I,\; t \in T \label{eq:seguranca}
 \end{align}
 
-A função objetivo \eqref{eq:objetivo} minimiza o custo total de oportunidade: o custo de setup é mensurado pela receita perdida durante o tempo de troca — produção que deixa de ocorrer, ponderando o custo unitário $c_i$ e a produtividade $p_{ij}$ da máquina — e o segundo termo penaliza as vendas não atendidas, multiplicando o custo unitário pela quantidade de kg de balões perdidos $l_{it}$. Paradas programadas não entram diretamente no objetivo, mas restringem os dias disponíveis de produção.
+A função objetivo \eqref{eq:objetivo} minimiza o custo total de oportunidade: o custo de setup é mensurado pela receita perdida durante o tempo de troca --- produção que deixa de ocorrer, ponderando o custo unitário $c_i$ e a produtividade $p_{ij}$ da máquina --- e o segundo termo penaliza as vendas não atendidas, multiplicando o custo unitário pela quantidade de kg de balões perdidos $l_{it}$. Paradas programadas não entram diretamente no objetivo, mas restringem os dias disponíveis de produção.
 
 Cada máquina produz no máximo um tipo de balão por dia ativo \eqref{eq:capacidade}, podendo ficar sem configuração quando parada. Isso permite que, dentro de um mesmo período, a máquina produza balões diferentes em dias distintos. A restrição \eqref{eq:setup_delta} detecta mudanças de configuração dia a dia: $\delta_{ijd}$ é ativado sempre que $s_{ijd}$ passa de inativo para ativo, cobrindo tanto trocas de balão quanto retomadas após parada. O setup ocorre no primeiro dia de cada configuração e consome $t^s_j$ horas desse dia, reduzindo a produção.
 
-A restrição \eqref{eq:capacidade} garante que cada máquina opere no máximo um balão por dia e fique inativa quando parada ($z_{jd} = 1$) ou com parada programada ($h_{jd} = 0$).
+A restrição \eqref{eq:capacidade} garante que cada máquina opere no máximo um balão por dia e fique inativa quando parada ($z_{jd} = 1$) ou com parada programada ($b_{jd} = 0$).
 
-O balanço de estoque \eqref{eq:balanco} é formulado de forma recursiva no nível de período: o estoque anterior mais a produção acumulada equivale ao estoque corrente mais a demanda, com a venda perdida $l_{it}$ absorvendo o déficit. A produção efetiva no dia $d$ é $(h_{jd} - t^s_j\,\delta_{ijd})\,s_{ijd}\,p_{ij}$: quando há setup no dia de ativação ($\delta_{ijd}=1$), as horas de troca são descontadas das horas disponíveis $h_{jd}$, reduzindo a quantidade produzida nesse dia. A restrição \eqref{eq:seguranca} impõe que o estoque ao final de cada período cubra integralmente a demanda dos $\alpha$ períodos seguintes; quando $\alpha = 0$, a restrição é inativa e nenhum nível mínimo é exigido.
+O balanço de estoque \eqref{eq:balanco} é formulado de forma recursiva no nível de período: o estoque anterior mais a produção acumulada equivale ao estoque corrente mais a demanda, com a venda perdida $l_{it}$ absorvendo o déficit. A produção efetiva no dia $d$ é $(b_{jd} - t^s_j\,\delta_{ijd})\,s_{ijd}\,p_{ij}$: quando há setup no dia de ativação ($\delta_{ijd}=1$), as horas de troca são descontadas das horas disponíveis $b_{jd}$, reduzindo a quantidade produzida nesse dia. A restrição \eqref{eq:seguranca} impõe que o estoque ao final de cada período cubra integralmente a demanda dos $\alpha$ períodos seguintes; quando $\alpha = 0$, a restrição é inativa e nenhum nível mínimo é exigido.
 
 \newpage
 
@@ -488,28 +552,46 @@ $B_i$ (Nível 2) & 0,380 & 0,331 & 0,218 & 0,777 \\
 Para $i_{11}$, setembro supera abril em 64\% ($47{.}573/29{.}082$);
 para $i_{21}$, a relação é inversa -- abril supera setembro em 88\% ($7{.}474/3{.}977$).
 
-A Tabela~\ref{tab:fc_i21} compara os três cenários de parada para $i_{21}$,
-produto com maior divergência entre sazonalidade global e individual.
+A Tabela~\ref{tab:fc_i21_valores} compara os três níveis de agregação para $i_{21}$,
+produto com maior divergência entre sazonalidade global e individual; a
+Tabela~\ref{tab:fc_i21_erro} traz o erro percentual correspondente a cada nível,
+incluindo o MAPE (\textit{Mean Absolute Percentage Error}, erro percentual absoluto
+médio) agregado dos 5 períodos de teste.
 
 \begin{table}[ht]
 \centering
 \small
 \caption{Previsão vs.\ demanda real -- $i_{21}$ (kg), 5 períodos de teste}
-\label{tab:fc_i21}
-\begin{tabular}{lrrrrrrr}
+\label{tab:fc_i21_valores}
+\begin{tabular}{lrrrr}
 \toprule
-\textbf{Período} & \textbf{Real}
- & \textbf{Prev.\ N0} & \textbf{Erro (\%)}
- & \textbf{Prev.\ N1} & \textbf{Erro (\%)}
- & \textbf{Prev.\ N2} & \textbf{Erro (\%)} \\
+\textbf{Período} & \textbf{Real} & \textbf{Nível 0} & \textbf{Nível 1} & \textbf{Nível 2} \\
 \midrule
-Jan &   469 &   748 & $+59\%$ &   567 & $+21\%$ &   513 &  $+9\%$ \\
-Fev &   936 &   712 & $-24\%$ &   807 & $-14\%$ &   890 &  $-5\%$ \\
-Mar & 1.319 &   935 & $-29\%$ & 1.101 & $-16\%$ & 1.241 &  $-6\%$ \\
-Abr & 2.456 &   902 & $-63\%$ & 1.307 & $-47\%$ & 1.632 & $-34\%$ \\
-Mai & 2.252 &   973 & $-57\%$ & 1.274 & $-43\%$ & 1.514 & $-33\%$ \\
+Jan &   469 &   748 &   567 &   513 \\
+Fev &   936 &   712 &   807 &   890 \\
+Mar & 1.319 &   935 & 1.101 & 1.241 \\
+Abr & 2.456 &   902 & 1.307 & 1.632 \\
+Mai & 2.252 &   973 & 1.274 & 1.514 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Erro percentual de previsão -- $i_{21}$, por nível de agregação}
+\label{tab:fc_i21_erro}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Período} & \textbf{Nível 0} & \textbf{Nível 1} & \textbf{Nível 2} \\
 \midrule
-MAPE & & & 46,5\% & & 28,3\% & & 17,3\% \\
+Jan & $+59\%$ & $+21\%$ &  $+9\%$ \\
+Fev & $-24\%$ & $-14\%$ &  $-5\%$ \\
+Mar & $-29\%$ & $-16\%$ &  $-6\%$ \\
+Abr & $-63\%$ & $-47\%$ & $-34\%$ \\
+Mai & $-57\%$ & $-43\%$ & $-33\%$ \\
+\midrule
+MAPE & 46,5\% & 28,3\% & 17,3\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -521,7 +603,7 @@ O Nível~2 reduz esse erro de $-63\%$ para $-34\%$.
 \begin{table}[ht]
 \centering
 \small
-\caption{MAPE (\%) por produto e cenário de parada -- 5 períodos de teste}
+\caption{MAPE (\%) por produto e nível de agregação -- 5 períodos de teste}
 \label{tab:mape}
 \begin{tabular}{lccc}
 \toprule

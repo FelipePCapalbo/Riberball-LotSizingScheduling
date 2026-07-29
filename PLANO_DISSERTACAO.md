@@ -2,7 +2,36 @@
 
 Documento de planejamento para a reescrita do `ModelagemAlgebrica.tex`, tendo como referência estrutural a dissertação de Mateus Carmesim Marques (FEUP, 2026), *A Mathematical Optimisation Framework to Medium-Term Production Planning in the Metal Packaging Industry*.
 
-Referências adicionais de modelagem (formulações LTPlabs da mesma empresa da tese, no repositório): `weekly_planning.tex` (tático semanal com abastecimento multi-filial), `daily_operationbased.tex` (curto prazo por turno, baseado em operações, setup por características) e `daily_jobscheduling.tex` (sequenciamento intra-turno). Juntas, formam uma hierarquia real de três níveis — semanal → diário/turno → sequenciamento — que valida a arquitetura proposta na Seção 2. O que dessas formulações já foi incorporado está nas Seções 2 e 5; o que fica como oportunidade a avaliar está no Apêndice A.
+Referências adicionais de modelagem (formulações LTPlabs da mesma empresa da tese, no repositório): `weekly_planning.tex` (tático semanal com abastecimento multi-filial), `daily_operationbased.tex` (curto prazo por turno, baseado em operações, setup por características) e `daily_jobscheduling.tex` (sequenciamento intra-turno). Juntas, formam uma hierarquia real de três níveis — semanal → diário/turno → sequenciamento — que valida a arquitetura proposta na Seção 2. O que dessas formulações já foi incorporado está na Seção 2; o que fica como oportunidade a avaliar está no Apêndice A.
+
+---
+
+## Como usar este documento
+
+Este é um **documento vivo de consulta**, pensado para orientar **múltiplas sessões de chatbot** ao longo da evolução da dissertação. Cada sessão deve:
+
+1. **Ler este plano antes de agir** — ele carrega o estado, as decisões já tomadas e as ainda pendentes.
+2. **Respeitar as flags de cada tarefa** — quem pode executá-la (agente sozinho ou precisa do usuário) e o que já foi feito.
+3. **Atualizar as flags de status** ao concluir ou avançar uma tarefa, para a próxima sessão encontrar o estado correto.
+
+### Convenções de flags
+
+Cada tarefa/tópico carrega até duas flags: uma de **natureza** (quem executa) e uma de **status** (implementação).
+
+**Natureza — quem executa:**
+
+- 🤖 **AUTÔNOMO** — um agente pode executar sozinho: pesquisa bibliográfica, redação de seções que não dependem de dado de negócio, formalização de um modelo já decidido, EDA sobre dados já existentes no repositório. Não requer decisão nem aprovação do usuário para começar.
+- 🧑 **DECISÃO** — depende do usuário: informação da fábrica/negócio que só ele tem (pain points reais, dados operacionais, se a fábrica terceiriza, onde o balão vira cor-específico), **escolha entre alternativas de modelagem**, ou **aprovação manual** antes de seguir. Um agente pode *preparar* e *recomendar*, mas não deve fechar sozinho.
+
+Tarefas mistas usam as duas em sequência (🤖→🧑 ou 🧑→🤖): ex. o usuário decide o esquema, o agente formaliza; ou o agente redige um rascunho e o usuário aprova o conteúdo factual.
+
+**Status de implementação:**
+
+- ⬜ **PENDENTE** — não iniciado.
+- 🟨 **PARCIAL** — em andamento ou parcialmente feito (detalhar o que falta).
+- ✅ **FEITO** — concluído (no texto e/ou no código, conforme a tarefa).
+
+O registro mestre de tarefas com flags é a **Seção 5 (Backlog)**. Pontos de decisão espalhados pelo texto são marcados com 🧑 no local.
 
 ---
 
@@ -80,7 +109,7 @@ Ou seja: o modelo atual já é **híbrido mensal/diário num MILP só** — mist
 - **Recebe do tático**: quantidades semanais por balão×máquina (metas), alocações máquina↔formato.
 - **Decide**: desagregação da quantidade semanal **por cor**; em que dia produzir cada cor; sequência dentro da máquina, com **setup/limpeza dependente da troca de cor**.
 - **Carteira também aqui**: os pedidos firmes têm datas e cores; a desagregação por cor deve priorizar as cores da carteira antes das cores estimadas do mix de previsão.
-- **Três variantes de formulação** (o documento pode apresentar as três e justificar a escolha; decisão em aberto):
+- **Três variantes de formulação** — 🧑 **DECISÃO em aberto** (o documento pode apresentar as três e justificar a escolha; um agente pode formalizar qualquer uma delas, mas a escolha da variante — ou de comparar 2b vs. 2c experimentalmente — é do usuário):
 
 | | **2a — MILP com sequenciamento embutido** | **2b — MILP diário + heurística de sequenciamento** | **2c — MILP diário por atributos + MILP de sequenciamento (padrão LTPlabs)** |
 |---|---|---|---|
@@ -104,22 +133,11 @@ Ou seja: o modelo atual já é **híbrido mensal/diário num MILP só** — mist
 
 ## 3. Alinhamento com a literatura (posicionamento do problema)
 
-Vocabulário e referências para a Revisão de Literatura e para dar nome preciso ao problema.
+> ✅ **FEITO (2026-07-20)**: a Revisão de Literatura está escrita, revisada e compilando sem erros no `ModelagemAlgebrica.tex` (seção "Revisão de literatura", subseções 2.1–2.5: HPP, CLSP, dimensionamento+sequenciamento integrado, aplicações em indústria de processo, síntese e posicionamento), com 23 referências verificadas em `referencias.bib`. **O `.tex` é a fonte autoritativa** para a classificação do problema, as referências-chave e a tabela de posicionamento (`tab:gap`) — este plano não duplica mais esse conteúdo; o que segue abaixo é só o que ainda está em aberto. Pendente: revisão de conteúdo/adequação ao programa pelo usuário (🧑) antes de considerar o capítulo fechado.
 
-### 3.1 Classes de problema
+### 3.1 Achado ainda em aberto: analogia com a fiação têxtil
 
-- **Nível tático ≈ CLSP** (*Capacitated Lot Sizing Problem*, big-bucket) em **máquinas paralelas heterogêneas** (unrelated: `p_ij` distintos, compatibilidades próprias), com custos/tempos de setup e **vendas perdidas** (lost sales). Surveys: Karimi, Fatemi Ghomi & Wilson (2003); Jans & Degraeve (2008); Buschkühl et al. (2010).
-- **Nível diário ≈ lot sizing and scheduling small-bucket**: GLSP (Fleischmann & Meyr, 1997), CLSD (Haase, 1996), PLSP — família com **setups dependentes de sequência**, que é o caso das trocas de cor. Survey de modelos integrados: Copil, Wörbelauer, Meyr & Tempelmeier (2017); Drexl & Kimms (1997).
-- **Estrutura em níveis ≈ Hierarchical Production Planning**: Hax & Meal (1975), Bitran & Hax (1977) — o esquema clássico *família → item* corresponde exatamente a *formato+acabamento → cor*. Citar também a Supply Chain Planning Matrix (Stadtler, 2005) para ancorar tático vs. operacional, como faz o cap. 2 da tese de referência.
-- **Analogia industrial mais próxima: bebidas/refrigerantes** — problema de dois níveis xarope↔envase é estruturalmente idêntico a composto pigmentado↔moldagem: Ferreira, Morabito & Rangel (2009, 2010); Toledo et al. (2012). Literatura brasileira, abundante e diretamente comparável.
-- **Sequência natural de limpeza** (claro→escuro) ≈ *block planning* em indústrias de processo (Günther, Grunow & Neuhaus, 2006 — indústria de iogurte/laticínios, onde sabores seguem ordem fixa de contaminação).
-
-### 3.2 O que o problema dos balões tem de particular (a contribuição)
-
-- Perecibilidade do látex (recebimento diário, estoque em tanques) — restrição de matéria-prima incomum na literatura de CLSP.
-- Dois tipos de setup em escalas de tempo muito diferentes: troca de forma (horas–dias, decidida no tático) vs. troca de cor (limpeza, decidida no operacional) — motiva naturalmente a hierarquia.
-- Função objetivo por **custo de oportunidade** (receita perdida em setup + vendas perdidas), sem custo de estoque explícito — diferenciar do CLSP canônico (setup + holding) e justificar.
-- Integração previsão própria + otimização (o Nível 0 é do próprio trabalho).
+Camargo, Toledo & Almada-Lobo (2012, formulação MSGLSP; 2014, método de solução HOPS) formalizam um problema de dois estágios sincronizados — mistura de fibras alimentando máquinas de fiação em paralelo — estruturalmente mais próximo do composto pigmentado↔moldagem dos balões do que a literatura de bebidas já citada (já incorporado à Seção 2.4 e à tabela `tab:gap` do `.tex`). Duas tarefas do backlog decorrem desse achado: o Apêndice A.1 (mistura/pigmentação como estágio próprio) ganhou um gabarito formal pronto para adaptar, *se* a mistura de látex restringir de fato a operação — decisão do usuário; e o item 12 do backlog, buscar e ler o texto completo do artigo de 2012, hoje citado só por atribuição via o de 2014.
 
 ---
 
@@ -134,42 +152,48 @@ Esqueleto alvo (espelha a tese de referência, adaptado a dissertação com mode
 | 3. Descrição do problema | Contexto industrial e de planejamento (MTS vs. carteira, quem decide o quê, cadência); processo produtivo (manter fluxograma, anotar diferenciação de cor e setups); **granularidade das decisões** (semana/dia — Seção 2 deste plano); **EDA**: ABC de produtos, sazonalidade (reaproveitar dados do apêndice), nº formatos×acabamentos×cores, tempos de setup forma vs. cor; síntese | Parcial (só processo produtivo) | **Máxima** — é a dor central apontada |
 | 4. Modelo de demanda | Capítulo atual, quase pronto; conectar saídas às duas correntes (previsão + carteira) e ao α do tático | Bom | Baixa |
 | 5. Metodologia (otimização) | Premissas numeradas; **modelo tático semanal** (notação em tabelas, FO, restrições agrupadas A/B/C e comentadas uma a uma); **modelo operacional diário** (variante 2a, 2b ou 2c, com setup por características e carryover de estado); coordenação hierárquica | Parcial (modelo monolítico defasado) | Alta |
-| 6. Resultados | Instâncias do gerador (`instance_generator.ipynb`); As-Is vs. Otimizado (nº e horas de setup, atendimento da carteira, vendas perdidas, utilização); resultados computacionais (dimensões, tempo, gap; estratégia em fases se houver) | Vazio | Média (depende do modelo estabilizar) |
+| 6. Resultados | Instâncias do gerador (`instance_generator.ipynb`); As-Is vs. Otimizado (nº e horas de setup, atendimento da carteira, vendas perdidas, utilização), com 2–3 exemplos concretos de decisões do modelo explicadas (produtos específicos realocados de máquina e por quê, não só o agregado); resultados computacionais (dimensões, tempo, gap; estratégia em fases se houver) | Vazio | Média (depende do modelo estabilizar) |
 | 7. Conclusão | Síntese, limitações, trabalhos futuros | Vazio | Baixa |
 
-### Recomendações de escrita extraídas da tese de referência
-
-1. **Uma restrição por vez**: equação → parágrafo de prosa explicando papel, casos-limite e interação com as demais. Agrupar por tema (fluxo/estoque, capacidade, carteira).
-2. **Premissas como lista numerada** em seção própria ("Model Features and Assumptions") — cada simplificação declarada e justificada.
-3. **Granularidade anotada em toda figura de arquitetura** (horizonte + frequência em cada caixa).
-4. **Resultados sempre As-Is vs. modelo**, com 2–3 exemplos concretos de decisões do modelo explicadas (a tese mostra produtos específicos realocados de máquina e o porquê) — isso demonstra que o autor entende o comportamento do modelo, não só o agregado.
-5. **Motivar o horizonte com a sazonalidade** (a tese justifica 32 semanas pela amplitude sazonal 3:1) — o capítulo de demanda já fornece a razão pico/vale para esse argumento.
-6. Declarar **rolling horizon** e cadência de re-execução desde a introdução.
+Para estilo de escrita (frase, parágrafo, notação, equações, tabelas, citações), ver `CLAUDE_WRITTER.MD` — guia único e vinculante, não repetido aqui.
 
 ---
 
 ## 5. Backlog priorizado (checklist de execução)
 
-1. [ ] Fixar a granularidade na notação: `t` = semana, `d` = dia, `D_t` = dias da semana `t`; declarar horizonte e cadência de replanejamento no texto — e decidir a desagregação da demanda mensal→semanal.
-2. [ ] Separar a demanda em carteira firme `o_it` (restrição cumulativa, prioridade máxima) e previsão `d̂_it` (venda perdida penalizada); tornar o estoque de segurança soft.
-3. [ ] Adotar no `.tex` a forma linear do balanço (a que o código já usa), definir o setup na fronteira do horizonte/semana e decidir o destino de `z_jd` (dar papel real ou remover).
-4. [ ] Escrever a Seção "Granularidade das decisões" no cap. de Descrição do problema (base: Seção 2 deste plano) + figura de arquitetura com horizontes anotados.
-5. [ ] Levantar 3–5 pain points reais do planejamento atual com a operação e escrever a Introdução.
-6. [ ] Escrever a Revisão de Literatura (base: Seção 3 deste plano).
-7. [ ] Formular o modelo tático semanal completo no novo padrão (tabelas + restrições comentadas).
-8. [ ] Escolher a variante do nível diário — 2a, 2b ou 2c (ou comparar 2b vs. 2c como experimento) — e formular o modelo diário de cores com setup por características e carryover de estado.
-9. [ ] Montar a EDA do cap. 3 com dados reais/gerados (ABC, sazonalidade, setups forma vs. cor).
-10. [ ] Planejar experimentos e métricas do capítulo de Resultados (As-Is vs. Otimizado + computacional).
-11. [ ] Avaliar as oportunidades do Apêndice A e decidir quais entram no escopo da dissertação (registrar as descartadas como premissas/limitações).
+Registro mestre de tarefas. Legenda: **natureza** 🤖 AUTÔNOMO / 🧑 DECISÃO · **status** ⬜ PENDENTE / 🟨 PARCIAL / ✅ FEITO (ver "Como usar este documento"). Ao avançar uma tarefa, atualize sua flag de status aqui.
+
+1. 🧑 ⬜ **Granularidade da notação** — fixar `t` = semana, `d` = dia, `D_t` = dias da semana `t`; declarar horizonte e cadência de replanejamento. Contém **decisão do usuário**: o esquema de desagregação da demanda mensal→semanal (uniforme / por dias úteis / prever já por semana no Nível 0). Uma vez decidido, a redação da notação é 🤖.
+2. 🧑 ⬜ **Demanda em duas camadas** — separar carteira firme `o_it` (restrição cumulativa, prioridade máxima) de previsão `d̂_it` (venda perdida penalizada) e tornar o estoque de segurança soft. **Decisão**: falta de previsão como venda perdida vs. backlog (Seção 2.1). Formalização posterior é 🤖.
+3. 🤖🧑 🟨 **Correções do modelo algébrico no `.tex`** — adotar a forma linear do balanço (a que o código já usa) e definir o setup na fronteira do horizonte/semana (ambos 🤖). O **destino de `z_jd`** — dar papel de decisão real ou remover (Seção 1.3, item 5) — é 🧑.
+4. 🤖 ⬜ **Seção "Granularidade das decisões"** no cap. de Descrição do problema (base: Seção 2 deste plano) + figura de arquitetura com horizontes anotados.
+5. 🧑🤖 ⬜ **Introdução com pain points** — levantar 3–5 pain points reais do planejamento atual com a operação (🧑, só o usuário tem esse dado); a redação da Introdução a partir deles é 🤖.
+6. 🤖 🟨 **Revisão de Literatura** — escrita no `ModelagemAlgebrica.tex` (seção "Revisão de literatura"), 5 subseções (2.1–2.5). Falta a revisão de conteúdo pelo usuário (🧑) — checar adequação ao programa, profundidade esperada, se falta alguma referência que o orientador queira ver citada. Sub-tarefas:
+   - 6a. ✅ 2.1 Planejamento hierárquico de produção (HPP).
+   - 6b. ✅ 2.2 Dimensionamento de lotes capacitado (CLSP) e taxonomia.
+   - 6c. ✅ 2.3 Lot sizing com sequenciamento (small-bucket, setups seq-dependentes, carryover).
+   - 6d. ✅ 2.4 Aplicações em indústria de processo (bebidas, block planning).
+   - 6e. ✅ 2.5 Síntese e posicionamento (tabela de gap, `tab:gap` no `.tex`).
+   - 6f. ✅ Verificar/consolidar as referências — 23 entradas em `referencias.bib`, verificadas por busca bibliográfica (autor/ano/veículo/páginas). Uma imprecisão do levantamento original foi corrigida no processo: Günther, Grunow & Neuhaus (2006) é sobre tintura de cabelo/*make-and-pack*, não iogurte (corrigido diretamente no `.tex`).
+7. 🤖🧑 🟨 **Modelo tático semanal** — formular completo no novo padrão (tabelas + restrições comentadas). Depende das decisões dos itens 1 e 2; feita a decisão, a formalização é 🤖.
+8. 🧑🤖 ⬜ **Variante do nível diário** — escolher 2a, 2b ou 2c, ou comparar 2b vs. 2c como experimento (🧑, Seção 2.2); formular o modelo diário de cores com setup por características e carryover de estado é 🤖.
+9. 🤖 ⬜ **EDA do cap. 3** — ABC de produtos, sazonalidade (reaproveitar apêndice de demanda), nº formatos×acabamentos×cores, setups forma vs. cor. Autônoma sobre os dados já no repositório / gerados.
+10. 🤖 ⬜ **Experimentos e métricas do cap. de Resultados** — desenhar As-Is vs. Otimizado + resultados computacionais.
+11. 🧑 ⬜ **Escopo do Apêndice A** — avaliar as oportunidades e decidir quais entram na dissertação (todas são 🧑; registrar as descartadas como premissas/limitações). Um agente pode preparar a análise de cada uma, mas a decisão de escopo é do usuário.
+12. 🤖 ⬜ **Buscar e ler o texto completo de Camargo, Toledo & Almada-Lobo (2012)** — *Journal of the Operational Research Society*, "Three time-based scale formulations for the two-stage lot sizing and scheduling in process industries". Citado até agora só por atribuição (descrito dentro do artigo de 2014, que foi lido diretamente) — ver Seção 3.1 e Apêndice A.1. Verificar a formulação MSGLSP completa antes de usá-la como gabarito para a pigmentação como estágio próprio.
 
 ---
 
 ## Apêndice A — Oportunidades conceituais identificadas nos modelos LTPlabs (avaliar)
 
+**Todos os itens deste apêndice são 🧑 DECISÃO** (backlog item 11): cada "Avaliar" depende de um fato da fábrica que só o usuário confirma. Um agente pode *preparar* a análise (o fenômeno existe? como modelar? custo/benefício), mas a decisão de incluir no escopo — ou registrar como premissa simplificadora — é do usuário.
+
 Padrões presentes em `weekly_planning.tex`, `daily_operationbased.tex` e `daily_jobscheduling.tex` que **não** foram incorporados ao plano principal, mas merecem avaliação caso a caso. Critério para promover ao plano: o fenômeno existe e restringe de fato a operação dos balões; caso contrário, registrar como premissa simplificadora consciente (lista numerada do cap. de Metodologia).
 
 ### A.1 Mistura/pigmentação como estágio próprio (fluxo por operações com WIP)
 `daily_operationbased.tex` modela roteiros com operações encadeadas e balanço de WIP entre elas (`wip_{p,r,o,s}`), permitindo que uma etapa a montante restrinja a etapa gargalo. Para os balões, a preparação do composto pigmentado (pré-vulcanização + pigmentação) poderia ser uma operação própria alimentando a moldagem — capturando tanques limitados, bateladas de mistura e a disponibilidade de cor como restrição real (nº de cores simultaneamente ativas). É a materialização da analogia xarope↔envase da literatura de refrigerantes (Seção 3). **Avaliar**: a mistura restringe de fato (tanques, tempo de preparo, perecibilidade do látex)? Se não, manter estágio único e declarar premissa.
+
+**Atualização (gabarito formal disponível)**: o MSGLSP de Camargo, Toledo & Almada-Lobo (2012, formulação; 2014, método de solução — ver Seção 3.1) é exatamente essa ideia já formalizada e publicada: um estágio de mistura único alimentando múltiplas máquinas paralelas, sincronizadas por uma variável binária de qualidade ($U_{trk}$) que obriga todas as máquinas ativas num microperíodo a compartilhar a mesma família de mistura. Isso não muda a pergunta em aberto (a mistura de látex restringe de fato?), mas muda o custo de avaliá-la: se a resposta for sim, existe um mecanismo de sincronização pronto para adaptar, em vez de ter que desenhar um do zero. Vale buscar o texto completo do artigo de 2012 antes de decidir.
 
 ### A.2 Lote mínimo com continuação entre dias
 O padrão `MinLotSize` + variável de continuação (`cont`) garante batelada mínima mesmo quando o lote atravessa a fronteira de dias (lotes de dias adjacentes contam juntos). Relevante se a pigmentação tiver batelada mínima/fixa de mistura. **Avaliar**: existe lote mínimo econômico ou físico por cor? (Na pesquisa inicial esse fator não foi apontado como relevante.)
@@ -178,7 +202,7 @@ O padrão `MinLotSize` + variável de continuação (`cont`) garante batelada m�
 `weekly_planning.tex` permite que estoque do intermediário ainda-universal (folhas Type 03, via `Multiplier`) conte para a cobertura de serviço do produto final. Análogo para balões: estoque de composto não pigmentado, ou de balão a granel antes da embalagem, como estoque "coringa" que posterga a diferenciação por cor/apresentação. Poderia reduzir estoque de segurança por cor no nível diário. **Avaliar**: em que ponto do processo o balão se torna irreversivelmente cor-específico, e há estoque intermediário na prática?
 
 ### A.4 Custo de manutenção de estoque via custo de capital
-A referência semanal cobra `WACC/52 × custo unitário × estoque médio` na FO. O modelo dos balões hoje não tem custo de estoque (objetivo puro de custo de oportunidade) — o estoque só é limitado indiretamente. Adicionar o termo WACC evitaria acúmulo gratuito quando há capacidade sobrando e daria fundamento financeiro ao trade-off setup×estoque, aproximando o modelo do CLSP canônico. **Avaliar**: manter a tese do custo de oportunidade puro (diferencial do trabalho, Seção 3.2) ou hibridizar com holding cost? Bom candidato a análise de sensibilidade no cap. de Resultados.
+A referência semanal cobra `WACC/52 × custo unitário × estoque médio` na FO. O modelo dos balões hoje não tem custo de estoque (objetivo puro de custo de oportunidade) — o estoque só é limitado indiretamente. Adicionar o termo WACC evitaria acúmulo gratuito quando há capacidade sobrando e daria fundamento financeiro ao trade-off setup×estoque, aproximando o modelo do CLSP canônico. **Avaliar**: manter a tese do custo de oportunidade puro (diferencial do trabalho, ver tabela de posicionamento no `.tex`) ou hibridizar com holding cost? Bom candidato a análise de sensibilidade no cap. de Resultados.
 
 ### A.5 Capacidade externa (máquinas fantasma) com lead time
 Terceirização modelada como "ghost machines" com roteiro de operação única, capacidade por turno e lead time de recebimento (`AvailProd` defasado em `L`), sem lógica de setup/equipe. **Avaliar**: a Riberball terceiriza ou tem capacidade externa contratável? Se sim, é um padrão limpo; se não, ignorar.
