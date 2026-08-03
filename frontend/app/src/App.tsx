@@ -87,27 +87,45 @@ export default function App() {
   };
 
   useEffect(() => {
-    (async () => {
+    let cancelled = false;
+
+    const attemptInitialLoad = async () => {
       try {
         const files = await api.getDataFiles();
         setDataFiles(files.files);
         setActiveDataFile(files.active);
         await reloadInitData();
-      } catch {
-        setRunStatusText('Erro ao carregar dados iniciais.');
-        setRunStatusColor('#dc3545');
+        if (!cancelled) {
+          setRunStatusText('');
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setRunStatusText(`Aguardando backend conectar... (${(err as Error).message})`);
+          setRunStatusColor('#dc3545');
+          setTimeout(attemptInitialLoad, 5000);
+        }
       }
-    })();
+    };
+
+    attemptInitialLoad();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDataFileChange = async (file: string) => {
     setRunStatusText('Carregando arquivo...');
     setRunStatusColor('#495057');
-    await api.setDataFile(file);
-    setActiveDataFile(file);
-    await reloadInitData();
-    setRunStatusText('');
+    try {
+      await api.setDataFile(file);
+      setActiveDataFile(file);
+      await reloadInitData();
+      setRunStatusText('');
+    } catch (err) {
+      setRunStatusText(`Erro ao carregar arquivo: ${(err as Error).message}`);
+      setRunStatusColor('#dc3545');
+    }
   };
 
   const handleFieldChange = (patch: Partial<Settings>, save: boolean) => {

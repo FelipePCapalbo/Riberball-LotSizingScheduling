@@ -2,7 +2,11 @@ import type { BackendStatus, ColorRunResult, DataFiles, HistoryRecord, HistoryRu
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
-  return response.json() as Promise<T>;
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(body?.message || body?.error || `HTTP ${response.status}`);
+  }
+  return body as T;
 }
 
 export function getBackendStatus(): Promise<BackendStatus> {
