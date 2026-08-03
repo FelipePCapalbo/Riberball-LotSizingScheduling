@@ -1,4 +1,4 @@
-import type { HistoryRun } from '../../types';
+import type { ColorKpis, HistoryRun } from '../../types';
 
 interface ComparisonTableProps {
   runs: HistoryRun[];
@@ -10,7 +10,7 @@ export default function ComparisonTable({ runs, onRefresh, onSelectRun }: Compar
   return (
     <>
       <div className="table-toolbar">
-        <span className="text-muted small">Clique em uma linha para carregar o cenário na aba Resultados.</span>
+        <span className="text-muted small">Clique em uma linha para carregar o cenário na aba Planejamento Tático.</span>
         <button className="btn btn-sm btn-outline-secondary" onClick={onRefresh}>
           Atualizar
         </button>
@@ -19,26 +19,41 @@ export default function ComparisonTable({ runs, onRefresh, onSelectRun }: Compar
         <table className="table table-sm table-hover data-table">
           <thead>
             <tr>
-              <th>Cenário</th>
-              <th>Data/Hora</th>
-              <th>Horizonte</th>
-              <th className="text-center">Máquinas</th>
+              <th rowSpan={2}>Cenário</th>
+              <th rowSpan={2}>Data/Hora</th>
+              <th rowSpan={2}>Horizonte</th>
+              <th className="text-center" rowSpan={2}>
+                Máquinas
+              </th>
+              <th colSpan={6} className="text-center">
+                Etapa 1 — Tático
+              </th>
+              <th colSpan={4} className="text-center">
+                Etapa 2 — Operacional (Cores)
+              </th>
+            </tr>
+            <tr>
               <th>Solver</th>
               <th className="text-end">Tempo (s)</th>
-              <th className="text-end">Custo Total (R$)</th>
+              <th className="text-end">Custo (R$)</th>
               <th className="text-end">Serviço (%)</th>
               <th className="text-end">Estoque Médio (Kg)</th>
               <th className="text-end">Giro de Estoque</th>
+              <th>Método</th>
+              <th className="text-end">Tempo (s)</th>
+              <th className="text-end">Custo (R$)</th>
+              <th className="text-end">Serviço (%)</th>
             </tr>
           </thead>
           <tbody>
             {runs.length === 0 ? (
               <tr className="table-empty">
-                <td colSpan={10}>Nenhuma execução registrada.</td>
+                <td colSpan={14}>Nenhuma execução registrada.</td>
               </tr>
             ) : (
               runs.map((run) => {
                 const kpis = run.kpis || {};
+                const colorKpis: Partial<ColorKpis> = run.color_kpis || {};
                 const start = run.start_period ? run.start_period.split(' ')[0] : '—';
                 const end = run.end_period ? run.end_period.split(' ')[0] : '—';
                 const dateTime = run.timestamp ? run.timestamp.replace('T', ' ') : '—';
@@ -47,6 +62,18 @@ export default function ComparisonTable({ runs, onRefresh, onSelectRun }: Compar
                 const inventory = kpis.avg_inventory != null ? kpis.avg_inventory.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) : '—';
                 const turnover = kpis.inventory_turnover != null ? kpis.inventory_turnover.toFixed(2) + 'x' : '—';
                 const duration = run.duration_seconds != null ? run.duration_seconds.toFixed(1) + ' s' : '—';
+
+                let colorMethodLabel;
+                if (run.color_method === 'milp') {
+                  colorMethodLabel = 'Modelo matemático';
+                } else if (run.color_method === 'heuristic') {
+                  colorMethodLabel = 'Heurística';
+                } else {
+                  colorMethodLabel = '—';
+                }
+                const colorCost = colorKpis.total_cost != null ? 'R$ ' + colorKpis.total_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—';
+                const colorService = colorKpis.service_level != null ? colorKpis.service_level.toFixed(1) + '%' : '—';
+                const colorDuration = run.color_duration_seconds != null ? run.color_duration_seconds.toFixed(1) + ' s' : '—';
 
                 return (
                   <tr className="comparison-row" key={run.id} onClick={() => onSelectRun(run.id)}>
@@ -62,6 +89,10 @@ export default function ComparisonTable({ runs, onRefresh, onSelectRun }: Compar
                     <td className="text-end">{service}</td>
                     <td className="text-end">{inventory}</td>
                     <td className="text-end">{turnover}</td>
+                    <td>{colorMethodLabel}</td>
+                    <td className="text-end">{colorDuration}</td>
+                    <td className="text-end">{colorCost}</td>
+                    <td className="text-end">{colorService}</td>
                   </tr>
                 );
               })

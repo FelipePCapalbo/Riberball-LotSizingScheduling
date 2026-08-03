@@ -9,9 +9,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.config import HOST, PORT, SHARED_SECRET
 from backend.lifecycle import lifespan
-from optimization.planner import run_plan
+from optimization.planner import run_color_plan, run_tactical_plan
 from processing.data import DATA_DIR, DataService, list_data_files
-from processing.history import get_run, list_runs, save_run
+from processing.history import get_run, list_runs, save_color_result, save_run
 from processing.settings import load_settings, save_settings
 
 app = FastAPI(lifespan=lifespan)
@@ -21,6 +21,9 @@ if available_files:
     data_service = DataService(os.path.join(DATA_DIR, available_files[0]))
 else:
     data_service = None
+
+last_tactical_solver = None
+last_tactical_run_id = None
 
 
 @app.middleware('http')
@@ -75,15 +78,17 @@ async def post_settings(request: Request):
 
 @app.post('/api/run')
 async def run_optimization(request: Request):
+    global last_tactical_solver, last_tactical_run_id
     body = await request.json()
     if body:
         label = body.get('label', '')
     else:
         label = ''
+    save_settings(body.get('settings', {}))
     settings = load_settings()
 
     time_start = time.perf_counter()
-    result = run_plan(settings, data_service)
+    solver, result = run_tactical_plan(settings, data_service)
     duration = time.perf_counter() - time_start
 
     if result.get('status') not in ('Optimal', 'Feasible'):
@@ -92,11 +97,13 @@ async def run_optimization(request: Request):
             'message': f"Otimização falhou ou é inviável. Status: {result.get('status')}",
         }
     else:
+        last_tactical_solver = solver
         if data_service:
             active_file = os.path.basename(data_service.data_file)
         else:
             active_file = ''
         run_id = save_run(settings, duration, result, label=label, data_file=active_file)
+        last_tactical_run_id = run_id
 
         payload = {}
         for key in ['status', 'inventory', 'production', 'setups', 'machine_stops', 'demand', 'summary', 'kpis']:
@@ -109,6 +116,41 @@ async def run_optimization(request: Request):
         else:
             payload['data_file'] = None
         response = payload
+    return response
+
+
+@app.post('/api/run-color')
+async def run_color_optimization(request: Request):
+    body = await request.json()
+    if body:
+        color_method = body.get('color_method')
+    else:
+        color_method = None
+
+    if last_tactical_solver is None:
+        response = {
+            'status': 'NoTacticalRun',
+            'message': 'Rode a otimização tática (/api/run) antes de sequenciar as cores.',
+        }
+    else:
+        settings = load_settings()
+        if color_method:
+            settings['color_method'] = color_method
+
+        time_start = time.perf_counter()
+        result = run_color_plan(settings, data_service, last_tactical_solver)
+        duration = time.perf_counter() - time_start
+
+        if last_tactical_run_id:
+            save_color_result(last_tactical_run_id, result, duration)
+
+        response = dict(result)
+        response['run_id'] = last_tactical_run_id
+        response['duration_seconds'] = round(duration, 2)
+        if data_service:
+            response['data_file'] = os.path.basename(data_service.data_file)
+        else:
+            response['data_file'] = None
     return response
 
 

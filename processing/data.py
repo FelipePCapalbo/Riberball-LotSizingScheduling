@@ -163,6 +163,53 @@ def load_machine_availability(data_file: str) -> Dict[str, Dict[str, float]]:
     return avail
 
 
+def load_color_demand(data_file: str) -> List[Dict]:
+    """Carrega a carteira de pedidos por MODELO-TIPO-COR. SKU: 'MODELO-TIPO-COR'."""
+    df = _read_sheet(data_file, 'Demanda_Cor', header=0)
+    color_orders = []
+    for _, row in df.iterrows():
+        if pd.isna(row.get('MODELO')):
+            continue
+        product = f"{row['MODELO']}-{row['TIPO']}"
+        color = row['COR']
+        sku = f"{product}-{color}"
+        color_orders.append({
+            'sku': sku,
+            'product': product,
+            'color': color,
+            'quantity': float(row['QUANTIDADE']),
+            'due_date': pd.to_datetime(row['PRAZO_ENTREGA']),
+        })
+    return color_orders
+
+
+def load_color_inventory(data_file: str) -> Dict[str, float]:
+    """Carrega o estoque inicial por MODELO-TIPO-COR. Chave: 'MODELO-TIPO-COR'."""
+    df = _read_sheet(data_file, 'Estoque_Cor', header=0)
+    color_initial_stock = {}
+    for _, row in df.iterrows():
+        if pd.isna(row.get('MODELO')):
+            continue
+        product = f"{row['MODELO']}-{row['TIPO']}"
+        sku = f"{product}-{row['COR']}"
+        color_initial_stock[sku] = float(row['ESTOQUE_INICIAL'])
+    return color_initial_stock
+
+
+def load_color_setup_matrix(data_file: str) -> Dict[Tuple[str, str], float]:
+    """Carrega a matriz DE-PARA de cores. Chave: (cor_origem, cor_destino); pares ausentes são proibidos."""
+    df = _read_sheet(data_file, 'De_Para_Cores', header=0)
+    color_columns = [c for c in df.columns if c != 'DE']
+    setup_matrix = {}
+    for _, row in df.iterrows():
+        color_from = row['DE']
+        for color_to in color_columns:
+            setup_time = row[color_to]
+            if pd.notna(setup_time):
+                setup_matrix[(color_from, color_to)] = float(setup_time)
+    return setup_matrix
+
+
 # ── Montagem do cenário ─────────────────────────────────────────────────────
 
 class DataService:
@@ -212,5 +259,12 @@ class DataService:
             initial_inventory[sku] = date_vals[max(valid_dates)] if valid_dates else 0.0
 
         return local_demand, initial_inventory, self.productivity, self.costs, self.machine_availability
+
+    def get_color_scenario_data(self) -> Tuple[List[Dict], Dict[str, float], Dict[Tuple[str, str], float]]:
+        """Carrega a carteira de pedidos, o estoque inicial e a matriz DE-PARA de cores."""
+        color_orders = load_color_demand(self.data_file)
+        color_initial_stock = load_color_inventory(self.data_file)
+        color_setup_matrix = load_color_setup_matrix(self.data_file)
+        return color_orders, color_initial_stock, color_setup_matrix
 
 

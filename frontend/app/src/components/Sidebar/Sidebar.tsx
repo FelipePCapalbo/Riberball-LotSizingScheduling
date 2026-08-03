@@ -10,6 +10,7 @@ interface SidebarProps {
   activeDataFile: string | null;
   onDataFileChange: (file: string) => void;
   machines: string[];
+  periods: string[];
   settings: Settings;
   onFieldChange: (patch: Partial<Settings>, save: boolean) => void;
   scenarioLabel: string;
@@ -35,6 +36,7 @@ export default function Sidebar({
   activeDataFile,
   onDataFileChange,
   machines,
+  periods,
   settings,
   onFieldChange,
   scenarioLabel,
@@ -58,6 +60,9 @@ export default function Sidebar({
 
   const activeMachines = new Set(settings.active_machines);
   const highSetupMachines = new Set(settings.high_setup_machines);
+  const periodDates = periods.map((p) => p.split(' ')[0]).sort();
+  const minDate = periodDates.length > 0 ? periodDates[0] : undefined;
+  const maxDate = periodDates.length > 0 ? periodDates[periodDates.length - 1] : undefined;
   const totalHoursPerMonth = (settings.shifts_per_day * settings.hours_per_shift * settings.days_per_week * 4.33).toFixed(2);
 
   return (
@@ -98,6 +103,8 @@ export default function Sidebar({
               <input
                 type="date"
                 className="form-control form-control-sm"
+                min={minDate}
+                max={maxDate}
                 value={toDateOnly(settings.start_period)}
                 onChange={(e) => onFieldChange({ start_period: toDateTime(e.target.value) }, false)}
                 onBlur={() => onFieldChange({}, true)}
@@ -108,6 +115,7 @@ export default function Sidebar({
               <input
                 type="date"
                 className="form-control form-control-sm"
+                min={minDate}
                 value={toDateOnly(settings.end_period)}
                 onChange={(e) => onFieldChange({ end_period: toDateTime(e.target.value) }, false)}
                 onBlur={() => onFieldChange({}, true)}
@@ -248,6 +256,7 @@ export default function Sidebar({
           </AccordionSection>
 
           <AccordionSection title="Solver" open={openSections.solver} onToggle={() => toggleSection('solver')}>
+            <p className="sb-label">Modelo Tático</p>
             <div className="sb-field">
               <label>Motor</label>
               <select
@@ -271,6 +280,47 @@ export default function Sidebar({
                 onBlur={() => onFieldChange({}, true)}
               />
             </div>
+
+            <hr className="sb-divider" />
+            <p className="sb-label">Modelo Operacional</p>
+            <div className="sb-field">
+              <label>Método de sequenciamento</label>
+              <select
+                className="form-select form-select-sm"
+                value={settings.color_method}
+                onChange={(e) => onFieldChange({ color_method: e.target.value }, true)}
+              >
+                <option value="heuristic">Heurística</option>
+                <option value="milp">Modelo matemático</option>
+              </select>
+            </div>
+            {settings.color_method === 'milp' ? (
+              <>
+                <div className="sb-field">
+                  <label>Motor</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={settings.color_solver_name}
+                    onChange={(e) => onFieldChange({ color_solver_name: e.target.value }, true)}
+                  >
+                    <option value="CBC">CBC (Open-source)</option>
+                    <option value="GUROBI">Gurobi (Licença)</option>
+                  </select>
+                </div>
+                <div className="sb-field">
+                  <label>Tempo limite (s)</label>
+                  <input
+                    type="number"
+                    className="form-control form-control-sm"
+                    step={60}
+                    min={10}
+                    value={settings.color_time_limit}
+                    onChange={(e) => onFieldChange({ color_time_limit: parseInt(e.target.value, 10) || 0 }, false)}
+                    onBlur={() => onFieldChange({}, true)}
+                  />
+                </div>
+              </>
+            ) : null}
           </AccordionSection>
         </div>
       ) : null}

@@ -4,9 +4,12 @@ instancia o solver e devolve o resultado. Ponto único usado pela web e pela CLI
 """
 from processing.data import DataService
 from optimization.solver import LotSizingSolver
+from optimization.color_problem import build_color_scheduling_problem
+from optimization.scheduler_milp import solve_color_schedule_milp
+from optimization.scheduler_heuristic import solve_color_schedule_heuristic
 
 
-def run_plan(settings: dict, data_service: DataService) -> dict:
+def run_tactical_plan(settings: dict, data_service: DataService):
     start_period = settings['start_period']
     end_period = settings.get('end_period')
 
@@ -42,8 +45,36 @@ def run_plan(settings: dict, data_service: DataService) -> dict:
         setup_time_low=settings.get('setup_time_low'),
     )
 
-    return solver.solve(
+    result = solver.solve(
         solver_name=settings.get('solver_name', 'CBC').upper(),
         time_limit=int(settings.get('time_limit', 600)),
         threads=settings.get('threads'),
     )
+
+    return solver, result
+
+
+def run_plan(settings: dict, data_service: DataService) -> dict:
+    tactical_solver, result = run_tactical_plan(settings, data_service)
+    return result
+
+
+def run_color_plan(settings, data_service, tactical_solver):
+    color_orders, color_initial_stock, color_setup_matrix = data_service.get_color_scenario_data()
+    color_problem = build_color_scheduling_problem(
+        tactical_solver, color_orders, color_initial_stock, color_setup_matrix,
+        float(settings.get('setup_time_color_default', 1.0)),
+    )
+
+    color_method = settings.get('color_method', 'milp')
+    if color_method == 'milp':
+        color_result = solve_color_schedule_milp(
+            color_problem,
+            time_limit=int(settings.get('color_time_limit', 600)),
+            solver_name=settings.get('color_solver_name', 'CBC').upper(),
+            threads=settings.get('threads'),
+        )
+    elif color_method == 'heuristic':
+        color_result = solve_color_schedule_heuristic(color_problem)
+
+    return color_result

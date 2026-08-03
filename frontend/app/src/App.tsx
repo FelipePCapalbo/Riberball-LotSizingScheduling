@@ -4,6 +4,7 @@ import BackendStatusBadge from './components/BackendStatusBadge';
 import KpiBar from './components/KpiBar';
 import Sidebar from './components/Sidebar/Sidebar';
 import Tabs from './components/Tabs';
+import ColorTab from './components/tabs/ColorTab';
 import DemandChart from './components/charts/DemandChart';
 import InventoryChart from './components/charts/InventoryChart';
 import ProductionChart from './components/charts/ProductionChart';
@@ -11,7 +12,7 @@ import ComparisonTable from './components/tables/ComparisonTable';
 import DetailedTable from './components/tables/DetailedTable';
 import SetupsTable from './components/tables/SetupsTable';
 import SummaryTable from './components/tables/SummaryTable';
-import type { HistoryRun, Kpis, RunResult, Settings } from './types';
+import type { ColorRunResult, HistoryRun, Kpis, RunResult, Settings } from './types';
 
 const DEFAULT_SETTINGS: Settings = {
   start_period: null,
@@ -26,6 +27,9 @@ const DEFAULT_SETTINGS: Settings = {
   setup_time_low: 3,
   solver_name: 'CBC',
   time_limit: 600,
+  color_method: 'heuristic',
+  color_solver_name: 'CBC',
+  color_time_limit: 600,
 };
 
 function validateSettings(settings: Settings): string | null {
@@ -43,6 +47,7 @@ export default function App() {
   const [dataFiles, setDataFiles] = useState<string[]>([]);
   const [activeDataFile, setActiveDataFile] = useState<string | null>(null);
   const [machines, setMachines] = useState<string[]>([]);
+  const [periods, setPeriods] = useState<string[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [scenarioLabel, setScenarioLabel] = useState('');
   const [running, setRunning] = useState(false);
@@ -52,7 +57,10 @@ export default function App() {
   const [kpis, setKpis] = useState<Kpis | undefined>(undefined);
   const [durationSeconds, setDurationSeconds] = useState<number | undefined>(undefined);
   const [resultDataFile, setResultDataFile] = useState<string | null | undefined>(undefined);
-  const [mainTab, setMainTab] = useState('results');
+  const [colorResult, setColorResult] = useState<ColorRunResult | null>(null);
+  const [colorStatusText, setColorStatusText] = useState('');
+  const [colorStatusColor, setColorStatusColor] = useState('#495057');
+  const [mainTab, setMainTab] = useState('tactical');
   const [subTab, setSubTab] = useState('summary');
   const [historyRuns, setHistoryRuns] = useState<HistoryRun[]>([]);
 
@@ -62,8 +70,12 @@ export default function App() {
     const dates = init.periods.map((p) => p.split(' ')[0]).sort();
 
     setMachines(init.machines);
+    setPeriods(init.periods);
     setSettings((prev) => {
       const merged = { ...prev, ...loaded };
+      if (!merged.active_machines || merged.active_machines.length === 0) {
+        merged.active_machines = init.machines.slice();
+      }
       if (!merged.start_period && dates.length > 0) {
         merged.start_period = `${dates[0]} 00:00:00`;
       }
@@ -120,6 +132,21 @@ export default function App() {
     setResultDataFile(dataFile);
   };
 
+  const handleRunColor = async () => {
+    setColorStatusText('Sequenciando cores...');
+    setColorStatusColor('#495057');
+    try {
+      const colorRunResult = await api.runColor(settings.color_method);
+      setColorResult(colorRunResult);
+      const methodLabel = colorRunResult.method === 'milp' ? 'Modelo matemático' : 'Heurística';
+      setColorStatusText(`${colorRunResult.status} — ${methodLabel}`);
+      setColorStatusColor('#198754');
+    } catch (err) {
+      setColorStatusText(`Erro: ${(err as Error).message}`);
+      setColorStatusColor('#dc3545');
+    }
+  };
+
   const handleRun = async () => {
     const validationError = validateSettings(settings);
     if (validationError) {
@@ -129,15 +156,15 @@ export default function App() {
       setRunning(true);
       setRunStatusText('Processando...');
       setRunStatusColor('#495057');
-      await api.saveSettings(settings);
       try {
-        const runResult = await api.runOptimization(scenarioLabel.trim());
+        const runResult = await api.runOptimization(settings, scenarioLabel.trim());
         if (runResult.status === 'Optimal' || runResult.status === 'Feasible') {
           const solverLabel = runResult.status === 'Optimal' ? 'Ótimo' : 'Viável';
           setRunStatusText(`${solverLabel} — ${settings.solver_name || 'CBC'}`);
           setRunStatusColor(runResult.status === 'Optimal' ? '#198754' : '#856404');
           applyResult(runResult, runResult.kpis, runResult.duration_seconds, runResult.data_file);
-          setMainTab('results');
+          setMainTab('tactical');
+          handleRunColor();
         } else {
           setRunStatusText(`Status: ${runResult.status || runResult.message}`);
           setRunStatusColor('#dc3545');
@@ -171,7 +198,16 @@ export default function App() {
     const record = await api.getHistoryRun(runId);
     if (record?.result) {
       applyResult(record.result, record.kpis, record.duration_seconds, record.data_file);
-      setMainTab('results');
+      if (record.color_result) {
+        setColorResult({ ...record.color_result, kpis: record.color_kpis, duration_seconds: record.color_duration_seconds });
+        const methodLabel = record.color_result.method === 'milp' ? 'Modelo matemático' : 'Heurística';
+        setColorStatusText(`${record.color_result.status} — ${methodLabel}`);
+        setColorStatusColor('#198754');
+      } else {
+        setColorResult(null);
+        setColorStatusText('');
+      }
+      setMainTab('tactical');
     }
   };
 
@@ -180,6 +216,14 @@ export default function App() {
   const production = result?.production ?? [];
   const setups = result?.setups ?? [];
   const summary = result?.summary ?? [];
+
+  const tacticalKpiItems = [
+    { label: 'Custo Total', value: kpis?.total_cost != null ? 'R$ ' + kpis.total_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : null },
+    { label: 'Nível de Serviço', value: kpis?.service_level != null ? kpis.service_level.toFixed(1) + '%' : null },
+    { label: 'Estoque Médio', value: kpis?.avg_inventory != null ? kpis.avg_inventory.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' Kg' : null },
+    { label: 'Tempo de Execução', value: durationSeconds != null ? durationSeconds.toFixed(1) + ' s' : null },
+    { label: 'Input', value: resultDataFile, small: true },
+  ];
 
   return (
     <div className="app-shell">
@@ -190,6 +234,7 @@ export default function App() {
         activeDataFile={activeDataFile}
         onDataFileChange={handleDataFileChange}
         machines={machines}
+        periods={periods}
         settings={settings}
         onFieldChange={handleFieldChange}
         scenarioLabel={scenarioLabel}
@@ -206,7 +251,7 @@ export default function App() {
           <BackendStatusBadge />
         </div>
 
-        <KpiBar visible={result !== null} kpis={kpis} durationSeconds={durationSeconds} dataFile={resultDataFile} />
+        {result !== null ? <KpiBar items={tacticalKpiItems} /> : null}
 
         <Tabs
           variant="main"
@@ -214,8 +259,8 @@ export default function App() {
           onChange={handleMainTabChange}
           tabs={[
             {
-              key: 'results',
-              label: 'Resultados',
+              key: 'tactical',
+              label: 'Planejamento Tático',
               content: (
                 <>
                   <div className="charts-grid">
@@ -250,8 +295,13 @@ export default function App() {
               ),
             },
             {
+              key: 'colors',
+              label: 'Sequenciamento de Cores',
+              content: <ColorTab result={colorResult} statusText={colorStatusText} statusColor={colorStatusColor} />,
+            },
+            {
               key: 'comparison',
-              label: 'Comparação',
+              label: 'Comparação de Cenários',
               content: <ComparisonTable runs={historyRuns} onRefresh={loadHistory} onSelectRun={handleSelectHistoryRun} />,
             },
           ]}

@@ -11,6 +11,9 @@ export interface Settings {
   setup_time_low: number;
   solver_name: string;
   time_limit: number;
+  color_method: string;
+  color_solver_name: string;
+  color_time_limit: number;
 }
 
 export interface InitData {
@@ -92,12 +95,64 @@ export interface RunResult {
   data_file?: string | null;
 }
 
+export interface ColorScheduleRow {
+  machine: string;
+  day: number;
+  product: string;
+  color: string;
+  kg: number;
+  hours: number;
+}
+
+export interface ColorSetupRow {
+  machine: string;
+  day: number;
+  product: string;
+  from_color: string;
+  to_color: string;
+  setup_time: number;
+  cost: number;
+}
+
+export interface ColorOrderRow {
+  sku: string;
+  product: string;
+  color: string;
+  due_day: number;
+  quantity: number;
+  delayed_qty: number;
+}
+
+export interface ColorKpis {
+  total_cost: number;
+  delay_cost: number;
+  setup_cost: number;
+  service_level: number;
+  total_setups: number;
+}
+
+export interface ColorRunResult {
+  status: string;
+  message?: string;
+  method?: 'milp' | 'heuristic';
+  color_schedule?: ColorScheduleRow[];
+  color_setups?: ColorSetupRow[];
+  orders?: ColorOrderRow[];
+  kpis?: ColorKpis;
+  run_id?: string | null;
+  duration_seconds?: number;
+  data_file?: string | null;
+}
+
 export interface HistoryRun {
   id: string;
   timestamp: string;
   label: string;
   duration_seconds: number;
   kpis: Kpis;
+  color_kpis?: ColorKpis;
+  color_duration_seconds?: number;
+  color_method?: 'milp' | 'heuristic';
   start_period: string;
   end_period: string;
   solver_name: string;
@@ -113,6 +168,9 @@ export interface HistoryRecord {
   inputs: Settings;
   kpis: Kpis;
   result: RunResult;
+  color_kpis?: ColorKpis;
+  color_duration_seconds?: number;
+  color_result?: ColorRunResult;
 }
 
 export interface BackendStatus {

@@ -9,9 +9,9 @@ __pycache__/
 logs/
 
 # PyInstaller - artefatos de build
-build/
-dist/
-release/
+/build/
+/dist/
+/release/
 *.spec
 *.spec.bak
 
@@ -23,6 +23,8 @@ release/
 
 # Histórico de execuções (gerado em runtime)
 history/
+
+node_modules/
 
 # macOS
 .DS_Store
@@ -40,8 +42,10 @@ frontend/worker/node_modules/
 frontend/worker/.wrangler/
 frontend/worker/.dev.vars
 
-# Frontend — app React (Vite); dist/ já coberto pela regra genérica acima
+# Frontend — app React (Vite); dist/ é gerado a cada build (Workers Builds reconstrói no deploy)
 frontend/app/node_modules/
+frontend/app/dist/
+frontend/app/tsconfig.tsbuildinfo
 
 # LaTeX — artefatos de compilação
 *.aux

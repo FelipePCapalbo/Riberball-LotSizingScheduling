@@ -244,6 +244,19 @@ body {
   line-height: 1.4;
 }
 
+/* ── Badges de status (pedidos de cor) ──────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.badge-success { background: rgba(25, 135, 84, 0.12); color: #0f5132; }
+.badge-danger { background: rgba(220, 53, 69, 0.12); color: #842029; }
+
 /* ── Status do backend (badge) ─────────────────────────────────── */
 .status {
   padding: 0.35rem 0.75rem;
