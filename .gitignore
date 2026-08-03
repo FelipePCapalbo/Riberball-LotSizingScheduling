@@ -18,6 +18,8 @@ release/
 # Scripts de execução/build para Windows e Unix
 *.bat
 *.sh
+!/init.sh
+!/init.bat
 
 # Histórico de execuções (gerado em runtime)
 history/
@@ -29,6 +31,17 @@ history/
 venv/
 .venv/
 env/
+
+# Backend — configuração local (segredo compartilhado, etc.)
+backend/.env
+
+# Frontend — projeto Worker (Node/Wrangler)
+frontend/worker/node_modules/
+frontend/worker/.wrangler/
+frontend/worker/.dev.vars
+
+# Frontend — app React (Vite); dist/ já coberto pela regra genérica acima
+frontend/app/node_modules/
 
 # LaTeX — artefatos de compilação
 *.aux

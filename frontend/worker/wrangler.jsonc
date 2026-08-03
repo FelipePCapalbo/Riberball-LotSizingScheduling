@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "riberball-lotsizingscheduling",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-01-01",
+  "assets": {
+    "directory": "../app/dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/internal/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "BACKEND_COORDINATOR", "class_name": "BackendCoordinator" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["BackendCoordinator"] }
+  ]
+}

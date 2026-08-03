@@ -1,4 +1,7 @@
 pandas
 openpyxl
 pulp
-flask
+fastapi
+uvicorn[standard]
+httpx
+python-dotenv
