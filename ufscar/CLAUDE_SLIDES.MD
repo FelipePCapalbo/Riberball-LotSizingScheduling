@@ -196,23 +196,26 @@ Nota que não existe é fala não preparada. Todo slide cujo corpo foi enxugado 
 
 ### 6.6 Compilação e verificação
 
-Pipeline obrigatório, do zero, apagando auxiliares antes:
+Pipeline obrigatório, do zero, apagando auxiliares antes. O diretório de trabalho é a **raiz do repositório**, não `ufscar/` — é de lá que o `referencias.bib` é encontrado, e é a mesma convenção do `ModelagemAlgebrica.tex`:
 
 ```bash
-rm -f apresentacao.aux apresentacao.bbl apresentacao.blg apresentacao.nav \
-      apresentacao.out apresentacao.snm apresentacao.toc
-pdflatex -interaction=nonstopmode apresentacao.tex
-bibtex apresentacao
-pdflatex -interaction=nonstopmode apresentacao.tex
-pdflatex -interaction=nonstopmode apresentacao.tex
+rm -f ufscar/apresentacao.aux ufscar/apresentacao.bbl ufscar/apresentacao.blg \
+      ufscar/apresentacao.nav ufscar/apresentacao.out ufscar/apresentacao.snm \
+      ufscar/apresentacao.toc
+pdflatex -interaction=nonstopmode -output-directory=ufscar ufscar/apresentacao.tex
+bibtex ufscar/apresentacao
+pdflatex -interaction=nonstopmode -output-directory=ufscar ufscar/apresentacao.tex
+pdflatex -interaction=nonstopmode -output-directory=ufscar ufscar/apresentacao.tex
 ```
 
-`\bibliographystyle` **não** é declarado no `.tex`: a opção `[alf]` de `abntex2cite` já o define, e declarar de novo produz `Illegal, another \bibstyle command` no BibTeX, com a lista de referências saindo vazia. O `.bib` é o da raiz do repositório, referenciado como `\bibliography{../referencias}` — nunca duplicar o arquivo dentro de `UFSCar/`.
+O `.bib` é o da raiz do repositório, referenciado como `\bibliography{referencias}` — nome puro, sem caminho e sem extensão, o que faz o mesmo `.tex` compilar no Overleaf com o projeto plano. Nunca duplicar o arquivo dentro de `ufscar/`.
+
+`\bibliographystyle{abntex2-alf}` pode ser declarado ou omitido, desde que **depois** do `\usepackage[alf]{abntex2cite}`. O pacote redefine `\bibliographystyle` para escrever o `\bibstyle` uma única vez no `.aux` e já o chama por conta própria. Declará-lo **antes** do pacote usa o comando do kernel, que escreve na hora: saem dois `\bibstyle`, o BibTeX aborta com `Illegal, another \bibstyle command` e a lista de referências sai vazia.
 
 **Verificação de transbordamento**, que a compilação não acusa como erro:
 
 ```bash
-grep -a "Overfull \\\\vbox" apresentacao.log
+grep -a "Overfull \\\\vbox" ufscar/apresentacao.log
 ```
 
 Acima de 20 pt o corte é visível na projeção e precisa ser corrigido; abaixo disso, conferir visualmente antes de aceitar.
@@ -220,7 +223,7 @@ Acima de 20 pt o corte é visível na projeção e precisa ser corrigido; abaixo
 **Inspeção visual obrigatória** antes de considerar a apresentação pronta — o código-fonte de um slide transbordado parece perfeitamente correto:
 
 ```bash
-pdftoppm -png -r 55 apresentacao.pdf pagina
+pdftoppm -png -r 55 ufscar/apresentacao.pdf pagina
 ```
 
 E olhar as imagens, todas. Nenhum slide é dado como pronto por ter compilado.

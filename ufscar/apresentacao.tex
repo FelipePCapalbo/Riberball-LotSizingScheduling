@@ -99,6 +99,31 @@
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{R}{>{\raggedright\arraybackslash}X}
 
+% Faixa localizadora da cadeia herdada: #1 e o indice da familia em destaque.
+\newcommand{\faixaliteratura}[1]{%
+  \def\focoum{elo}\def\focodois{elo}\def\focotres{elo}\def\focoquatro{elo}%
+  \ifnum#1=1\def\focoum{foco}\fi
+  \ifnum#1=2\def\focodois{foco}\fi
+  \ifnum#1=3\def\focotres{foco}\fi
+  \ifnum#1=4\def\focoquatro{foco}\fi
+  \begin{tikzpicture}[font=\footnotesize,
+      elo/.style={rectangle,rounded corners=2pt,draw=cinzaCla,thick,fill=white,text=cinza,
+                  text width=2.5cm,minimum height=0.62cm,text centered,inner sep=3pt},
+      foco/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,
+                   text width=2.5cm,minimum height=0.62cm,text centered,inner sep=3pt},
+      elop/.style={draw=cinzaCla,-{Stealth[length=2mm]},thick}]
+
+    \node[\focoum] (ww) at (0,0) {Wagner--Whitin};
+    \node[\focodois,right=0.55cm of ww] (clsp) {CLSP};
+    \node[\focotres,right=0.55cm of clsp] (small) {GLSP / CLSD};
+    \node[\focoquatro,right=0.55cm of small] (carry) {\textit{carryover}};
+
+    \path[elop] (ww) -- (clsp);
+    \path[elop] (clsp) -- (small);
+    \path[elop] (small) -- (carry);
+  \end{tikzpicture}%
+}
+
 \AtBeginSection[]{%
   \begin{frame}{Roteiro}
     \tableofcontents[currentsection,hideallsubsections]
@@ -109,7 +134,7 @@
 \subtitle{Uma indústria de balões de látex}
 \date{Agosto de 2026}
 \author{Felipe Capalbo}
-\institute{\small Universidade Federal de São Carlos}
+\institute{\small Orientador: Victor C. B. Camargo \\[0.5em] Universidade Federal de São Carlos}
 
 \begin{document}
 
@@ -434,7 +459,221 @@
   Não basta para a cor. Quando o setup depende da sequência, é preciso descer para small-bucket,
   com microperíodos — é a família GLSP e CLSD. E dessa literatura eu reaproveito especificamente o
   carryover: a máquina continua configurada ao atravessar dias, e produzir a mesma coisa amanhã
-  não paga setup de novo.}
+  não paga setup de novo.
+
+  Esta é a cadeia inteira. Vou percorrer as quatro caixas, uma a uma, mostrando em cada uma qual
+  restrição eu herdei e o que precisei mudar nela. A caixa em destaque no alto de cada slide diz
+  em que ponto da cadeia estamos.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{O balanço herdado passa a admitir venda perdida}
+
+  \vspace{0.2em}
+  \begin{center}
+    \faixaliteratura{1}
+  \end{center}
+
+  \vspace{0.9em}
+  \begin{center}
+    \begin{tikzpicture}[font=\small,
+        cx/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,inner sep=7pt},
+        cn/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,inner sep=7pt}]
+
+      \node[cx] (lit) at (0,0) {$\begin{aligned}
+          \min\; & \sum_{t} \bigl(K\,y_{t} + h\,I_{t}\bigr) \\[0.15em]
+                 & I_{t-1} + x_{t} = I_{t} + d_{t}
+        \end{aligned}$};
+      \node[cn,right=1.0cm of lit] (nos) {$\begin{aligned}
+          \min\; & \sum_{t} \bigl(c\,p\,t^{s}\,\delta_{t} + c\,l_{t}\bigr) \\[0.15em]
+                 & I_{t-1} + x_{t} = I_{t} + d_{t} - l_{t}
+        \end{aligned}$};
+
+      \draw[-{Stealth[length=3mm]},thick,cinza] (lit) -- (nos);
+      \node[above=1pt of lit,font=\footnotesize,text=cinza] {literatura};
+      \node[above=1pt of nos,font=\footnotesize,text=laranjaEsc] {este trabalho};
+    \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.7em}
+  \begin{center}
+    {\scriptsize\color{cinza}$l_{t}$ venda perdida \qquad sem custo de estoque}
+  \end{center}
+
+  \note{O que eu herdo de Wagner e Whitin é o esqueleto: o balanço recursivo de estoque, período a
+  período, e a ideia de cobrar o setup como uma carga fixa disparada por uma binária.
+
+  Duas coisas mudam, e as duas são do problema real. A primeira é o custo de estoque: ele sai da
+  função objetivo. A empresa não tem custo de armazenagem relevante, e o que dói é a oportunidade
+  perdida — por isso as duas parcelas do meu objetivo são receita não realizada, uma no setup,
+  outra na venda.
+
+  A segunda é mais importante: em Wagner e Whitin a demanda é sempre atendida. No meu caso a
+  capacidade pode simplesmente não dar, e o modelo precisa escolher o que deixar de vender. É o l
+  de venda perdida entrando no balanço, e é ele que faz do modelo um problema de priorização.
+
+  Uma diferença de forma que vale mencionar: o x de produção aqui não é variável livre. Ele é
+  consequência do estado da máquina, e é isso que a próxima caixa da cadeia vai mostrar.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{A capacidade vira uma configuração por máquina-dia}
+
+  \vspace{0.2em}
+  \begin{center}
+    \faixaliteratura{2}
+  \end{center}
+
+  \vspace{0.9em}
+  \begin{center}
+    \begin{tikzpicture}[font=\small,
+        cx/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,inner sep=7pt},
+        cn/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,inner sep=7pt}]
+
+      \node[cx] (lit) at (0,0) {$\begin{aligned}
+          & \sum_{i} \bigl(a_{i}\,x_{it} + \sigma_{i}\,y_{it}\bigr) \le b_{t} \\[0.15em]
+          & x_{it} \le M\,y_{it}
+        \end{aligned}$};
+      \node[cn,inner ysep=10pt,right=1.0cm of lit] (nos) {$\begin{aligned}
+          & \sum_{i} s_{ijd} \le 1 \\[0.15em]
+          & \underbrace{\bigl(b_{jd}\,s_{ijd} - t^{s}_{j}\,\delta_{ijd}\bigr) p_{ij}}_{\text{\scriptsize\color{cinza}produção do dia}}
+        \end{aligned}$};
+
+      \draw[-{Stealth[length=3mm]},thick,cinza] (lit) -- (nos);
+      \node[above=1pt of lit,font=\footnotesize,text=cinza] {literatura};
+      \node[above=1pt of nos,font=\footnotesize,text=laranjaEsc] {este trabalho};
+    \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.7em}
+  \begin{center}
+    {\scriptsize\color{cinza}$d$ dia dentro do período $t$ \qquad $j$ máquina}
+  \end{center}
+
+  \note{Do CLSP eu herdo duas coisas. A capacidade por período em unidade de tempo, e o fato de o
+  setup consumir essa capacidade em vez de aparecer só como custo — é o sigma vezes y do lado
+  esquerdo, que no meu modelo vira o t de setup vezes delta descontado das horas do dia.
+
+  O que muda é o tamanho do balde. No CLSP o balde é o período inteiro e a restrição de ligação, x
+  menor ou igual a M y, é o que impede produzir sem pagar setup. No meu modelo o balde é o par
+  máquina-dia, e ele é indivisível: uma configuração por máquina por dia. Com isso a restrição de
+  ligação desaparece, porque a produção deixa de ser variável e passa a ser função do estado.
+
+  Reparem também no p com índice de máquina e de balão. É isso que caracteriza máquinas paralelas
+  não relacionadas: cada par máquina-balão tem sua própria taxa, e não existe uma máquina que seja
+  uniformemente mais rápida que outra.
+
+  E note o que este nível ainda não faz: a ordem dentro do período não importa. Para a forma isso
+  basta, porque a troca de forma custa o mesmo venha de onde vier. Para a cor, não basta.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{O microperíodo do GLSP vira o dia de uma cor}
+
+  \vspace{0.2em}
+  \begin{center}
+    \faixaliteratura{3}
+  \end{center}
+
+  \vspace{0.9em}
+  \begin{center}
+    \begin{tikzpicture}[font=\small,
+        cx/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,inner sep=7pt},
+        cn/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,inner sep=7pt}]
+
+      \node[cx] (lit) at (0,0) {$\begin{aligned}
+          & \sum_{i} y_{is} = 1 \\[0.15em]
+          & z_{ii's} \ge y_{i,s-1} + y_{i's} - 1
+        \end{aligned}$};
+      \node[cn,right=1.0cm of lit] (nos) {$\begin{aligned}
+          & \sum_{c \in C_{i}} x_{cd} = 1 \\[0.15em]
+          & \theta_{cc'd} \ge x_{c,d-1} + x_{c'd} - 1 \\[0.15em]
+          & \color{laranjaEsc} x_{c,d-1} + x_{c'd} \le 1 \quad {\scriptstyle (c,c') \notin A}
+        \end{aligned}$};
+
+      \draw[-{Stealth[length=3mm]},thick,cinza] (lit) -- (nos);
+      \node[above=1pt of lit,font=\footnotesize,text=cinza] {literatura};
+      \node[above=1pt of nos,font=\footnotesize,text=laranjaEsc] {este trabalho};
+    \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.7em}
+  \begin{center}
+    {\scriptsize\color{cinza}microperíodo $s$ vira dia $d$ \qquad item vira cor}
+  \end{center}
+
+  \note{Quando o setup depende da sequência, é preciso saber a ordem, e a literatura resolve isso
+  descendo para microperíodos. O GLSP e o CLSD me dão exatamente duas restrições: um único estado
+  por microperíodo, e a detecção da transição pelo produto de dois estados consecutivos,
+  linearizado naquela desigualdade com o menos um.
+
+  Eu herdo as duas com uma tradução direta: o microperíodo é o dia, e o item é a cor, dentro de uma
+  janela que o nível tático já fixou. É por isso que meu operacional é discreto — o dia inteiro é
+  de uma cor só, o que na prática é verdade, porque não se troca cor duas vezes no mesmo turno.
+
+  A terceira linha é o que a literatura não me dá. Quando o par não pertence ao conjunto de
+  transições permitidas, os dois estados não podem ser consecutivos. Isso normalmente é modelado
+  com custo alto; aqui é restrição, porque depois de preto voltar para branco não é caro, é
+  impossível sem purgar o tanque. Essa linha é a que carrega o setup direcional, que é a
+  característica sem equivalente na tabela de posicionamento.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Uma janela de nove dias paga um único \textit{setup}}
+
+  \vspace{0.2em}
+  \begin{center}
+    \faixaliteratura{4}
+  \end{center}
+
+  \vspace{0.7em}
+  \begin{center}
+    \begin{tikzpicture}[font=\small,
+        cx/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,inner sep=7pt},
+        cn/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,inner sep=7pt}]
+
+      \node[cx] (lit) at (0,0) {$\delta_{it} \ge y_{it} \;\longrightarrow\; \delta_{it} \ge y_{it} - y_{i,t-1}$};
+      \node[cn,right=1.0cm of lit] (nos) {$\delta_{ijd} \ge s_{ijd} - s_{ij,d-1}$};
+
+      \draw[-{Stealth[length=3mm]},thick,cinza] (lit) -- (nos);
+      \node[above=1pt of lit,font=\footnotesize,text=cinza] {literatura};
+      \node[above=1pt of nos,font=\footnotesize,text=laranjaEsc] {este trabalho};
+    \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.9em}
+  \begin{center}
+    \begin{tikzpicture}[font=\scriptsize]
+      \foreach \i in {1,...,12}
+        \node[rectangle,draw=cinza,thick,fill=white,
+              minimum width=0.62cm,minimum height=0.62cm] at (\i*0.66,0) {};
+      \foreach \i in {3,...,11}
+        \node[rectangle,draw=cinza,thick,fill=laranja!45,
+              minimum width=0.62cm,minimum height=0.62cm] at (\i*0.66,0) {};
+
+      \draw[-{Stealth[length=2.5mm]},very thick,laranjaEsc] (3*0.66,1.0) -- (3*0.66,0.4);
+      \node[font=\scriptsize,text=laranjaEsc] at (3*0.66,1.25) {$\delta = 1$};
+      \node[font=\scriptsize,text=cinza] at (6.5*0.66,-0.65) {dias};
+    \end{tikzpicture}
+  \end{center}
+
+  \note{No CLSP clássico o setup é cobrado em todo período em que o item está ativo. O carryover
+  quebra isso: a configuração persiste, e o setup só é pago quando o estado muda de um período para
+  o seguinte. Sox e Gao introduzem o mecanismo, Suerie e Stadtler formalizam a versão com lotes
+  ligados, atravessando a fronteira de período.
+
+  A minha restrição B é literalmente essa desigualdade, com o dia no lugar do período. É ela que
+  torna a granularidade diária pagável: uma janela de nove dias no mesmo balão paga um setup, no
+  primeiro dia, e não nove. Sem carryover, descer para o dia multiplicaria o custo de setup pelo
+  número de dias e o modelo produziria lotes absurdamente longos para se defender disso.
+
+  O mesmo mecanismo aparece nos dois níveis: no tático segurando a forma ao longo da janela, no
+  operacional segurando a cor de um dia para o outro. É o único elemento da cadeia que serve aos
+  dois.
+
+  E aqui está a limitação que eu reconheço: o carryover funciona dentro da janela, mas não entre
+  janelas. Todo primeiro dia de janela paga setup de cor, ignorando o que a máquina tinha montado.
+  Está nos próximos passos.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
@@ -1447,7 +1686,7 @@
 % ---------------------------------------------------------------------------
 \begin{frame}[allowframebreaks]{Referências}
   \scriptsize
-  \bibliography{../referencias}
+  \bibliography{referencias}
 \end{frame}
 
 % ===========================================================================
