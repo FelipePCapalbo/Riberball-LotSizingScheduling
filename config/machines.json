@@ -29,9 +29,6 @@
         "27",
         "28"
     ],
-    "high_setup_machines": [
-        "17"
-    ],
-    "setup_time_high": 7,
-    "setup_time_low": 3
+    "setup_hourly_cost_default": 250,
+    "setup_hourly_cost_by_machine": {}
 }

@@ -1,5 +1,6 @@
 {
-    "start_period": "2024-01-01 00:00:00",
-    "end_period": "2025-01-01 00:00:00",
-    "coverage_months": 0
+    "start_week": "2024-01-01",
+    "weeks_in_plan": 13,
+    "frozen_weeks": 1,
+    "coverage_weeks": 2
 }

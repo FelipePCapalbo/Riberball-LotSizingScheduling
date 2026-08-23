@@ -1,5 +1,5 @@
 {
     "shifts_per_day": 3,
     "hours_per_shift": 8,
-    "days_per_week": 7
+    "working_days_per_week": 6
 }
