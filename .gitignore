@@ -71,3 +71,9 @@ frontend/app/tsconfig.tsbuildinfo
 *.acn
 *.acr
 *.alg
+# Binario do cloudflared baixado pelo init.sh / init.bat
+/cloudflared
+/cloudflared.exe
+
+# Wheels vendorizados para instalacao offline no cliente
+/wheels/
