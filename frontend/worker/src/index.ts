@@ -43,11 +43,21 @@ export default {
         const proxyUrl = status.public_url + url.pathname + url.search;
         const proxyHeaders = new Headers(request.headers);
         proxyHeaders.set('Authorization', `Bearer ${env.SHARED_SECRET}`);
-        response = await fetch(proxyUrl, {
-          method: request.method,
-          headers: proxyHeaders,
-          body: request.method === 'GET' || request.method === 'HEAD' ? undefined : request.body,
-        });
+        try {
+          response = await fetch(proxyUrl, {
+            method: request.method,
+            headers: proxyHeaders,
+            body: request.method === 'GET' || request.method === 'HEAD' ? undefined : request.body,
+          });
+        } catch {
+          response = Response.json(
+            {
+              error: 'backend unreachable',
+              message: 'O tunel do backend nao respondeu. Verifique se ele continua rodando na maquina.',
+            },
+            { status: 502 },
+          );
+        }
       }
     } else {
       response = await env.ASSETS.fetch(request);
