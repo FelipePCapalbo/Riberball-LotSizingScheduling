@@ -2,7 +2,22 @@ import type { BackendStatus, DailyResult, DataFiles, HistoryRecord, HistoryRun, 
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
-  const body = await response.json();
+  const raw = await response.text();
+
+  let body: any = null;
+  let parsed = false;
+  if (raw.length > 0) {
+    try {
+      body = JSON.parse(raw);
+      parsed = true;
+    } catch {
+      parsed = false;
+    }
+  }
+
+  if (!parsed) {
+    throw new Error(`HTTP ${response.status} - o servidor respondeu algo que nao e JSON`);
+  }
   if (!response.ok) {
     throw new Error(body?.message || body?.error || `HTTP ${response.status}`);
   }
