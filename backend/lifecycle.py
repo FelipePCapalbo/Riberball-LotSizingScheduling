@@ -15,6 +15,14 @@ REGISTER_RETRY_SECONDS = 5
 instance_id = str(uuid.uuid4())
 
 
+async def release_lease():
+    try:
+        await registration_client.unregister(instance_id)
+    except httpx.HTTPError:
+        print('[backend] Não foi possível avisar o frontend da desconexão. '
+              'O registro expira sozinho em 45s.', flush=True)
+
+
 async def heartbeat_loop():
     lease_lost = False
     while not lease_lost:
@@ -68,32 +76,37 @@ async def lifespan(app):
                 'Confira se o endereço está correto e se o Worker está publicado.'
             )
 
-        tunnel_process, public_url = await tunnel.start_tunnel(PORT)
-        print(f'[backend] Túnel público em {public_url}', flush=True)
+        try:
+            tunnel_process, public_url = await tunnel.start_tunnel(PORT)
+            print(f'[backend] Túnel público em {public_url}', flush=True)
 
-        response = None
-        int_attempt = 0
-        while response is None:
-            int_attempt = int_attempt + 1
-            try:
-                response = await registration_client.heartbeat(instance_id, public_url=public_url)
-            except httpx.HTTPError:
-                if int_attempt < REGISTER_ATTEMPTS:
-                    print(f'[backend] Frontend não respondeu ao publicar a URL do túnel '
-                          f'(tentativa {int_attempt} de {REGISTER_ATTEMPTS}). '
-                          f'Nova tentativa em {REGISTER_RETRY_SECONDS}s...', flush=True)
-                    await asyncio.sleep(REGISTER_RETRY_SECONDS)
-                else:
-                    raise RuntimeError(
-                        f'O túnel subiu, mas não foi possível publicar a URL no frontend em '
-                        f'{WORKER_BASE_URL} após {REGISTER_ATTEMPTS} tentativas.'
-                    ) from None
+            response = None
+            int_attempt = 0
+            while response is None:
+                int_attempt = int_attempt + 1
+                try:
+                    response = await registration_client.heartbeat(instance_id, public_url=public_url)
+                except httpx.HTTPError:
+                    if int_attempt < REGISTER_ATTEMPTS:
+                        print(f'[backend] Frontend não respondeu ao publicar a URL do túnel '
+                              f'(tentativa {int_attempt} de {REGISTER_ATTEMPTS}). '
+                              f'Nova tentativa em {REGISTER_RETRY_SECONDS}s...', flush=True)
+                        await asyncio.sleep(REGISTER_RETRY_SECONDS)
+                    else:
+                        raise RuntimeError(
+                            f'O túnel subiu, mas não foi possível publicar a URL no frontend em '
+                            f'{WORKER_BASE_URL} após {REGISTER_ATTEMPTS} tentativas.'
+                        ) from None
 
-        if response.status_code != 200:
-            raise RuntimeError(
-                f'O frontend em {WORKER_BASE_URL} respondeu {response.status_code} ao publicar '
-                'a URL do túnel. A interface não conseguiria alcançar este backend.'
-            )
+            if response.status_code != 200:
+                raise RuntimeError(
+                    f'O frontend em {WORKER_BASE_URL} respondeu {response.status_code} ao publicar '
+                    'a URL do túnel. A interface não conseguiria alcançar este backend.'
+                )
+        except BaseException:
+            await release_lease()
+            await tunnel.stop_tunnel(tunnel_process)
+            raise
 
         print('[backend] Conectado à interface. Pode fechar esta janela para encerrar.', flush=True)
         heartbeat_task = asyncio.create_task(heartbeat_loop())
@@ -104,5 +117,5 @@ async def lifespan(app):
         if TUNNEL_ENABLED:
             if heartbeat_task:
                 heartbeat_task.cancel()
-            await registration_client.unregister(instance_id)
+            await release_lease()
             await tunnel.stop_tunnel(tunnel_process)
