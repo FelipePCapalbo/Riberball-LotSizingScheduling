@@ -24,7 +24,7 @@ O slide abre com uma **asserção** — uma frase completa que enuncia a conclus
 
 Estudos com estudantes de engenharia mostram que essa estrutura produz compreensão superior, menos concepções equivocadas, carga cognitiva percebida menor e retenção mais forte em teste postergado, comparada à estrutura convencional de título-tópico com *bullets*. O efeito atinge também o apresentador: montar o slide obriga a saber qual é a conclusão.
 
-Consequência prática direta: **o título do slide é uma frase, não um rótulo**. "A demanda triplica entre o vale e o pico" é asserção; "Sazonalidade" é rótulo, e rótulo não comunica nada sozinho.
+Consequência prática direta: **o título do slide é uma frase, não um rótulo**. "A demanda máxima é 1,9 vez a mínima" é asserção; "Sazonalidade" é rótulo, e rótulo não comunica nada sozinho.
 
 ### 2.2 Teoria cognitiva da aprendizagem multimídia (Mayer)
 
@@ -58,6 +58,49 @@ O princípio da modalidade é o fundamento técnico da regra de texto mínimo: a
 **Corpo — a evidência.** Um objeto visual dominante por slide. A evidência é o que prova a asserção; se não prova, ou a asserção está errada ou a evidência é a errada.
 
 **Rótulos.** Texto no corpo existe para nomear partes da evidência, dar unidade, marcar um número. Nunca para explicar — explicação é fala.
+
+### 3.1 Léxico e tom
+
+Isto é uma defesa de dissertação em engenharia diante de banca acadêmica. O tom é objetivo e pragmático: cada palavra na tela nomeia uma grandeza, um estágio de processo ou uma decisão. Termo escolhido por ser vívido, coloquial ou dramático é ruído com aparência de conteúdo, e sai — tanto do título quanto do corpo e da `\note{}`.
+
+Três testes:
+
+- **É mensurável?** "A demanda máxima é 1,9 vez a mínima" tem duas grandezas e uma razão. "A demanda dispara no pico" não tem nenhuma.
+- **É o termo do domínio?** O produto tem **formato**, não "forma". A troca de cor consome **tempo**, não é "cara" nem "barata" — custo é R$, tempo é hora, e trocar um pelo outro no meio da frase confunde as duas unidades do objetivo.
+- **Sobreviveria numa arguição?** Se a banca pode responder "isso é retórica, não resultado", o termo sai.
+
+Substituições fixas, verificáveis por `grep`:
+
+| Não usar | Usar |
+|---|---|
+| pico, vale | máximo, mínimo |
+| forma (do produto) | formato |
+| gargalo | estágio de capacidade restritiva, objeto do estudo |
+| caro, barato (referindo-se a tempo) | maior tempo, menor tempo |
+| impossível, ficção, truque, modelo de papel | inviável, artifício, formulação |
+| dói, morde, absurdamente, cauda | verbo ou grandeza correspondente |
+
+**Cardinalidade de instância sintética não vira asserção.** As instâncias são geradas, e o número de formatos, cores ou SKU nelas é arbitrário. Expor esses números na tela sugere que eles medem alguma coisa. O que se apresenta é a **lógica da hierarquia** — quais atributos compõem qual nível — não a sua contagem. Números só entram na tela quando são dado da fábrica (horas de *setup*, razão de sazonalidade), resultado medido (MAPE, nível de serviço) ou ordem de grandeza de modelo (contagem de binárias, que é função da dimensão declarada e não do sorteio).
+
+### 3.2 Registro impessoal
+
+**Primeira pessoa não aparece em lugar nenhum** — nem no título, nem no corpo, nem na `\note{}`. Isto é documento acadêmico, e o sujeito da frase é o trabalho, o modelo, a formulação ou o dado, nunca quem apresenta. A proibição vale para as duas pessoas: `eu herdo` está errado e `nós herdamos` também.
+
+Três construções resolvem qualquer caso:
+
+| Não usar | Usar |
+|---|---|
+| eu herdo, nós herdamos | herda-se, o modelo herda, do CLSP vem |
+| eu acrescento, eu mudo | acrescenta-se, a restrição recebe, passa a admitir |
+| meu modelo, no meu caso | este modelo, este trabalho, aqui |
+| vou apresentar, vou mostrar | a apresentação expõe, o slide seguinte mostra |
+| quero deixar claro, faço questão | convém explicitar, o ponto é, vale registrar |
+| reparem, notem, guardem | note-se, observe-se, ou nada — só o fato |
+| eu tenho, eu reconheço | o resultado obtido é, a limitação declarada é |
+
+Isso **não** obriga a esconder posição autoral. Reivindicação, escolha de modelagem e limitação continuam explícitas — mudam de sujeito, não de força: *"A matriz foi adotada por causa disso"* afirma tanto quanto *"optei pela matriz"*, e é o registro correto para uma banca.
+
+Cuidado com dois falsos positivos ao varrer: `é preciso` é construção impessoal, não o verbo *precisar* conjugado; `note-se` é passiva sintética, não imperativo dirigido à plateia.
 
 ---
 
@@ -132,6 +175,20 @@ Hierarquia de tamanho dentro do corpo, em três degraus e não mais: corpo norma
 
 **Rampa para hierarquia ordenada.** Quando três coisas ordenadas precisam ser distinguidas ao mesmo tempo — os três níveis de decisão, três níveis de agregação, três cores de composto —, usa-se a rampa `laranjaCla → laranja → laranjaEsc`. A intensidade carrega a ordem: mais escuro é mais granular. Nunca resolver isso introduzindo uma quarta matiz.
 
+**Exceção única: cor do produto como dado.** Quando o objeto da asserção é a própria cor do balão — a dimensão que define o SKU, a matriz de transição, a sequência claro para escuro —, representá-la por um tom de laranja é uma codificação a mais que a plateia precisa decorar, e uma que contradiz o dado. Nesse caso, e só nele, usa-se a cor real, na faixa quente declarada no preâmbulo:
+
+| Token | Hex |
+|---|---|
+| `corBranco` | `F3EADA` |
+| `corAmarelo` | `F2C230` |
+| `corLaranja` | `E8781F` |
+| `corVermelho` | `C62E1F` |
+| `corVinho` | `7E1F16` |
+
+A exceção não se estende a nenhum outro elemento: eixo, seta, caixa, barra de Gantt que não represente uma cor de produto continuam em cinza ou na rampa laranja. O branco do produto é o único que não pode ser o branco do slide — `corBranco` é um creme que se distingue do fundo sem deixar de ler como claro.
+
+**Silhueta é forma, não contorno.** Quando a figura mostra variedade de produto — formato, acabamento, cor —, cada amostra é preenchimento sólido sem traço. Contorno em torno de um preenchimento colorido acrescenta uma segunda codificação que não carrega informação nenhuma. Amostra sem cor própria recebe `cinza!60`, que separa do branco do slide sem competir com as amostras coloridas.
+
 **Texto não recebe cor.** Corpo do slide é preto. A identidade visual vive nos elementos: `structure` (título de frame, marcadores, título de bloco) é laranja por definição de tema, e figuras seguem a tabela acima. Texto colorido no corpo é ruído e está na lista negativa.
 
 `\alert{}` destaca **uma** expressão por slide, no máximo. Dois destaques por slide anulam-se.
@@ -183,7 +240,7 @@ Valor de referência: `0.70\textheight` cabe com folga sob um `frametitle` de um
 
 ### 6.5 Notas do palestrante
 
-Toda explicação cortada do slide vive num `\note{}` imediatamente após o conteúdo do frame, dentro do próprio `\begin{frame}`. A nota é escrita em prosa corrida, na primeira pessoa do plural ou impessoal, como o texto será falado — não em tópicos.
+Toda explicação cortada do slide vive num `\note{}` imediatamente após o conteúdo do frame, dentro do próprio `\begin{frame}`. A nota é escrita em prosa corrida, no registro impessoal de §3.2, como o texto será falado — não em tópicos. A nota é fala preparada, não conversa: vale para ela a mesma proibição de primeira pessoa que vale para a tela.
 
 O arquivo mantém as notas desligadas por padrão. Para gerar a versão com notas, alterna-se uma única linha no preâmbulo:
 
@@ -288,7 +345,10 @@ Slide de equação é a exceção: consome de 60 a 90 segundos e não deve haver
 - Rodapé persistente, logotipo repetido, barra de navegação.
 - Mais de um `\alert{}` por slide.
 - Texto de corpo colorido — cor vive nos elementos gráficos, não nas palavras.
-- Matiz fora da paleta laranja/cinza, ou laranja aplicado a algo que não é o objeto da asserção.
+- Matiz fora da paleta laranja/cinza, ou laranja aplicado a algo que não é o objeto da asserção — salvo a cor do produto representada por si mesma (§5.3).
+- Termo vívido, coloquial ou dramático no lugar do termo técnico (§3.1).
+- Primeira pessoa, do singular ou do plural, em qualquer parte do arquivo (§3.2).
+- Cardinalidade de instância sintética apresentada como se medisse alguma coisa (§3.1).
 - Sombra, gradiente, ícone decorativo, efeito de profundidade.
 - Figura em `\tiny`, ou reduzida a ponto de exigir aproximação para ler.
 - Tabela transposta da dissertação sem cortar colunas.
@@ -301,6 +361,9 @@ Slide de equação é a exceção: consome de 60 a 90 segundos e não deve haver
 ## 9. Checklist antes de considerar a apresentação pronta
 
 - Todo título é uma frase completa com verbo, entre 6 e 12 palavras?
+- Todo título cabe em **uma linha** no PDF renderizado? Na largura desta identidade, isso é cerca de 53 caracteres; acima disso o `frametitle` quebra, empurra o corpo e invalida a folga de `0.70\textheight`.
+- O léxico passou pelos três testes de §3.1, e o `grep` das substituições fixas volta vazio?
+- O arquivo inteiro, `\note{}` incluída, está em registro impessoal (§3.2)?
 - Nenhum corpo de slide passa de 25 palavras?
 - Nenhum corpo contém frase completa?
 - Cada slide tem exatamente um objeto visual dominante que sustenta a asserção do título?
