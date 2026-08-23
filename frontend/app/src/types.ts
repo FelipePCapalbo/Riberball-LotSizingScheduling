@@ -1,24 +1,30 @@
 export interface Settings {
-  start_period: string | null;
-  end_period: string | null;
-  coverage_months: number;
+  start_week: string | null;
+  weeks_in_plan: number;
+  frozen_weeks: number;
+  coverage_weeks: number;
   shifts_per_day: number;
   hours_per_shift: number;
-  days_per_week: number;
+  working_days_per_week: number;
   active_machines: string[];
-  high_setup_machines: string[];
-  setup_time_high: number;
-  setup_time_low: number;
-  solver_name: string;
-  time_limit: number;
-  color_method: string;
-  color_solver_name: string;
-  color_time_limit: number;
+  setup_hourly_cost_default: number;
+  setup_hourly_cost_by_machine: Record<string, number>;
+  annual_holding_rate: number;
+  order_backlog_multiplier: number;
+  coverage_weight: number;
+  weekly_solver_name: string;
+  weekly_time_limit: number;
+  daily_solver_name: string;
+  daily_time_limit: number;
+  positions_per_shift: number;
+  threads: number | null;
 }
 
 export interface InitData {
-  periods: string[];
+  weeks: string[];
   machines: string[];
+  products: string[];
+  orders: number;
 }
 
 export interface DataFiles {
@@ -26,119 +32,130 @@ export interface DataFiles {
   active: string | null;
 }
 
-export interface Kpis {
+export interface WeeklyKpis {
   total_cost: number;
-  service_level: number;
+  solver_objective: number;
+  backlog_cost: number;
+  lost_sales_cost: number;
+  coverage_cost: number;
+  setup_cost: number;
+  holding_cost: number;
+  order_service_level: number;
+  forecast_service_level: number;
   avg_inventory: number;
   inventory_turnover: number;
+  setup_hours: number;
+  solve_seconds: number;
+  hit_time_limit: boolean;
 }
 
-export interface InventoryRow {
-  Period: string;
-  Product: string;
-  Inventory: number;
+export interface WeeklyProductionRow {
+  week: string;
+  machine: string;
+  product: string;
+  kg: number;
+  hours: number;
+  setup_hours: number;
 }
 
-export interface DemandRow {
-  Period: string;
-  Product: string;
-  Demand: number;
-  Met: number;
-  Lost: number;
+export interface WeeklyInventoryRow {
+  week: string;
+  product: string;
+  inventory: number;
+  target: number;
+  slack: number;
 }
 
-export interface ProductionRow {
-  Period: string;
-  Machine: string;
-  Product: string;
-  Kg: number;
-  Hours: number;
+export interface WeeklyDemandRow {
+  week: string;
+  product: string;
+  orders: number;
+  forecast: number;
+  delivered_orders: number;
+  backlog: number;
+  delivered_forecast: number;
+  lost: number;
 }
 
-export interface SetupRow {
-  Period: string;
-  Machine: string;
-  Day: number;
-  From: string;
-  To: string;
-  Cost: number;
-}
-
-export interface MachineStopRow {
-  Period: string;
-  Machine: string;
-  DaysStopped: number;
-  TotalDays: number;
-}
-
-export interface SummaryRow {
-  Period: string;
-  Inventory: number;
-  Utilization: number;
-  Demand: number;
-  Lost: number;
-  Production: number;
-}
-
-export interface RunResult {
+export interface WeeklyResult {
   status: string;
   message?: string;
-  inventory?: InventoryRow[];
-  demand?: DemandRow[];
-  production?: ProductionRow[];
-  setups?: SetupRow[];
-  machine_stops?: MachineStopRow[];
-  summary?: SummaryRow[];
-  kpis?: Kpis;
+  weeks?: string[];
+  production?: WeeklyProductionRow[];
+  inventory?: WeeklyInventoryRow[];
+  demand?: WeeklyDemandRow[];
+  targets?: Record<string, Record<string, number>>;
+  kpis?: WeeklyKpis;
   run_id?: string;
   duration_seconds?: number;
   data_file?: string | null;
 }
 
-export interface ColorScheduleRow {
+export interface DailyKpis {
+  total_cost: number;
+  backlog_cost: number;
+  lost_sales_cost: number;
+  coverage_cost: number;
+  setup_cost: number;
+  holding_cost: number;
+  order_service_level: number;
+  forecast_service_level: number;
+  form_setup_hours: number;
+  color_setup_hours: number;
+  total_setups: number;
+  solve_seconds: number;
+  hit_time_limit: boolean;
+  max_fractional_deviation: number;
+}
+
+export interface ScheduleRow {
+  date: string;
+  shift: number;
+  shift_index: number;
   machine: string;
-  day: number;
+  position: number;
   product: string;
   color: string;
+  sku: string;
   kg: number;
-  hours: number;
+  production_hours: number;
+  form_setup_hours: number;
+  color_setup_hours: number;
+  previous_form: string;
+  previous_color: string;
 }
 
-export interface ColorSetupRow {
-  machine: string;
-  day: number;
-  product: string;
-  from_color: string;
-  to_color: string;
-  setup_time: number;
-  cost: number;
-}
-
-export interface ColorOrderRow {
+export interface DailyOrderRow {
   sku: string;
   product: string;
   color: string;
-  due_day: number;
-  quantity: number;
-  delayed_qty: number;
+  shift_index: number;
+  date: string;
+  shift: number;
+  orders: number;
+  forecast: number;
+  delivered_orders: number;
+  delivered_forecast: number;
+  backlog: number;
+  lost: number;
+  inventory: number;
 }
 
-export interface ColorKpis {
-  total_cost: number;
-  delay_cost: number;
-  setup_cost: number;
-  service_level: number;
-  total_setups: number;
+export interface DailyTargetRow {
+  product: string;
+  target: number;
+  final_stock: number;
+  slack: number;
 }
 
-export interface ColorRunResult {
+export interface DailyResult {
   status: string;
   message?: string;
-  method?: 'milp' | 'heuristic';
-  color_schedule?: ColorScheduleRow[];
-  color_setups?: ColorSetupRow[];
-  orders?: ColorOrderRow[];
-  kpis?: ColorKpis;
+  schedule?: ScheduleRow[];
+  orders?: DailyOrderRow[];
+  targets?: DailyTargetRow[];
+  shifts?: number;
+  kpis?: DailyKpis;
   run_id?: string | null;
   duration_seconds?: number;
   data_file?: string | null;
@@ -148,35 +165,44 @@ export interface HistoryRun {
   id: string;
   timestamp: string;
   label: string;
-  duration_seconds: number;
-  kpis: Kpis;
-  color_kpis?: ColorKpis;
-  color_duration_seconds?: number;
-  color_method?: 'milp' | 'heuristic';
-  start_period: string;
-  end_period: string;
-  solver_name: string;
-  active_machines_count: number;
+  data_file: string;
+  start_week: string;
+  weeks_in_plan: number;
+  machines: number;
+  weekly_kpis: WeeklyKpis;
+  weekly_duration: number;
+  daily_kpis: DailyKpis | null;
+  daily_duration: number | null;
 }
 
 export interface HistoryRecord {
   id: string;
   timestamp: string;
   label: string;
-  duration_seconds: number;
   data_file: string;
   inputs: Settings;
-  kpis: Kpis;
-  result: RunResult;
-  color_kpis?: ColorKpis;
-  color_duration_seconds?: number;
-  color_result?: ColorRunResult;
+  weekly: {
+    status: string;
+    duration_seconds: number;
+    kpis: WeeklyKpis;
+    weeks: string[];
+    production: WeeklyProductionRow[];
+    inventory: WeeklyInventoryRow[];
+    demand: WeeklyDemandRow[];
+    targets: Record<string, Record<string, number>>;
+  };
+  daily: {
+    status: string;
+    duration_seconds: number;
+    kpis: DailyKpis;
+    shifts: number;
+    schedule: ScheduleRow[];
+    orders: DailyOrderRow[];
+    targets: DailyTargetRow[];
+  } | null;
 }
 
 export interface BackendStatus {
   connected: boolean;
   machine_label?: string;
-  public_url?: string | null;
-  since?: number;
-  last_heartbeat_at?: number;
 }

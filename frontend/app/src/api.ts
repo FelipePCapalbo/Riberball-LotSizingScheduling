@@ -1,4 +1,4 @@
-import type { BackendStatus, ColorRunResult, DataFiles, HistoryRecord, HistoryRun, InitData, RunResult, Settings } from './types';
+import type { BackendStatus, DailyResult, DataFiles, HistoryRecord, HistoryRun, InitData, Settings, WeeklyResult } from './types';
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -41,7 +41,7 @@ export function saveSettings(settings: Settings): Promise<{ status: string }> {
   });
 }
 
-export function runOptimization(settings: Settings, label: string): Promise<RunResult> {
+export function runWeekly(settings: Settings, label: string): Promise<WeeklyResult> {
   return requestJson(`/api/run?t=${Date.now()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -50,11 +50,11 @@ export function runOptimization(settings: Settings, label: string): Promise<RunR
   });
 }
 
-export function runColor(colorMethod: string): Promise<ColorRunResult> {
-  return requestJson(`/api/run-color?t=${Date.now()}`, {
+export function runDaily(): Promise<DailyResult> {
+  return requestJson(`/api/run-daily?t=${Date.now()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ color_method: colorMethod }),
+    body: JSON.stringify({}),
     signal: AbortSignal.timeout(3_600_000),
   });
 }

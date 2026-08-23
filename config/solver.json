@@ -1,4 +1,8 @@
 {
-    "solver_name": "CBC",
-    "time_limit": 60
+    "weekly_solver_name": "CBC",
+    "weekly_time_limit": 300,
+    "daily_solver_name": "CBC",
+    "daily_time_limit": 600,
+    "positions_per_shift": 3,
+    "threads": null
 }

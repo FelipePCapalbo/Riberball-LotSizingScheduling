@@ -1,5 +1,30 @@
 # Plano de evolução da dissertação — descrição do problema, granularidade e alinhamento com a literatura
 
+> **ATUALIZAÇÃO (2026-08-22) — a Seção 2 deste plano descreve uma arquitetura que foi substituída.**
+> A reformulação para plano semanal + programação por turno foi implementada e validada. O que
+> mudou frente ao que está escrito abaixo:
+>
+> | Item do plano | Estado |
+> |---|---|
+> | Bucket tático mensal com subperíodo diário | **Substituído** por bucket semanal puro (`optimization/weekly_model.py`) |
+> | Acoplamento por janelas rígidas | **Substituído** pela meta de estoque de fim de semana, suave (§2.3 resolvida) |
+> | Etapa 2 de cor a posteriori (MILP DLSP + heurística EDD) | **Removida**; sequenciamento embutido no modelo por turno (`optimization/daily_model.py`) |
+> | Backlog 1 (granularidade da notação) | ✅ `t` semana, `s` turno, `n` posição, fixado no `.tex` |
+> | Backlog 2 (demanda em duas camadas) | ✅ três camadas: carteira com atraso, previsão líquida com venda perdida, cobertura suave |
+> | Backlog 3 (correções do modelo algébrico) | ✅ capítulo reescrito; `z_jd` eliminado |
+> | Backlog 7 (modelo tático semanal) | ✅ formulado e implementado |
+> | Backlog 8 (variante do nível de cor) | ✅ resolvido por GLSP com posições dentro do turno |
+> | Backlog 14 (carryover de cor entre janelas) | ✅ carryover atravessa turnos e turnos ociosos |
+> | Backlog 15 (absorver o `TODO.md`) | ✅ lote mínimo e contrato entre níveis implementados |
+> | Apêndice A.2 (lote mínimo) | ✅ implementado nos dois níveis |
+> | Apêndice A.4 (custo de estoque via WACC) | ✅ implementado; a linha "custo de oportunidade puro" saiu da `tab:gap` |
+> | Apêndice A.7 (granularidade de turno) | ✅ adotada |
+>
+> **Ainda em aberto:** perecibilidade do látex (backlog 13), tratabilidade da instância `real` no
+> modelo por turno, conversão do dado real de mensal para semanal, e o capítulo de Resultados.
+>
+> O plano de execução completo da reformulação está em `~/.claude/plans/elegant-waddling-pillow.md`.
+
 Documento de planejamento para a reescrita do `ModelagemAlgebrica.tex`, tendo como referência estrutural a dissertação de Mateus Carmesim Marques (FEUP, 2026), *A Mathematical Optimisation Framework to Medium-Term Production Planning in the Metal Packaging Industry*.
 
 Referências adicionais de modelagem (formulações LTPlabs da mesma empresa da tese, no repositório): `weekly_planning.tex` (tático semanal com abastecimento multi-filial), `daily_operationbased.tex` (curto prazo por turno, baseado em operações, setup por características) e `daily_jobscheduling.tex` (sequenciamento intra-turno). Juntas, formam uma hierarquia real de três níveis — semanal → diário/turno → sequenciamento — que valida a arquitetura proposta na Seção 2. O que dessas formulações já foi incorporado está na Seção 2; o que fica como oportunidade a avaliar está no Apêndice A.

@@ -9,21 +9,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.config import HOST, PORT, SHARED_SECRET
 from backend.lifecycle import lifespan
-from optimization.planner import run_color_plan, run_tactical_plan
-from processing.data import DATA_DIR, DataService, list_data_files
-from processing.history import get_run, list_runs, save_color_result, save_run
+from optimization.planner import run_weekly_plan, run_daily_plan
+from processing.data import DATA_DIR, load_instance, list_data_files
+from processing.history import get_run, list_runs, save_daily_run, save_weekly_run
 from processing.settings import load_settings, save_settings
 
 app = FastAPI(lifespan=lifespan)
 
-available_files = list_data_files()
-if available_files:
-    data_service = DataService(os.path.join(DATA_DIR, available_files[0]))
+list_available_files = list_data_files()
+if list_available_files:
+    dict_instance = load_instance(os.path.join(DATA_DIR, list_available_files[0]))
 else:
-    data_service = None
+    dict_instance = None
 
-last_tactical_solver = None
-last_tactical_run_id = None
+last_weekly_result = None
+last_run_id = None
 
 
 @app.middleware('http')
@@ -37,31 +37,37 @@ async def check_shared_secret(request, call_next):
 
 @app.get('/api/data-files')
 async def get_data_files():
-    files = list_data_files()
-    if data_service:
-        active = os.path.basename(data_service.data_file)
+    if dict_instance:
+        str_active = os.path.basename(dict_instance['data_file'])
     else:
-        active = None
-    return {'files': files, 'active': active}
+        str_active = None
+    return {'files': list_data_files(), 'active': str_active}
 
 
 @app.post('/api/set-data-file')
 async def set_data_file(request: Request):
-    global data_service
-    body = await request.json()
-    filename = body.get('file', '')
-    path = os.path.join(DATA_DIR, filename)
-    if not os.path.isfile(path):
-        response = JSONResponse({'error': 'Arquivo não encontrado.'}, status_code=404)
+    global dict_instance
+    dict_body = await request.json()
+    str_path = os.path.join(DATA_DIR, dict_body.get('file', ''))
+    if not os.path.isfile(str_path):
+        response = JSONResponse({'error': 'Arquivo nao encontrado.'}, status_code=404)
     else:
-        data_service = DataService(path)
-        response = {'status': 'loaded', 'file': filename}
+        dict_instance = load_instance(str_path)
+        response = {'status': 'loaded', 'file': os.path.basename(str_path)}
     return response
 
 
 @app.get('/api/init-data')
 async def get_init_data():
-    return data_service.get_initial_data()
+    list_weeks = []
+    for timestamp_week in dict_instance['weeks']:
+        list_weeks.append(timestamp_week.strftime('%Y-%m-%d'))
+    return {
+        'weeks': list_weeks,
+        'machines': dict_instance['machines'],
+        'products': dict_instance['products'],
+        'orders': len(dict_instance['orders']),
+    }
 
 
 @app.get('/api/settings')
@@ -71,86 +77,53 @@ async def get_settings():
 
 @app.post('/api/settings')
 async def post_settings(request: Request):
-    body = await request.json()
-    save_settings(body)
+    save_settings(await request.json())
     return {'status': 'saved'}
 
 
 @app.post('/api/run')
-async def run_optimization(request: Request):
-    global last_tactical_solver, last_tactical_run_id
-    body = await request.json()
-    if body:
-        label = body.get('label', '')
+async def run_weekly(request: Request):
+    global last_weekly_result, last_run_id
+    dict_body = await request.json()
+    save_settings(dict_body.get('settings', {}))
+    dict_settings = load_settings()
+
+    float_started_at = time.perf_counter()
+    dict_result = run_weekly_plan(dict_settings, dict_instance)
+    float_seconds = time.perf_counter() - float_started_at
+
+    if dict_result['status'] not in ('Optimal', 'Feasible'):
+        response = {'status': dict_result['status'],
+                    'message': f"Plano semanal inviavel. Status: {dict_result['status']}"}
     else:
-        label = ''
-    save_settings(body.get('settings', {}))
-    settings = load_settings()
-
-    time_start = time.perf_counter()
-    solver, result = run_tactical_plan(settings, data_service)
-    duration = time.perf_counter() - time_start
-
-    if result.get('status') not in ('Optimal', 'Feasible'):
-        response = {
-            'status': result.get('status', 'Unknown'),
-            'message': f"Otimização falhou ou é inviável. Status: {result.get('status')}",
-        }
-    else:
-        last_tactical_solver = solver
-        if data_service:
-            active_file = os.path.basename(data_service.data_file)
-        else:
-            active_file = ''
-        run_id = save_run(settings, duration, result, label=label, data_file=active_file)
-        last_tactical_run_id = run_id
-
-        payload = {}
-        for key in ['status', 'inventory', 'production', 'setups', 'machine_stops', 'demand', 'summary', 'kpis']:
-            if result.get(key) is not None:
-                payload[key] = result.get(key)
-        payload['run_id'] = run_id
-        payload['duration_seconds'] = round(duration, 2)
-        if data_service:
-            payload['data_file'] = os.path.basename(data_service.data_file)
-        else:
-            payload['data_file'] = None
-        response = payload
+        last_weekly_result = dict_result
+        last_run_id = save_weekly_run(dict_settings, dict_result, float_seconds,
+                                      dict_body.get('label', ''),
+                                      os.path.basename(dict_instance['data_file']))
+        response = dict(dict_result)
+        response['run_id'] = last_run_id
+        response['duration_seconds'] = round(float_seconds, 2)
+        response['data_file'] = os.path.basename(dict_instance['data_file'])
     return response
 
 
-@app.post('/api/run-color')
-async def run_color_optimization(request: Request):
-    body = await request.json()
-    if body:
-        color_method = body.get('color_method')
+@app.post('/api/run-daily')
+async def run_daily(request: Request):
+    await request.json()
+    if last_weekly_result is None:
+        response = {'status': 'NoWeeklyRun',
+                    'message': 'Rode o plano semanal (/api/run) antes de programar os turnos.'}
     else:
-        color_method = None
-
-    if last_tactical_solver is None:
-        response = {
-            'status': 'NoTacticalRun',
-            'message': 'Rode a otimização tática (/api/run) antes de sequenciar as cores.',
-        }
-    else:
-        settings = load_settings()
-        if color_method:
-            settings['color_method'] = color_method
-
-        time_start = time.perf_counter()
-        result = run_color_plan(settings, data_service, last_tactical_solver)
-        duration = time.perf_counter() - time_start
-
-        if last_tactical_run_id:
-            save_color_result(last_tactical_run_id, result, duration)
-
-        response = dict(result)
-        response['run_id'] = last_tactical_run_id
-        response['duration_seconds'] = round(duration, 2)
-        if data_service:
-            response['data_file'] = os.path.basename(data_service.data_file)
-        else:
-            response['data_file'] = None
+        dict_settings = load_settings()
+        float_started_at = time.perf_counter()
+        dict_result = run_daily_plan(dict_settings, dict_instance, last_weekly_result)
+        float_seconds = time.perf_counter() - float_started_at
+        if last_run_id:
+            save_daily_run(last_run_id, dict_result, float_seconds)
+        response = dict(dict_result)
+        response['run_id'] = last_run_id
+        response['duration_seconds'] = round(float_seconds, 2)
+        response['data_file'] = os.path.basename(dict_instance['data_file'])
     return response
 
 
@@ -161,11 +134,11 @@ async def get_history():
 
 @app.get('/api/history/{run_id}')
 async def get_history_run(run_id):
-    record = get_run(run_id)
-    if not record:
+    dict_record = get_run(run_id)
+    if not dict_record:
         response = JSONResponse({'error': 'not found'}, status_code=404)
     else:
-        response = record
+        response = dict_record
     return response
 
 

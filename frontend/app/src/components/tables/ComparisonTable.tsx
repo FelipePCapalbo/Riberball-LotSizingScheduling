@@ -1,4 +1,5 @@
-import type { ColorKpis, HistoryRun } from '../../types';
+import { fmtN } from '../../format';
+import type { HistoryRun } from '../../types';
 
 interface ComparisonTableProps {
   runs: HistoryRun[];
@@ -8,98 +9,57 @@ interface ComparisonTableProps {
 
 export default function ComparisonTable({ runs, onRefresh, onSelectRun }: ComparisonTableProps) {
   return (
-    <>
+    <div>
       <div className="table-toolbar">
-        <span className="text-muted small">Clique em uma linha para carregar o cenário na aba Planejamento Tático.</span>
-        <button className="btn btn-sm btn-outline-secondary" onClick={onRefresh}>
+        <span className="table-count">{runs.length} execuções</span>
+        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onRefresh}>
           Atualizar
         </button>
       </div>
-      <div className="table-responsive">
-        <table className="table table-sm table-hover data-table">
+      <div className="table-scroll">
+        <table className="data-table w-100">
           <thead>
             <tr>
               <th rowSpan={2}>Cenário</th>
-              <th rowSpan={2}>Data/Hora</th>
-              <th rowSpan={2}>Horizonte</th>
-              <th className="text-center" rowSpan={2}>
-                Máquinas
-              </th>
-              <th colSpan={6} className="text-center">
-                Etapa 1 — Tático
-              </th>
-              <th colSpan={4} className="text-center">
-                Etapa 2 — Operacional (Cores)
-              </th>
+              <th rowSpan={2}>Quando</th>
+              <th rowSpan={2}>Input</th>
+              <th colSpan={5} className="group-head">Plano semanal</th>
+              <th colSpan={4} className="group-head">Programação por turno</th>
             </tr>
             <tr>
-              <th>Solver</th>
-              <th className="text-end">Tempo (s)</th>
-              <th className="text-end">Custo (R$)</th>
-              <th className="text-end">Serviço (%)</th>
-              <th className="text-end">Estoque Médio (Kg)</th>
-              <th className="text-end">Giro de Estoque</th>
-              <th>Método</th>
-              <th className="text-end">Tempo (s)</th>
-              <th className="text-end">Custo (R$)</th>
-              <th className="text-end">Serviço (%)</th>
+              <th className="text-end">Custo</th>
+              <th className="text-end">SL carteira</th>
+              <th className="text-end">SL previsão</th>
+              <th className="text-end">Giro</th>
+              <th className="text-end">Tempo</th>
+              <th className="text-end">Custo</th>
+              <th className="text-end">SL carteira</th>
+              <th className="text-end">h setup</th>
+              <th className="text-end">Tempo</th>
             </tr>
           </thead>
           <tbody>
-            {runs.length === 0 ? (
-              <tr className="table-empty">
-                <td colSpan={14}>Nenhuma execução registrada.</td>
+            {runs.map((run) => (
+              <tr key={run.id} onClick={() => onSelectRun(run.id)} className="clickable">
+                <td>{run.label}</td>
+                <td>{run.timestamp.replace('T', ' ').slice(0, 16)}</td>
+                <td className="small">{run.data_file}</td>
+                <td className="text-end">{fmtN(run.weekly_kpis.total_cost, 0)}</td>
+                <td className="text-end">{fmtN(run.weekly_kpis.order_service_level, 2)}%</td>
+                <td className="text-end">{fmtN(run.weekly_kpis.forecast_service_level, 2)}%</td>
+                <td className="text-end">{fmtN(run.weekly_kpis.inventory_turnover, 2)}</td>
+                <td className="text-end">{fmtN(run.weekly_duration, 1)}s</td>
+                <td className="text-end">{run.daily_kpis ? fmtN(run.daily_kpis.total_cost, 0) : '—'}</td>
+                <td className="text-end">{run.daily_kpis ? `${fmtN(run.daily_kpis.order_service_level, 2)}%` : '—'}</td>
+                <td className="text-end">
+                  {run.daily_kpis ? fmtN(run.daily_kpis.form_setup_hours + run.daily_kpis.color_setup_hours, 1) : '—'}
+                </td>
+                <td className="text-end">{run.daily_duration != null ? `${fmtN(run.daily_duration, 1)}s` : '—'}</td>
               </tr>
-            ) : (
-              runs.map((run) => {
-                const kpis = run.kpis || {};
-                const colorKpis: Partial<ColorKpis> = run.color_kpis || {};
-                const start = run.start_period ? run.start_period.split(' ')[0] : '—';
-                const end = run.end_period ? run.end_period.split(' ')[0] : '—';
-                const dateTime = run.timestamp ? run.timestamp.replace('T', ' ') : '—';
-                const cost = kpis.total_cost != null ? 'R$ ' + kpis.total_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—';
-                const service = kpis.service_level != null ? kpis.service_level.toFixed(1) + '%' : '—';
-                const inventory = kpis.avg_inventory != null ? kpis.avg_inventory.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) : '—';
-                const turnover = kpis.inventory_turnover != null ? kpis.inventory_turnover.toFixed(2) + 'x' : '—';
-                const duration = run.duration_seconds != null ? run.duration_seconds.toFixed(1) + ' s' : '—';
-
-                let colorMethodLabel;
-                if (run.color_method === 'milp') {
-                  colorMethodLabel = 'Modelo matemático';
-                } else if (run.color_method === 'heuristic') {
-                  colorMethodLabel = 'Heurística';
-                } else {
-                  colorMethodLabel = '—';
-                }
-                const colorCost = colorKpis.total_cost != null ? 'R$ ' + colorKpis.total_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—';
-                const colorService = colorKpis.service_level != null ? colorKpis.service_level.toFixed(1) + '%' : '—';
-                const colorDuration = run.color_duration_seconds != null ? run.color_duration_seconds.toFixed(1) + ' s' : '—';
-
-                return (
-                  <tr className="comparison-row" key={run.id} onClick={() => onSelectRun(run.id)}>
-                    <td>{run.label || run.id}</td>
-                    <td>{dateTime}</td>
-                    <td>
-                      {start} → {end}
-                    </td>
-                    <td className="text-center">{run.active_machines_count ?? '—'}</td>
-                    <td>{run.solver_name || '—'}</td>
-                    <td className="text-end">{duration}</td>
-                    <td className="text-end">{cost}</td>
-                    <td className="text-end">{service}</td>
-                    <td className="text-end">{inventory}</td>
-                    <td className="text-end">{turnover}</td>
-                    <td>{colorMethodLabel}</td>
-                    <td className="text-end">{colorDuration}</td>
-                    <td className="text-end">{colorCost}</td>
-                    <td className="text-end">{colorService}</td>
-                  </tr>
-                );
-              })
-            )}
+            ))}
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }

@@ -1,6 +1,0 @@
-{
-    "color_method": "milp",
-    "color_solver_name": "CBC",
-    "color_time_limit": 600,
-    "setup_time_color_default": 1.0
-}
