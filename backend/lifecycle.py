@@ -5,7 +5,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 from backend import registration_client, tunnel
-from backend.config import HEARTBEAT_INTERVAL_SECONDS, MACHINE_LABEL, PORT, TUNNEL_ENABLED
+from backend.config import HEARTBEAT_INTERVAL_SECONDS, MACHINE_LABEL, PORT, TUNNEL_ENABLED, WORKER_BASE_URL
 
 instance_id = str(uuid.uuid4())
 
@@ -34,9 +34,28 @@ async def lifespan(app):
                 f'Já existe um backend conectado (máquina "{existing.get("machine_label")}", '
                 f'registrado às {existing.get("registered_at")}). Encerrando esta instância.'
             )
+        elif response.status_code == 401:
+            raise RuntimeError(
+                f'O frontend em {WORKER_BASE_URL} recusou a autenticação (401). '
+                'O SHARED_SECRET de backend/.env não confere com o configurado no Worker.'
+            )
+        elif response.status_code != 200:
+            raise RuntimeError(
+                f'O frontend em {WORKER_BASE_URL} respondeu {response.status_code} ao registrar. '
+                'Confira se o endereço está correto e se o Worker está publicado.'
+            )
+
         tunnel_process, public_url = await tunnel.start_tunnel(PORT)
         print(f'[backend] Túnel público em {public_url}', flush=True)
-        await registration_client.heartbeat(instance_id, public_url=public_url)
+
+        response = await registration_client.heartbeat(instance_id, public_url=public_url)
+        if response.status_code != 200:
+            raise RuntimeError(
+                f'O frontend em {WORKER_BASE_URL} respondeu {response.status_code} ao publicar '
+                'a URL do túnel. A interface não conseguiria alcançar este backend.'
+            )
+
+        print('[backend] Conectado à interface. Pode fechar esta janela para encerrar.', flush=True)
         heartbeat_task = asyncio.create_task(heartbeat_loop())
 
     try:
