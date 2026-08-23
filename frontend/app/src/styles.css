@@ -476,6 +476,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
   padding: 10px 0 8px;
 }
 
@@ -569,3 +571,110 @@ body {
 
 .ldot-active { background: rgba(25, 135, 84, 0.25); border: 1px solid #198754; }
 .ldot-off    { background: rgba(220, 53, 69, 0.12); border: 1px solid #ccc; }
+
+/* ── Reformulação semanal/turno ─────────────────────────────── */
+.sb-hint {
+  font-size: 11px;
+  color: #6c757d;
+  line-height: 1.45;
+  margin: 2px 0 8px;
+}
+
+.run-status--neutral { color: #495057; }
+.run-status--good    { color: #0f5132; }
+.run-status--warn    { color: #856404; }
+.run-status--bad     { color: #842029; }
+
+.empty-state {
+  padding: 32px 16px;
+  text-align: center;
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.table-count { font-size: 12px; color: #6c757d; margin-right: auto; }
+
+.table-toolbar label { font-size: 12px; color: #495057; display: inline-flex; align-items: center; gap: 6px; }
+.table-toolbar select { padding: 3px 6px; font-size: 12px; border: 1px solid #ced4da; border-radius: 4px; }
+.table-toolbar .checkbox input { margin: 0; }
+
+.data-table thead th.group-head {
+  text-align: center;
+  background: #eef0f4;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.data-table tbody tr.clickable { cursor: pointer; }
+.data-table tbody tr.clickable:hover td { background: #f2f6ff; }
+
+.cell-bad  { color: #842029; font-weight: 600; }
+.cell-warn { color: #856404; font-weight: 600; }
+
+.cost-breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  padding: 4px 0 8px;
+}
+
+.cost-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: #f8f9fa;
+  border: 1px solid #eceef1;
+  border-radius: 4px;
+}
+
+.cost-label { font-size: 11px; color: #6c757d; text-transform: uppercase; letter-spacing: 0.3px; }
+.cost-value { font-size: 15px; font-weight: 600; color: #212529; }
+
+/* ── Gantt máquina x turno ──────────────────────────────────── */
+.gantt-wrapper { position: relative; }
+
+.gantt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 4px 0 10px;
+  font-size: 11px;
+  color: #495057;
+}
+
+.gantt-legend-item { display: inline-flex; align-items: center; gap: 5px; }
+
+.gantt-swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.gantt-swatch--form {
+  background: repeating-linear-gradient(45deg, #52514e 0 2px, #fff 2px 4px);
+}
+
+.gantt-swatch--color {
+  background: repeating-linear-gradient(135deg, #a3a29c 0 2px, #fff 2px 4px);
+}
+
+.gantt-scroll { overflow-x: auto; padding-bottom: 4px; }
+
+.gantt-machine   { font-size: 11px; font-weight: 600; fill: #495057; }
+.gantt-shiftlabel { font-size: 9px; fill: #8a8985; }
+.gantt-daylabel   { font-size: 10px; font-weight: 600; fill: #495057; }
+
+.gantt-tooltip {
+  position: fixed;
+  z-index: 20;
+  background: #212529;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 7px 10px;
+  border-radius: 4px;
+  pointer-events: none;
+  max-width: 280px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
