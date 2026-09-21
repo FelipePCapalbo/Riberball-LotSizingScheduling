@@ -6,6 +6,7 @@
 \setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{footline}[frame number]
 \setbeamertemplate{blocks}[rounded][shadow=false]
+\setbeamertemplate{frametitle continuation}{}
 \setbeamertemplate{itemize items}[triangle]
 
 % Notas do palestrante: descomentar uma das linhas para gerar a versao com notas.
@@ -108,12 +109,12 @@
 \newcolumntype{R}{>{\raggedright\arraybackslash}X}
 
 % Faixa localizadora da cadeia herdada: #1 e o indice da familia em destaque.
-\newcommand{\faixaliteratura}[1]{%
+\newcommand{\faixaliteratura}[2]{%
   \def\focoum{elo}\def\focodois{elo}\def\focotres{elo}\def\focoquatro{elo}%
-  \ifnum#1=1\def\focoum{foco}\fi
-  \ifnum#1=2\def\focodois{foco}\fi
-  \ifnum#1=3\def\focotres{foco}\fi
-  \ifnum#1=4\def\focoquatro{foco}\fi
+  \ifnum#1<2 \ifnum#2>0 \def\focoum{foco}\fi\fi
+  \ifnum#1<3 \ifnum#2>1 \def\focodois{foco}\fi\fi
+  \ifnum#1<4 \ifnum#2>2 \def\focotres{foco}\fi\fi
+  \ifnum#1<5 \ifnum#2>3 \def\focoquatro{foco}\fi\fi
   \begin{tikzpicture}[font=\footnotesize,
       elo/.style={rectangle,rounded corners=2pt,draw=cinzaCla,thick,fill=white,text=cinza,
                   text width=2.5cm,minimum height=0.62cm,text centered,inner sep=3pt},
@@ -132,6 +133,22 @@
   \end{tikzpicture}%
 }
 
+% Par simbolo-significado indivisivel, para o rodape nunca quebrar no meio de uma entrada.
+\newcommand{\sy}[2]{\mbox{$#1$~#2}}
+
+% Rodape de notacao: simbolo -> significado, so nos slides de modelagem.
+\newcommand{\notacao}[1]{%
+  \vfill
+  \noindent{\color{cinzaCla}\rule{\textwidth}{0.4pt}}%
+  \par\vspace{0.12em}
+  {\scriptsize\color{cinza}\linespread{0.84}\selectfont #1\par}%
+}
+
+% Linha de descricao das restricoes, imediatamente acima do bloco algebrico.
+\newcommand{\restricoes}[1]{%
+  {\footnotesize\color{cinzaEsc}#1\par}%
+}
+
 \AtBeginSection[]{%
   \begin{frame}{Roteiro}
     \tableofcontents[currentsection,hideallsubsections]
@@ -140,7 +157,7 @@
 
 \title{Dimensionamento e Sequenciamento de Lotes de Produção}
 \subtitle{Uma indústria de balões de látex}
-\date{Agosto de 2026}
+\date{Setembro de 2026}
 \author{Felipe Capalbo}
 \institute{\small Orientador: Victor C. B. Camargo \\[0.5em] Universidade Federal de São Carlos}
 
@@ -160,7 +177,7 @@
 \section{Contexto}
 % ===========================================================================
 
-\begin{frame}{Formato, acabamento e cor determinam o SKU}
+\begin{frame}{Formato e acabamento definem o balão; a cor, o SKU}
 
   \vspace{0.4em}
   \begin{center}
@@ -272,7 +289,7 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{\textit{Setup} de formato e de cor diferem em custo e cadência}
+\begin{frame}{Os dois \textit{setups} diferem em tempo e em cadência}
 
   \vspace{0.8em}
   \begin{center}
@@ -350,7 +367,7 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{Cada nível decide na cadência em que é revisado}
+\begin{frame}{Um modelo único chegaria a 1,0 milhão de binárias}
 
   \vspace{0.3em}
   \begin{center}
@@ -400,7 +417,7 @@
   \note{Um MILP único, indexado por máquina, balão, cor e dia sobre um ano, chega a um milhão de
   binárias de estado — sem contar as de transição, que são quadráticas no número de cores.
 
-  Quero ser honesto sobre o que a decomposição faz e o que não faz. O nível semanal fica pequeno:
+  Convém ser preciso sobre o que a decomposição faz e o que não faz. O nível semanal fica pequeno:
   seis mil binárias sobre treze semanas, porque a cor sai e o dia desaparece. O nível operacional
   não fica pequeno — vinte e nove mil binárias — mas ele só existe para uma semana de cada vez,
   a semana congelada, e é reconstruído a cada revisão.
@@ -424,265 +441,132 @@
 \section{Literatura}
 % ===========================================================================
 
-\begin{frame}{Este trabalho referencia quatro formulações}
+\begin{frame}{Ao balanço clássico acrescenta-se a venda perdida}
 
   \begin{center}
-    \resizebox{\textwidth}{!}{%
-    \begin{tikzpicture}[font=\small,
-        cls/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,
-                    text width=3.3cm,minimum height=1.7cm,text centered,inner sep=4pt},
-        arrow/.style={draw=cinza,-{Stealth[length=2.5mm]},thick}]
-
-      \node[cls] (ww) {\textbf{Wagner--Whitin} \\[0.3em] {\footnotesize sem capacidade \\ \cite{wagnerwhitin1958}}};
-      \node[cls,right=0.9cm of ww] (clsp) {\textbf{CLSP} \\[0.3em] {\footnotesize \textit{big-bucket} \\ \cite{karimi2003}}};
-      \node[cls,right=0.9cm of clsp] (small) {\textbf{GLSP / CLSD} \\[0.3em] {\footnotesize \textit{small-bucket} \\ \cite{fleischmannmeyr1997,haase1996}}};
-      \node[cls,right=0.9cm of small] (carry) {\textbf{\textit{Carryover}} \\[0.3em] {\footnotesize estado persiste \\ \cite{suriestadtler2003}}};
-
-      \path[arrow] (ww) -- (clsp);
-      \path[arrow] (clsp) -- (small);
-      \path[arrow] (small) -- (carry);
-
-      \node[below=1.0cm of clsp,font=\footnotesize\bfseries,text=cinza] (nt) {tático};
-      \node[below=1.0cm of carry,font=\footnotesize\bfseries,text=laranja] (no) {operacional};
-      \path[arrow,cinza,dashed] (clsp) -- (nt);
-      \path[arrow,laranja,dashed] (carry) -- (no);
-
-    \end{tikzpicture}}
+    \faixaliteratura{1}{2}\\[0.2em]
+    {\scriptsize\color{cinza}\cite{wagnerwhitin1958} \quad \cite{karimi2003}}
   \end{center}
 
-  \note{Wagner e Whitin, em cinquenta e oito, resolvem lote ótimo de um item sem capacidade. A versão
-  capacitada, o CLSP, introduz o limite por período e já é NP-difícil com dois itens.
+  \begin{center}
+    \begin{tikzpicture}[font=\footnotesize,
+        cx/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,inner sep=6pt},
+        cn/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,inner sep=6pt}]
 
-  O CLSP é big-bucket: o período admite vários itens e a ordem dentro dele não é modelada. Isso
-  basta para o nível tático deste trabalho, onde o setup de formato não depende da sequência.
+      \node[cx] (lit) at (0,0) {$\begin{aligned}
+          I_{t-1} + x_{t} &= I_{t} + d_{t} \\
+          \textstyle\sum_{i} \bigl(a_{i} x_{it} + \sigma_{i} y_{it}\bigr) &\le b_{t}
+        \end{aligned}$};
+      \node[font=\footnotesize,text=cinza,above=2pt of lit] {literatura};
 
-  Não basta para a cor. Quando o setup depende da sequência, é preciso descer para small-bucket,
-  com microperíodos — é a família GLSP e CLSD. Dessa literatura reaproveita-se especificamente o
-  carryover: a máquina continua configurada ao atravessar dias, e produzir a mesma coisa amanhã
-  não paga setup de novo.
+      \node[cn,below=0.45cm of lit] (nos) {$\begin{aligned}
+          I_{i,t-1} + \textstyle\sum_{j \in J_i} x_{ijt}
+            &= I_{it} + \bigl(o_{it} + a_{i,t-1} - a_{it}\bigr) + \bigl(\hat{d}_{it} - l_{it}\bigr) \\
+          \textstyle\sum_{i \in I} \bigl( x_{ijt}/p_{ij} + \tau_{i} y_{ijt} \bigr) &\le \kappa_{jt}
+        \end{aligned}$};
+      \node[font=\footnotesize,text=laranjaEsc,anchor=south east] at ([yshift=2pt]nos.north east)
+        {este trabalho};
 
-  Esta é a cadeia inteira. As quatro caixas são percorridas uma a uma, mostrando em cada uma qual
-  restrição foi herdada e o que precisou mudar nela. A caixa em destaque no alto de cada slide
-  indica em que ponto da cadeia a apresentação está.}
+      \draw[-{Stealth[length=3mm]},thick,cinza] (lit.south) -- (nos.north);
+
+      \node[font=\scriptsize,text=cinzaEsc,anchor=north] at ([yshift=-4pt]nos.south)
+        {balde é a semana-máquina \qquad $l_{it}$ escolhe o que não vender};
+    \end{tikzpicture}
+  \end{center}
+
+  \notacao{%
+    \sy{i}{balão} · \sy{j}{máquina} · \sy{t}{semana} · \sy{I}{estoque} · \sy{x}{produção} · 
+    \sy{y}{\textit{setup}} · \sy{o}{carteira} · \sy{\hat{d}}{previsão} · \sy{a}{atraso} · 
+    \sy{l}{venda perdida} · \sy{p}{taxa} · \sy{\tau}{horas de \textit{setup}} · \sy{\kappa}{horas disponíveis}}
+
+  \note{A cadeia tem quatro elos, e a caixa em destaque no alto indica em que ponto dela a
+  apresentação está. Os dois primeiros elos são \textit{big-bucket} e sustentam o nível semanal.
+
+  De Wagner e Whitin herda-se o esqueleto: o balanço recursivo de estoque, período a período, e a
+  ideia de cobrar o \textit{setup} como carga fixa disparada por uma binária. Do CLSP herda-se a
+  capacidade por período em unidade de tempo, e o fato de o \textit{setup} consumir essa
+  capacidade em vez de aparecer só como custo.
+
+  Duas coisas mudam no balanço, e as duas vêm do problema real. O custo de estoque sai da função
+  objetivo, porque a empresa não tem armazenagem relevante e o custo que importa é a oportunidade
+  perdida. E a demanda deixa de ser sempre atendida: a capacidade pode não dar, e o modelo precisa
+  escolher o que deixar de vender. É o $l$ de venda perdida entrando no balanço, ao lado do
+  atraso de carteira, que é transportado de uma semana para a seguinte.
+
+  Na capacidade o que muda é o balde. No CLSP ele é o período inteiro; aqui é o par
+  semana-máquina, e o $p$ traz índice de máquina e de balão. É isso que caracteriza máquinas
+  paralelas não relacionadas: cada par tem sua própria taxa, e não existe máquina uniformemente
+  mais rápida que outra.
+
+  O que este nível ainda não faz é ordenar dentro do período. Para o formato isso basta, porque a
+  troca de formato consome o mesmo tempo venha de onde vier. Para a cor, não basta.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{O balanço de Wagner--Whitin recebe a venda perdida}
+\begin{frame}{À sequência do GLSP acrescenta-se a proibição}
 
-  \vspace{0.2em}
   \begin{center}
-    \faixaliteratura{1}
+    \faixaliteratura{3}{4}\\[0.2em]
+    {\scriptsize\color{cinza}\cite{fleischmannmeyr1997} \quad \cite{haase1996} \quad \cite{suriestadtler2003}}
   \end{center}
 
-  \vspace{0.9em}
+  \vspace{0.3em}
   \begin{center}
     \begin{tikzpicture}[font=\small,
         cx/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,inner sep=7pt},
         cn/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,inner sep=7pt}]
 
       \node[cx] (lit) at (0,0) {$\begin{aligned}
-          \min\; & \sum_{t} \bigl(K\,y_{t} + h\,I_{t}\bigr) \\[0.15em]
-                 & I_{t-1} + x_{t} = I_{t} + d_{t}
+          \textstyle\sum_{i} y_{is} &= 1 \\
+          z_{ii's} &\ge y_{i,s-1} + y_{i's} - 1 \\
+          \delta_{it} &\ge y_{it} - y_{i,t-1}
         \end{aligned}$};
+      \node[font=\footnotesize,text=cinza,above=2pt of lit] {literatura};
+
       \node[cn,right=1.0cm of lit] (nos) {$\begin{aligned}
-          \min\; & \sum_{t} \bigl(c\,p\,t^{s}\,\delta_{t} + c\,l_{t}\bigr) \\[0.15em]
-                 & I_{t-1} + x_{t} = I_{t} + d_{t} - l_{t}
+          \textstyle\sum_{k \in K_i} \nu_{kjsn} &= u_{js} \\
+          \zeta_{kk'jsn} &\ge \nu_{kjs,n-1} + \nu_{k'jsn} - 1 \\
+          \nu_{kjs,n-1} + \nu_{k'jsn} &\le 1 \quad {\scriptstyle (k,k') \notin A} \\
+          \bigl| \varphi_{kjs} - \varphi_{kj,s-1} \bigr| &\le u_{js}
         \end{aligned}$};
+      \node[font=\footnotesize,text=laranjaEsc,above=2pt of nos] {este trabalho};
 
       \draw[-{Stealth[length=3mm]},thick,cinza] (lit) -- (nos);
-      \node[above=1pt of lit,font=\footnotesize,text=cinza] {literatura};
-      \node[above=1pt of nos,font=\footnotesize,text=laranjaEsc] {este trabalho};
-      \node[below=3pt of lit,font=\scriptsize,text=cinza,text width=4.6cm,align=center]
-        {sem capacidade \\ demanda sempre atendida};
-      \node[below=3pt of nos,font=\scriptsize,text=cinzaEsc,text width=4.6cm,align=center]
-        {capacidade limita \\ $l_t$ escolhe o que não vender};
+
+      \node[font=\scriptsize,text=cinza,anchor=north,text width=4.6cm,align=center]
+        at ([yshift=-5pt]lit.south) {microperíodo ordena \\ \textit{setup} só na mudança};
+      \node[font=\scriptsize,text=cinzaEsc,anchor=north,text width=5.4cm,align=center]
+        at ([yshift=-5pt]nos.south) {microperíodo é a posição no turno \\ par fora de $A$ é inviável};
     \end{tikzpicture}
   \end{center}
 
-  \note{De Wagner e Whitin herda-se o esqueleto: o balanço recursivo de estoque, período a período, e a
-  ideia de cobrar o setup como uma carga fixa disparada por uma binária.
+  \notacao{%
+    \sy{j}{máquina} · \sy{s}{turno} · \sy{n}{posição} · \sy{k}{cor} · \sy{K_i}{cores do balão} · 
+    \sy{A}{transições permitidas} · \sy{\nu}{cor na posição} · \sy{u}{turno ativo} · 
+    \sy{\zeta}{troca de cor} · \sy{\varphi}{cor ao fim do turno}}
 
-  Duas coisas mudam, e as duas vêm do problema real. A primeira é o custo de estoque: ele sai da
-  função objetivo. A empresa não tem custo de armazenagem relevante, e o custo relevante é a
-  oportunidade perdida — por isso as duas parcelas do objetivo são receita não realizada, uma no
-  setup, outra na venda.
+  \note{Os dois últimos elos são \textit{small-bucket} e sustentam o nível operacional.
 
-  A segunda é mais importante: em Wagner e Whitin a demanda é sempre atendida. Aqui a capacidade
-  pode simplesmente não dar, e o modelo precisa escolher o que deixar de vender. É o l de venda
-  perdida entrando no balanço, e é ele que faz do modelo um problema de priorização.
+  Quando o \textit{setup} depende da sequência é preciso saber a ordem, e a literatura resolve
+  isso descendo para microperíodos. O GLSP e o CLSD fornecem duas restrições: um único estado por
+  microperíodo, e a detecção da transição pelo produto de dois estados consecutivos, linearizado
+  naquela desigualdade com o menos um. O \textit{carryover} fornece a terceira: o \textit{setup}
+  deixa de ser cobrado em todo período ativo e passa a ser pago só quando o estado muda.
 
-  Uma diferença de forma que vale mencionar: o x de produção não é variável livre. Ele é
-  consequência do estado da máquina, e é isso que a próxima caixa da cadeia mostra.}
-\end{frame}
+  As três são herdadas com tradução direta. O microperíodo é a posição dentro do turno, o item é a
+  cor, e a forma já está fixada para aquele turno. O número de posições é pequeno porque o lote
+  mínimo e o tempo de limpeza limitam quantas corridas de cor cabem num turno de oito horas.
 
-% ---------------------------------------------------------------------------
-\begin{frame}{Do CLSP vem a capacidade, aplicada por máquina-dia}
+  A terceira linha da direita é o que a literatura não fornece. Quando o par não pertence ao
+  conjunto de transições permitidas, os dois estados não podem ser consecutivos. Isso normalmente
+  é modelado com custo alto; aqui é restrição, porque depois de preto voltar para branco não é
+  questão de tempo, é inviável sem purgar o tanque. Essa linha carrega o \textit{setup}
+  direcional, que é a característica sem equivalente na tabela de posicionamento.
 
-  \vspace{0.2em}
-  \begin{center}
-    \faixaliteratura{2}
-  \end{center}
-
-  \vspace{0.9em}
-  \begin{center}
-    \begin{tikzpicture}[font=\small,
-        cx/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,inner sep=7pt},
-        cn/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,inner sep=7pt}]
-
-      \node[cx] (lit) at (0,0) {$\begin{aligned}
-          & \sum_{i} \bigl(a_{i}\,x_{it} + \sigma_{i}\,y_{it}\bigr) \le b_{t} \\[0.15em]
-          & x_{it} \le M\,y_{it}
-        \end{aligned}$};
-      \node[cn,inner ysep=10pt,right=1.0cm of lit] (nos) {$\begin{aligned}
-          & \sum_{i} s_{ijd} \le 1 \\[0.15em]
-          & \underbrace{\bigl(b_{jd}\,s_{ijd} - t^{s}_{j}\,\delta_{ijd}\bigr) p_{ij}}_{\text{\scriptsize\color{cinza}produção do dia}}
-        \end{aligned}$};
-
-      \draw[-{Stealth[length=3mm]},thick,cinza] (lit) -- (nos);
-      \node[above=1pt of lit,font=\footnotesize,text=cinza] {literatura};
-      \node[above=1pt of nos,font=\footnotesize,text=laranjaEsc] {este trabalho};
-      \node[below=3pt of lit,font=\scriptsize,text=cinza,text width=4.6cm,align=center]
-        {capacidade por período \\ ordem interna irrelevante};
-      \node[below=3pt of nos,font=\scriptsize,text=cinzaEsc,text width=4.6cm,align=center]
-        {período vira máquina-dia \\ uma configuração, dia indivisível};
-    \end{tikzpicture}
-  \end{center}
-
-  \note{Do CLSP herdam-se duas coisas: a capacidade por período em unidade de tempo, e o fato de o setup
-  consumir essa capacidade em vez de aparecer só como custo — é o sigma vezes y do lado esquerdo,
-  que neste modelo vira o t de setup vezes delta descontado das horas do dia.
-
-  O que muda é o tamanho do balde. No CLSP o balde é o período inteiro e a restrição de ligação, x
-  menor ou igual a M y, é o que impede produzir sem pagar setup. Neste modelo o balde é o par
-  máquina-dia, e ele é indivisível: uma configuração por máquina por dia. Com isso a restrição de
-  ligação desaparece, porque a produção deixa de ser variável e passa a ser função do estado.
-
-  Note-se também o p com índice de máquina e de balão. É isso que caracteriza máquinas paralelas
-  não relacionadas: cada par máquina-balão tem sua própria taxa, e não existe uma máquina
-  uniformemente mais rápida que outra.
-
-  E observe-se o que este nível ainda não faz: a ordem dentro do período não importa. Para o
-  formato isso basta, porque a troca de formato custa o mesmo venha de onde vier. Para a cor, não
-  basta.}
-\end{frame}
-
-% ---------------------------------------------------------------------------
-\begin{frame}{Do GLSP vem a sequência; a proibição é acrescentada}
-
-  \vspace{0.2em}
-  \begin{center}
-    \faixaliteratura{3}
-  \end{center}
-
-  \vspace{0.9em}
-  \begin{center}
-    \begin{tikzpicture}[font=\small,
-        cx/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,inner sep=7pt},
-        cn/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,inner sep=7pt}]
-
-      \node[cx] (lit) at (0,0) {$\begin{aligned}
-          & \sum_{i} y_{is} = 1 \\[0.15em]
-          & z_{ii's} \ge y_{i,s-1} + y_{i's} - 1
-        \end{aligned}$};
-      \node[cn,right=1.0cm of lit] (nos) {$\begin{aligned}
-          & \sum_{c \in C_{i}} x_{cd} = 1 \\[0.15em]
-          & \theta_{cc'd} \ge x_{c,d-1} + x_{c'd} - 1 \\[0.15em]
-          & \color{laranjaEsc} x_{c,d-1} + x_{c'd} \le 1 \quad {\scriptstyle (c,c') \notin A}
-        \end{aligned}$};
-
-      \draw[-{Stealth[length=3mm]},thick,cinza] (lit) -- (nos);
-      \node[above=1pt of lit,font=\footnotesize,text=cinza] {literatura};
-      \node[above=1pt of nos,font=\footnotesize,text=laranjaEsc] {este trabalho};
-      \node[below=3pt of lit,font=\scriptsize,text=cinza,text width=4.6cm,align=center]
-        {microperíodo \\ a ordem passa a importar};
-      \node[below=3pt of nos,font=\scriptsize,text=cinzaEsc,text width=5.0cm,align=center]
-        {microperíodo é o dia, item é a cor \\ par fora de $A$ é inviável};
-    \end{tikzpicture}
-  \end{center}
-
-  \note{Quando o setup depende da sequência, é preciso saber a ordem, e a literatura resolve isso
-  descendo para microperíodos. O GLSP e o CLSD fornecem exatamente duas restrições: um único
-  estado por microperíodo, e a detecção da transição pelo produto de dois estados consecutivos,
-  linearizado naquela desigualdade com o menos um.
-
-  As duas são herdadas com uma tradução direta: o microperíodo é a posição dentro do turno, e o
-  item é a cor, dentro de uma forma que o modelo fixou para aquele turno. O número de posições é
-  pequeno porque o lote mínimo e o tempo de limpeza limitam quantas corridas de cor cabem num
-  turno de oito horas.
-
-  A terceira linha é o que a literatura não fornece. Quando o par não pertence ao conjunto de
-  transições permitidas, os dois estados não podem ser consecutivos. Isso normalmente é modelado
-  com custo alto; aqui é restrição, porque depois de preto voltar para branco não é uma questão de
-  tempo, é inviável sem purgar o tanque. Essa linha é a que carrega o setup direcional, que é a
-  característica sem equivalente na tabela de posicionamento.}
-\end{frame}
-
-% ---------------------------------------------------------------------------
-\begin{frame}{Com \textit{carryover} o \textit{setup} é cobrado só na mudança}
-
-  \vspace{0.2em}
-  \begin{center}
-    \faixaliteratura{4}
-  \end{center}
-
-  \vspace{0.7em}
-  \begin{center}
-    \begin{tikzpicture}[font=\small,
-        cx/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,inner sep=7pt},
-        cn/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,inner sep=7pt}]
-
-      \node[cx] (lit) at (0,0) {$\delta_{it} \ge y_{it} \;\longrightarrow\; \delta_{it} \ge y_{it} - y_{i,t-1}$};
-      \node[cn,right=1.0cm of lit] (nos) {$\delta_{ijd} \ge s_{ijd} - s_{ij,d-1}$};
-
-      \draw[-{Stealth[length=3mm]},thick,cinza] (lit) -- (nos);
-      \node[above=1pt of lit,font=\footnotesize,text=cinza] {literatura};
-      \node[above=1pt of nos,font=\footnotesize,text=laranjaEsc] {este trabalho};
-    \end{tikzpicture}
-  \end{center}
-
-  \vspace{0.5em}
-  \begin{center}
-    \begin{tikzpicture}[font=\scriptsize,
-        dia/.style={rectangle,draw=cinza,thick,fill=white,
-                    minimum width=0.6cm,minimum height=0.6cm},
-        ativo/.style={dia,fill=laranja!45}]
-
-      \foreach \y/\rot in {0.95/{sem \textit{carryover}}, -0.95/{com \textit{carryover}}} {
-        \foreach \i in {1,...,12}
-          \node[dia] at (\i*0.64,\y) {};
-        \foreach \i in {3,...,11}
-          \node[ativo] at (\i*0.64,\y) {};
-        \node[anchor=east,font=\scriptsize,text=cinzaEsc] at (0.3,\y) {\rot};
-      }
-
-      \foreach \i in {3,...,11}
-        \draw[-{Stealth[length=2mm]},thick,cinza] (\i*0.64,1.55) -- (\i*0.64,1.30);
-      \draw[-{Stealth[length=2mm]},very thick,laranjaEsc] (3*0.64,-0.35) -- (3*0.64,-0.60);
-
-      \node[anchor=west,font=\small,text=cinzaEsc] at (8.3,0.95) {9 \textit{setups}};
-      \node[anchor=west,font=\small\bfseries,text=laranjaEsc] at (8.3,-0.95) {1 \textit{setup}};
-      \node[font=\scriptsize,text=cinza] at (4.5,-1.6) {dias};
-    \end{tikzpicture}
-  \end{center}
-
-  \note{No CLSP clássico o setup é cobrado em todo período em que o item está ativo. O carryover quebra
-  isso: a configuração persiste, e o setup só é pago quando o estado muda de um período para o
-  seguinte. Sox e Gao introduzem o mecanismo, Suerie e Stadtler formalizam a versão com lotes
-  ligados, atravessando a fronteira de período.
-
-  A restrição B é literalmente essa desigualdade, com o dia no lugar do período, e a figura mostra
-  o efeito: as duas tiras têm os mesmos nove dias de produção, mas sem carryover cada dia dispara
-  um setup, e com carryover só o primeiro dispara. Sem esse mecanismo, descer para o dia
-  multiplicaria o custo de setup pelo número de dias, e o modelo produziria lotes longos demais
-  para se defender disso.
-
-  O mesmo mecanismo aparece nos dois níveis: no tático segurando o formato ao longo da janela, no
-  operacional segurando a cor de um dia para o outro. É o único elemento da cadeia que serve aos
-  dois.
-
-  E aqui está a limitação reconhecida: o carryover funciona dentro da janela, mas não entre
-  janelas. Todo primeiro dia de janela paga setup de cor, ignorando o que a máquina tinha montado.
-  Está nos próximos passos.}
+  A quarta linha é o \textit{carryover} na forma que este trabalho usa: o $\varphi$ carrega a cor
+  montada de um turno para o seguinte, e quando a máquina não produz o $u$ é zero e a cor
+  permanece. Sem esse mecanismo, descer para o turno multiplicaria o custo de \textit{setup} pelo
+  número de turnos, e uma máquina parada atravessaria a troca sem pagá-la.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
@@ -851,93 +735,77 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{Cada nível é estimado com o nível acima como \textit{prior}}
+\begin{frame}{O nível agregado ancora a estimação do nível abaixo}
 
-  {\scriptsize\color{cinza}
-  $Y_t$ global \quad $Y_{ft}$ formato \quad $y_{it}$ balão \quad $X_{kt}$ \textit{feature} sazonal
-  \quad $\lambda$ penalização}
+  \restricoes{%
+    (A) estimação global, sem \textit{prior} \hfill
+    (B) estimação ancorada no nível acima \hfill
+    (C) previsão do mês alvo}
 
-  \vspace{0.7em}
-  {\small
+  \vspace{0.2em}
+  {\footnotesize
   \begin{equation*}
     \hat{\beta}^{(0)} = \arg\min_{\beta} \sum_{t \in T}
-      \Bigl( \ln(Y_t) - \sum_{k \in K} \beta_{k} X_{kt} \Bigr)^2
+      \Bigl( \ln(Y_t) - \sum_{k \in K} \beta_{k} X_{kt} \Bigr)^2 \tag{A}
   \end{equation*}
 
   \begin{equation*}
-    \hat{\beta}^{(1)}_{f} = \arg\min_{\beta}
-      \Bigl( \sum_{t \in T} \bigl( \ln(Y_{ft}) - \textstyle\sum_{k} \beta_{k} X_{kt} \bigr)^2
-      + \alert{\lambda \sum_{k \in K} \bigl( \beta_{k} - \hat{\beta}^{(0)}_k \bigr)^2} \Bigr)
-      \quad \forall f \in F
+    \hat{\beta}^{(\ell)} = \arg\min_{\beta}
+      \Bigl( \sum_{t \in T} \bigl( \ln(Y^{(\ell)}_{t}) - \textstyle\sum_{k} \beta_{k} X_{kt} \bigr)^2
+      + \alert{\lambda \sum_{k \in K} \bigl( \beta_{k} - \hat{\beta}^{(\ell-1)}_{k} \bigr)^2} \Bigr)
+      \quad \ell \in \{1,\,2\} \tag{B}
   \end{equation*}
 
   \begin{equation*}
-    \hat{\beta}^{(2)}_{i} = \arg\min_{\beta}
-      \Bigl( \sum_{t \in T} \bigl( \ln(y_{it}) - \textstyle\sum_{k} \beta_{k} X_{kt} \bigr)^2
-      + \alert{\lambda \sum_{k \in K} \bigl( \beta_{k} - \hat{\beta}^{(1)}_{fk} \bigr)^2} \Bigr)
-      \quad \forall f \in F,\; i \in I_f
+    \hat{d}_{i,t+h} = B_{i} \cdot \exp\Bigl( \sum_{k \in K} \hat{\beta}^{(2)}_{ik} X_{k,t+h} \Bigr) \tag{C}
   \end{equation*}}
 
-  \note{Três estimações em cascata. A primeira é global, sem prior: mínimos quadrados puro sobre o log
-  da demanda total.
-
-  A segunda é por formato, e traz o termo destacado: além de ajustar o histórico do formato, ela
-  paga uma penalidade por se afastar do coeficiente global. A terceira faz o mesmo, do formato
-  para o balão.
-
-  O comportamento nos extremos ajuda a entender o papel de lambda. Com lambda tendendo ao
-  infinito, o balão herda integralmente a sazonalidade do formato e ignora o próprio histórico.
-  Com lambda zero, cada balão é estimado sozinho, sobre a série curta e ruidosa — que é exatamente
-  o que se quer evitar.
-
-  A estimação usa mínimos quadrados recursivos, o que permite atualizar os coeficientes a cada
-  nova observação sem reestimar tudo.}
-\end{frame}
-
-% ---------------------------------------------------------------------------
-\begin{frame}{A previsão multiplica a base pelo efeito sazonal}
-
-  \vspace{0.6em}
-  {\small
-  \begin{equation*}
-    S_{it} = \exp\Bigl( \sum_{k \in K} \hat{\beta}^{(2)}_{ik} X_{kt} \Bigr)
-    \qquad
-    \tilde{y}_{it} = \frac{y_{it}}{S_{it}}
-    \qquad
-    B_{i} = \frac{1}{|T|} \sum_{t \in T} \tilde{y}_{it}
-  \end{equation*}
-
-  \begin{equation*}
-    \hat{d}_{i,t+h} = B_{i} \cdot \exp\Bigl( \sum_{k \in K} \hat{\beta}^{(2)}_{ik} X_{k,t+h} \Bigr)
-  \end{equation*}}
-
-  \vspace{1.0em}
+  \vspace{0.3em}
   \begin{center}
     \begin{tikzpicture}[font=\footnotesize]
       \node[rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,
-            minimum width=2.6cm,minimum height=0.9cm,text=laranja] (d) at (0,0) {$\hat{d}_{i,t+h}$};
+            minimum width=2.4cm,minimum height=0.7cm] (d) at (0,0) {$\hat{d}_{i,t+h}$};
       \node[rectangle,rounded corners=2pt,draw=cinza,very thick,fill=cinza!12,
-            minimum width=2.6cm,minimum height=0.9cm,text=cinza] (t) at (5.2,0) {semanal};
+            minimum width=2.6cm,minimum height=0.8cm] (t) at (5.2,0) {semanal};
       \draw[-{Stealth[length=3mm]},very thick,cinza] (d) -- node[above,font=\scriptsize,text=cinza] {$d_{it}$} (t);
       \node[anchor=west,font=\scriptsize,text=cinza] at (6.8,0) {e o parâmetro $\alpha$};
     \end{tikzpicture}
   \end{center}
 
-  \note{Com os coeficientes granulares retorna-se à escala original. S it é o efeito sazonal consolidado
-  daquele balão naquele mês. Dividindo a demanda observada por ele, sobra a demanda base: o que o
-  produto vende fora de sazonalidade. A média dessa série normalizada é o B i.
+  \notacao{%
+    \sy{t}{mês} · \sy{k}{mês do ano} · \sy{f}{formato} · \sy{i}{balão} · \sy{\ell}{nível} · 
+    \sy{Y_t}{demanda global} · \sy{Y_{ft}}{demanda do formato} · \sy{y_{it}}{demanda do balão} · 
+    \sy{X_{kt}}{\textit{feature} sazonal} · \sy{\beta}{coeficiente sazonal} · 
+    \sy{\lambda}{penalização do desvio} · \sy{B_i}{demanda base} · \sy{\hat{d}}{previsão} · 
+    \sy{\alpha}{períodos de cobertura}}
 
-  A previsão futura é a base multiplicada pelo efeito esperado do mês alvo.
+  \note{Três estimações em cascata. A primeira é global, sem \textit{prior}: mínimos quadrados puro
+  sobre o log da demanda total. As duas seguintes seguem a mesma forma, com o nível acima
+  funcionando como âncora — formato ancorado no global, balão ancorado no formato —, e trazem o
+  termo destacado: além de ajustar o próprio histórico, cada nível paga uma penalidade por se
+  afastar do coeficiente do pai.
 
-  O que importa reter é a última linha: esse d chapéu é literalmente o parâmetro de demanda que
-  entra no modelo tático. E existe um segundo canal entre os dois, que é o alfa — quantos períodos
+  O comportamento nos extremos ajuda a entender o papel de lambda. Com lambda tendendo ao
+  infinito, o balão herda integralmente a sazonalidade do formato e ignora o próprio histórico.
+  Com lambda zero, cada balão é estimado sozinho, sobre a série curta e ruidosa — que é
+  exatamente o que se quer evitar. A estimação usa mínimos quadrados recursivos, o que permite
+  atualizar os coeficientes a cada nova observação sem reestimar tudo.
+
+  A última equação fecha a volta à escala original. O exponencial dos coeficientes granulares é o
+  efeito sazonal consolidado daquele balão naquele mês; dividindo a demanda observada por ele
+  sobra a demanda base, o que o produto vende fora de sazonalidade, e a previsão futura é a base
+  multiplicada pelo efeito esperado do mês alvo.
+
+  O que importa reter é o diagrama: esse d chapéu é literalmente o parâmetro de demanda que entra
+  no modelo semanal. E existe um segundo canal entre os dois, que é o alfa — quantos períodos
   futuros o estoque deve cobrir. É o alfa que converte acurácia de previsão em política de
   estoque: quanto melhor a previsão, menor o alfa necessário, maior o giro. Essa é a integração
-  que a literatura de lot sizing revisada não tem, porque ela recebe a previsão pronta de fora.}
+  que a literatura de \textit{lot sizing} revisada não tem, porque ela recebe a previsão pronta
+  de fora.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{O semanal arbitra carteira, previsão e cobertura}
+\begin{frame}{As três demandas competem pela mesma capacidade}
 
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.24\textwidth}
@@ -1008,9 +876,9 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{Cinco parcelas, todas em reais}
+\begin{frame}{Todas as parcelas do objetivo estão em reais}
 
-  {\small
+  {\footnotesize
   \begin{equation*}
     Z^{S} = \underbrace{\sum_{i,t} \beta\, m_i\, a_{it}}_{\text{\footnotesize\color{laranjaEsc}atraso carteira}}
       + \underbrace{\sum_{i,t} m_i\, l_{it}}_{\text{\footnotesize\color{laranja}venda perdida}}
@@ -1019,17 +887,26 @@
       + \underbrace{\sum_{i,t} \tfrac{\theta}{52}\, v_i\, \bar{I}_{it}}_{\text{\footnotesize\color{cinza}estoque}}
   \end{equation*}}
 
-  \vspace{0.4em}
-  {\small
+  \restricoes{%
+    (A) balanço de estoque \hfill (B) meta de cobertura \hfill
+    (C) horas da máquina \hfill (D) lote mínimo e ligação}
+
+  {\footnotesize
   \begin{align*}
     I_{i,t-1} + \sum_{j \in J_i} x_{ijt}
-      &= I_{it} + \bigl(o_{it} + a_{i,t-1} - a_{it}\bigr) + \bigl(\hat{d}_{it} - l_{it}\bigr)
-      && \forall\, i,\, t \tag{A} \\[0.1em]
-    I_{it} + g_{it} &\ge \sigma_{it} && \forall\, i,\, t \tag{B} \\[0.1em]
-    \sum_{i \in I} \Bigl( \tfrac{x_{ijt}}{p_{ij}} + \tau_i\, y_{ijt} \Bigr) &\le \kappa_{jt}
-      && \forall\, j,\, t \tag{C} \\[0.1em]
-    q_i\, y_{ijt} \le x_{ijt} &\le M_{ijt}\, y_{ijt} && \forall\, i,\, j,\, t \tag{D}
+      &= I_{it} + \bigl(o_{it} + a_{i,t-1} - a_{it}\bigr) + \bigl(\hat{d}_{it} - l_{it}\bigr) \tag{A} \\
+    I_{it} + g_{it} &\ge \sigma_{it} \tag{B} \\
+    \sum_{i \in I} \Bigl( \tfrac{x_{ijt}}{p_{ij}} + \tau_i\, y_{ijt} \Bigr) &\le \kappa_{jt} \tag{C} \\
+    q_i\, y_{ijt} \le x_{ijt} &\le M_{ijt}\, y_{ijt} \tag{D}
   \end{align*}}
+
+  \notacao{%
+    \sy{i}{balão} · \sy{j}{máquina} · \sy{t}{semana} · \sy{J_i}{máquinas compatíveis} · 
+    \sy{x}{produção} · \sy{y}{\textit{setup}} · \sy{I}{estoque} · \sy{\bar{I}}{estoque médio} · 
+    \sy{a}{atraso} · \sy{l}{venda perdida} · \sy{g}{folga} · \sy{o}{carteira} · 
+    \sy{\hat{d}}{previsão líquida} · \sy{\sigma}{meta de cobertura} · \sy{\kappa}{horas} · 
+    \sy{p}{taxa} · \sy{\tau}{horas de \textit{setup}} · \sy{q}{lote mínimo} · \sy{m}{margem} · 
+    \sy{v}{valor} · \sy{c}{custo horário} · \sy{\beta,\rho}{pesos} · \sy{\theta}{carregamento}}
 
   \note{Cinco parcelas, todas em reais, o que dispensa calibrar peso entre elas.
 
@@ -1039,8 +916,8 @@
   uma meta de estoque não é o mesmo que faltar com um cliente.
 
   A quarta parcela é o setup como custo direto: horas de troca vezes custo horário da máquina.
-  Deixei de cobrar o custo de oportunidade do setup, como o modelo anterior fazia, porque essas
-  horas já consomem capacidade em C, e a produção perdida já reaparece como falta penalizada.
+  O custo de oportunidade do setup deixou de ser cobrado, como fazia o modelo anterior, porque
+  essas horas já consomem capacidade em C, e a produção perdida já reaparece como falta penalizada.
   Cobrar nos dois lugares contava a mesma perda duas vezes.
 
   A quinta é o carregamento de estoque: taxa anual sobre o valor unitário, rateada por semana,
@@ -1052,7 +929,7 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{O semanal entrega uma meta de estoque, não uma janela}
+\begin{frame}{O semanal entrega ao operacional uma meta de estoque}
 
   \vspace{0.6em}
   \begin{center}
@@ -1153,7 +1030,7 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{O operacional indexa turno, posição e cor}
+\begin{frame}{A forma fica fixa no turno e só a cor muda}
 
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.30\textwidth}
@@ -1223,19 +1100,34 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{Produção e \textit{setup} cabem no turno}
+\begin{frame}{Seis restrições fecham o modelo por turno}
 
-  {\small
+  \restricoes{%
+    (A) uma cor por posição ativa \hfill (B) a cor pertence à forma montada \hfill
+    (C) transição proibida \\[0.2em]
+    (D) cor persiste entre turnos \hfill (E) horas do turno \hfill
+    (F) meta recebida do semanal}
+
+  {\footnotesize
   \begin{align*}
-    \sum_{k} \nu_{kjsn} &= u_{js} && \forall\, j,\, s,\, n \tag{A} \\[0.1em]
-    \nu_{kjsn} &\le w_{i(k)js} && \forall\, k,\, j,\, s,\, n \tag{B} \\[0.1em]
-    \nu_{kjs,n-1} + \nu_{k'jsn} &\le 1 && \forall\, (k,k') \notin A \tag{C} \\[0.1em]
-    \bigl| \varphi_{kjs} - \varphi_{kj,s-1} \bigr| &\le u_{js} && \forall\, k,\, j,\, s \tag{D} \\[0.1em]
+    \sum_{k} \nu_{kjsn} &= u_{js} \tag{A} \\
+    \nu_{kjsn} &\le w_{i(k)js} \tag{B} \\
+    \nu_{kjs,n-1} + \nu_{k'jsn} &\le 1 \qquad {\scriptstyle (k,k') \notin A} \tag{C} \\
+    \bigl| \varphi_{kjs} - \varphi_{kj,s-1} \bigr| &\le u_{js} \tag{D} \\
     \sum_{k,n} \tfrac{x_{kjsn}}{p_{i(k)j}}
       + \sum_{i',i} f_{i'i} z_{i'ijs}
-      + \sum_{(k,k') \in A,\, n} e_{kk'} \zeta_{kk'jsn} &\le b_{js} && \forall\, j,\, s \tag{E} \\[0.1em]
-    \sum_{k \in K_i} I_{k,\bar{s}} + g_i &\ge \Sigma_i && \forall\, i \tag{F}
+      + \sum_{(k,k') \in A,\, n} e_{kk'} \zeta_{kk'jsn} &\le b_{js} \tag{E} \\
+    \sum_{k \in K_i} I_{k,\bar{s}} + g_i &\ge \Sigma_i \tag{F}
   \end{align*}}
+
+  \notacao{%
+    \sy{i}{balão} · \sy{j}{máquina} · \sy{s}{turno} · \sy{n}{posição} · \sy{k}{cor} · 
+    \sy{K_i}{cores do balão} · \sy{A}{transições permitidas} · \sy{\bar{s}}{último turno} · 
+    \sy{\nu}{cor na posição} · \sy{w}{forma montada} · \sy{u}{turno ativo} · \sy{x}{produção} · 
+    \sy{z}{troca de forma} · \sy{\zeta}{troca de cor} · \sy{\varphi}{cor ao fim do turno} · 
+    \sy{I}{estoque} · \sy{g}{folga} · \sy{f}{\textit{setup} de forma (h)} · 
+    \sy{e}{\textit{setup} de cor (h)} · \sy{b}{horas do turno} · \sy{p}{taxa} · 
+    \sy{\Sigma}{meta do semanal}}
 
   \note{Seis restrições dão a estrutura toda.
 
@@ -1246,8 +1138,8 @@
   variável de transição: entra esta desigualdade, que impede as duas cores de se sucederem.
 
   D é o carryover de estado. Quando a máquina não produz no turno, u é zero e a igualdade força a
-  cor a permanecer a do turno anterior. Sem isso, e eu descobri isso testando, um turno ocioso
-  apagava a configuração e o modelo atravessava trocas de graça.
+  cor a permanecer a do turno anterior. Sem isso, um turno ocioso apaga a configuração e o modelo
+  atravessa trocas de graça.
 
   E é a restrição central: produção mais setups cabem nas horas do turno. É dura, não é relatório
   de excedente. Uma ordem não atravessa a virada.
@@ -1260,55 +1152,7 @@
 \section{Produto tecnológico}
 % ===========================================================================
 
-\begin{frame}{As decisões descem e o estado sobe entre os níveis}
-
-  \begin{center}
-    \resizebox{!}{0.70\textheight}{%
-    \begin{tikzpicture}[font=\small,
-        lvl/.style={rectangle,rounded corners=3pt,very thick,text width=6.4cm,
-                    minimum height=1.5cm,inner sep=8pt,text centered},
-        ann/.style={font=\scriptsize,text width=2.7cm},
-        down/.style={draw=cinza,-{Stealth[length=3mm]},very thick},
-        up/.style={draw=cinza!60,-{Stealth[length=3mm]},thick,dashed}]
-
-      \node[lvl,draw=laranjaCla,fill=laranjaCla!30] (n0)
-        {\textbf{Previsão de demanda}};
-      \node[lvl,draw=laranja,fill=laranja!20,below=1.35cm of n0] (n1)
-        {\textbf{Planejamento semanal}};
-      \node[lvl,draw=laranjaEsc,fill=laranjaEsc!18,below=1.35cm of n1] (n2)
-        {\textbf{Programação operacional}};
-
-      \path[down] (n0) -- node[right,ann,xshift=2pt] {$\hat{d}_{i,t+h}$,\; $\alpha$} (n1);
-      \path[down] ($(n1.south)+(-1.3cm,0)$) -- node[left,ann,xshift=-2pt,align=right] {meta $\Sigma_i$} ($(n2.north)+(-1.3cm,0)$);
-      \path[up]   ($(n2.north)+(1.3cm,0)$) -- node[right,ann,xshift=2pt] {estoque, atrasos, \\ forma e cor montadas} ($(n1.south)+(1.3cm,0)$);
-
-      \node[ann,left=0.6cm of n0,align=right,text=cinzaEsc] {12+ meses \\ mês};
-      \node[ann,left=0.6cm of n1,align=right,text=cinzaEsc] {13 semanas \\ semana};
-      \node[ann,left=0.6cm of n2,align=right,text=cinzaEsc] {1 semana \\ turno};
-
-      \node[ann,right=0.6cm of n0,text=cinzaEsc] {formato \\ acabamento};
-      \node[ann,right=0.6cm of n1,text=cinzaEsc] {família};
-      \node[ann,right=0.6cm of n2,text=cinzaEsc] {item \\ (cor)};
-
-    \end{tikzpicture}}
-  \end{center}
-
-  \note{Com os três modelos já apresentados, esta é a arquitetura que eles formam. À esquerda, horizonte
-  e bucket; à direita, granularidade de produto.
-
-  Descendo: a previsão entrega demanda e o alfa para o semanal; o semanal entrega uma única
-  grandeza para o operacional, a meta de estoque de fim de semana. Subindo, tracejado: o
-  operacional devolve estoque realizado, atrasos e a configuração em que cada máquina ficou, que
-  realimentam a rodada seguinte em horizonte rolante.
-
-  O status merece ser explícito: a seta que desce está implementada e roda, e a meta com folga já
-  substituiu a fixação de janelas. A seta que sobe existe entre execuções, no horizonte rolante,
-  mas não dentro de uma execução: o semanal não revê seu plano à luz do que o operacional
-  descobriu na mesma rodada. Fechar esse laço interno é trabalho futuro.}
-\end{frame}
-
-% ---------------------------------------------------------------------------
-\begin{frame}{Dois modelos, um contrato de uma grandeza só}
+\begin{frame}{Os dois modelos rodam num sistema completo e operável}
 
   \begin{center}
     \resizebox{\textwidth}{!}{%
@@ -1344,6 +1188,12 @@
   fim da semana congelada. O modelo diário não recebe alocação, não recebe janela, não recebe
   ordem — recebe um estado a alcançar.
 
+  A hierarquia que esses módulos realizam tem três níveis: a previsão entrega demanda e o alfa
+  para o semanal, e o semanal entrega a meta de estoque de fim de semana para o operacional. Na
+  direção contrária, o operacional devolve estoque realizado, atrasos e a configuração em que
+  cada máquina ficou. Essa volta existe entre execuções, no horizonte rolante, mas não dentro de
+  uma execução: o semanal não revê seu plano à luz do que o operacional descobriu na mesma rodada.
+
   Na ponta há um dashboard React com backend FastAPI: parametriza o cenário, dispara as duas
   etapas em sequência e grava cada execução no histórico, o que permite comparar cenários depois
   sem rodar de novo. As visualizações são um Gantt de máquina por turno, a natureza da produção —
@@ -1354,7 +1204,7 @@
 \section{Conclusão}
 % ===========================================================================
 
-\begin{frame}{A decomposição vinda do processo é o argumento central}
+\begin{frame}{A decomposição vem do processo, não da conveniência}
 
   \vspace{1.0em}
   \begin{center}
@@ -1392,83 +1242,57 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{O que o modelo assume e o que ele ainda não trata}
+\begin{frame}{A prioridade deve vir da margem ponderada por cliente}
 
-  \vspace{0.6em}
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.47\textwidth}
-      \begin{center}{\footnotesize\color{cinza}\textbf{premissas}}\end{center}
-      \vspace{0.4em}
-      {\footnotesize
-      \begin{itemize}\setlength\itemsep{0.45em}
-        \item Demanda determinística
-        \item Carteira é parcela da previsão
-        \item Uma forma por máquina-turno
-        \item \textit{Setup} de forma igual em toda máquina
-        \item Operadores não restringem
-      \end{itemize}}
-    \end{column}
-    \begin{column}{0.47\textwidth}
-      \begin{center}{\footnotesize\color{laranjaEsc}\textbf{limitações}}\end{center}
-      \vspace{0.4em}
-      {\footnotesize
-      \begin{itemize}\setlength\itemsep{0.45em}
-        \item Látex perecível não modelado
-        \item Sem realimentação do turno para a semana
-        \item Dado real ainda em base mensal
-      \end{itemize}}
-    \end{column}
-  \end{columns}
-
-  \note{As premissas primeiro. Demanda determinística dentro do horizonte: a incerteza é tratada pela
-  cobertura, não por estocástica. A carteira é tratada como a parcela já confirmada da previsão,
-  e não como corrente independente que possa superá-la — a previsão entra líquida.
-
-  Uma forma por máquina-turno é a premissa estrutural do nível operacional, e ela se sustenta na
-  escala dos tempos de troca. O setup de forma é o mesmo em toda máquina; a diferenciação entre
-  equipamentos ficou no custo horário, não no tempo. E mão de obra não restringe a ativação.
-
-  As limitações. A perecibilidade do látex continua declarada no texto e ausente do modelo: ou se
-  modela tanque e validade, ou a menção é rebaixada a premissa. É uma decisão em aberto.
-
-  Não há realimentação do turno para a semana dentro de uma execução; ela acontece na
-  re-execução seguinte, em horizonte rolante. E o dado real da fábrica ainda está em base mensal,
-  enquanto o contrato dos modelos é semanal.}
-\end{frame}
-
-% ---------------------------------------------------------------------------
-\begin{frame}{Duas frentes restam até a defesa}
-
-  \vspace{0.5em}
+  \vspace{2.4em}
   \begin{center}
-    \begin{ganttchart}[
-        hgrid,vgrid={*1{draw=cinza!20}},
-        x unit=1.05cm, y unit title=0.6cm, y unit chart=0.66cm,
-        title height=1, bar height=0.66, bar top shift=0.17,
-        title/.append style={draw=none,fill=cinza!12},
-        title label font=\scriptsize, bar label font=\scriptsize,
-        bar/.append style={draw=none}, canvas/.append style={draw=cinza!35},
-        bar label node/.append style={align=right,text width=4.6cm}
-      ]{1}{8}
-      \gantttitlelist{1,...,8}{1} \\
-      \ganttbar[bar/.append style={fill=laranjaEsc}]{dado real: mensal $\to$ semanal}{2}{4} \\
-      \ganttbar[bar/.append style={fill=cinza!55}]{redação final}{5}{8}
-    \end{ganttchart}
+    \begin{tikzpicture}[font=\small,
+        cx/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,inner sep=8pt},
+        cn/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,inner sep=8pt}]
+
+      \node[cx] (hoje) at (0,0)
+        {$\textstyle\sum_{i,t} m_i \bigl( \beta a_{it} + l_{it} + \rho g_{it} \bigr)$};
+      \node[font=\footnotesize,text=cinza,above=3pt of hoje] {hoje};
+
+      \node[cn,right=1.0cm of hoje] (prop)
+        {$\textstyle\sum_{i,t} \alert{\omega_{ic}}\, m_i \bigl( \beta a_{it} + l_{it} + \rho g_{it} \bigr)$};
+      \node[font=\footnotesize,text=laranjaEsc,above=3pt of prop] {proposto};
+
+      \draw[-{Stealth[length=3mm]},thick,cinza] (hoje) -- (prop);
+
+      \node[font=\scriptsize,text=cinza,anchor=north,text width=4.4cm,align=center]
+        at ([yshift=-7pt]hoje.south) {custo unitário único \\ no dado da empresa};
+      \node[font=\scriptsize,text=cinzaEsc,anchor=north,text width=5.4cm,align=center]
+        at ([yshift=-7pt]prop.south) {margem efetiva \\ peso do gestor por cliente e balão};
+    \end{tikzpicture}
   \end{center}
 
-  \vspace{0.5em}
-  \begin{center}
-    {\footnotesize\color{cinza}trimestres}
-  \end{center}
+  \note{As três faltas do objetivo semanal — atraso de carteira, venda perdida e folga de cobertura
+  — são hoje ponderadas por uma única grandeza, o $m$, calculado como preço de venda menos custo
+  unitário sobre a planilha que a empresa forneceu. Nessa planilha o custo unitário é o mesmo para
+  os dezessete balões, de modo que a diferenciação entre produtos vem só do preço. A prioridade
+  que o modelo aplica hoje é, portanto, herdada de um dado de custo que não distingue produto.
 
-  \note{Duas frentes, em trimestres. As frentes de modelagem que estavam nesta lista na revisão
-  anterior — bucket semanal, carteira separada da previsão, carryover entre turnos e metas com
-  folga — foram concluídas e estão nos modelos que acabei de apresentar.
+  A primeira melhoria é usar margem efetiva por produto, com custo próprio de cada balão. A
+  diferença não é de precisão apenas: penalizar a falta pela margem transforma o objetivo em custo
+  de oportunidade, e minimizar oportunidade perdida é um proxy para maximizar lucro — enquanto
+  minimizar custo apenas reduz gasto, sem olhar o que cada quilo não vendido deixa de trazer.
 
-  A primeira é converter o dado real da fábrica, que está em base mensal, para o contrato semanal
-  com carteira de pedidos.
+  A segunda melhoria é o peso destacado. Margem é a dimensão quantitativa, mas a decisão real tem
+  uma dimensão qualitativa que ela não captura: um cliente estratégico, um produto que sustenta
+  contrato, um lançamento que não pode faltar na prateleira. O ômega é um peso por cliente e
+  balão, arbitrado pelo tomador de decisão, que multiplica a penalidade das faltas daquele par.
+  Com ele o gestor enviesa deliberadamente o modelo para proteger o nível de serviço do que
+  considera importante, sem reescrever formulação e sem falsear a margem.
 
-  Depois vem a redação final.}
+  O dado necessário já existe: a carteira lida pelo sistema traz o cliente de cada pedido, mas
+  esse campo não entra hoje em nenhuma das duas formulações. Incorporá-lo exige indexar a carteira
+  e o atraso também por cliente, o que aumenta o modelo semanal.
+
+  Outros pontos seguem em aberto e convém declará-los. A perecibilidade do látex está descrita no
+  texto e ausente do modelo: ou se modelam tanque e validade, ou a menção é rebaixada a premissa.
+  E não há realimentação do turno para a semana dentro de uma execução — ela ocorre na re-execução
+  seguinte, em horizonte rolante.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
