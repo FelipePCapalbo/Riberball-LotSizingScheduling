@@ -153,7 +153,7 @@
   \tableofcontents[hideallsubsections]
   \note{Trinta minutos. A apresentação começa pelo problema físico da fábrica, passa pela literatura que
   o enquadra, expõe os dois modelos matemáticos, mostra como eles se tornaram um sistema em
-  operação e fecha com os resultados obtidos e o que ainda falta.}
+  operação e fecha com o argumento central do trabalho e o que ainda falta.}
 \end{frame}
 
 % ===========================================================================
@@ -216,8 +216,7 @@
   tático enxerga.
 
   A cor entra depois, na pigmentação do composto, e é ela que fecha o SKU. As cardinalidades não
-  aparecem na tela porque as instâncias são sintéticas: o número de formatos e de cores é
-  arbitrário e não sustenta conclusão nenhuma. O que importa é a hierarquia — formato e acabamento
+  aparecem na tela porque não são o ponto: o que importa é a hierarquia — formato e acabamento
   no tático, cor no operacional. Essa divisão organiza o restante da apresentação.}
 \end{frame}
 
@@ -1352,162 +1351,6 @@
 \end{frame}
 
 % ===========================================================================
-\section{Resultados}
-% ===========================================================================
-
-\begin{frame}{Cinco instâncias cobrem de 2 a 17 balões}
-
-  \vspace{0.8em}
-  \begin{columns}[c,onlytextwidth]
-    \begin{column}{0.52\textwidth}
-      \begin{center}
-      \small
-      \begin{tabular}{@{}lrrr@{}}
-        \toprule
-        & \textbf{balões} & \textbf{máquinas} & \textbf{períodos} \\
-        \midrule
-        micro    &  2 &  3 &  2 \\
-        pequeno  &  4 &  6 &  4 \\
-        médio    &  8 & 12 &  6 \\
-        grande   & 12 & 20 & 12 \\
-        \textbf{\color{laranjaEsc}real} & \textbf{\color{laranjaEsc}17} & \textbf{\color{laranjaEsc}28} & \textbf{\color{laranjaEsc}13} \\
-        \bottomrule
-      \end{tabular}
-      \end{center}
-    \end{column}
-    \begin{column}{0.42\textwidth}
-      \begin{center}
-        \begin{tikzpicture}[font=\scriptsize]
-          \node[anchor=west,text=cinza] at (0,2.1) {CBC / Gurobi};
-          \node[anchor=west,text=cinza] at (0,1.5) {PuLP};
-          \node[anchor=west,text=cinza] at (0,0.9) {60 s \; / \; 600 s};
-          \node[anchor=west,text=cinza] at (0,0.3) {3 turnos $\times$ 8 h};
-          \node[anchor=west,text=laranja] at (0,-0.4) {6 cores, 25\% bloqueadas};
-        \end{tikzpicture}
-      \end{center}
-    \end{column}
-  \end{columns}
-
-  \note{As instâncias são sintéticas, geradas por um notebook próprio, com sazonalidade embutida e
-  um mix de duas a quatro cores por balão sobre um conjunto de seis. Vinte e cinco por cento dos
-  pares de transição são bloqueados por sorteio.
-
-  O gerador garante por construção as duas equivalências de soma entre os níveis: a demanda por cor
-  soma a demanda do balão pai, e o mesmo para o estoque. Sem isso os dois modelos estariam
-  resolvendo problemas inconsistentes.
-
-  O perfil real reproduz a dimensão da fábrica: dezessete balões, vinte e oito máquinas, treze
-  períodos. Solver é CBC por padrão, com Gurobi opcional, e os limites de tempo são independentes
-  entre os dois níveis.}
-\end{frame}
-
-% ---------------------------------------------------------------------------
-\begin{frame}{A cascata reduz o erro do produto de nicho em 63\%}
-
-  \begin{columns}[c,onlytextwidth]
-    \begin{column}{0.60\textwidth}
-      \begin{center}
-        \begin{tikzpicture}
-          \begin{axis}[
-              ybar, width=7.8cm, height=5.2cm,
-              bar width=7pt,
-              symbolic x coords={$i_{31}$,$i_{11}$,$i_{12}$,$i_{21}$},
-              xtick=data,
-              ymin=0, ymax=52,
-              ylabel={MAPE (\%)}, ylabel style={font=\scriptsize},
-              tick label style={font=\scriptsize},
-              legend style={font=\scriptsize,at={(0.5,1.14)},anchor=north,legend columns=3,draw=none},
-              ymajorgrids, grid style={cinza!20},
-              axis lines*=left,
-            ]
-            \addplot[fill=cinzaCla,draw=none] coordinates {($i_{31}$,21.8) ($i_{11}$,21.3) ($i_{12}$,29.0) ($i_{21}$,46.5)};
-            \addplot[fill=cinza!60,draw=none] coordinates {($i_{31}$,23.9) ($i_{11}$,20.9) ($i_{12}$,27.1) ($i_{21}$,28.3)};
-            \addplot[fill=laranja,draw=none]    coordinates {($i_{31}$,24.8) ($i_{11}$,21.3) ($i_{12}$,29.4) ($i_{21}$,17.3)};
-            \legend{global,formato,balão}
-          \end{axis}
-        \end{tikzpicture}
-      \end{center}
-    \end{column}
-    \begin{column}{0.36\textwidth}
-      \begin{center}
-        \begin{tikzpicture}[font=\footnotesize]
-          \node[font=\large\bfseries,text=cinza]  at (0,1.4) {46,5\%};
-          \node[font=\Large,text=cinza]           at (0,0.6) {$\downarrow$};
-          \node[font=\large\bfseries,text=laranja] at (0,-0.1) {17,3\%};
-          \node[font=\scriptsize,text=cinzaEsc,align=center] at (0,-1.1)
-            {$i_{21}$ \\ nicho, contrassazonal};
-        \end{tikzpicture}
-      \end{center}
-    \end{column}
-  \end{columns}
-
-  \note{Este é o resultado mais sólido obtido até aqui. Quatro produtos, três níveis de agregação, MAPE
-  sobre cinco períodos de teste.
-
-  O caso que a hierarquia resolve é o i vinte e um: um produto de nicho, com sazonalidade de
-  primavera oposta à do mercado, e volume cento e cinquenta vezes menor que o do produto
-  dominante. O modelo global concentra o máximo no outono e o subestima sistematicamente — em
-  abril projeta novecentos quilos contra dois mil e quatrocentos observados. A cascata leva o erro
-  de quarenta e seis e meio para dezessete e três.
-
-  Vale mostrar também o caso em que ela não ajuda, porque é honesto e informativo. O i trinta e um
-  é trinta e sete por cento do volume: ele domina os coeficientes globais, então o nível global já
-  é a melhor aproximação dele, e descer na hierarquia só adiciona sobreajuste. O ganho da cascata
-  é concentrado nos produtos de baixo volume, não é uniforme.}
-\end{frame}
-
-% ---------------------------------------------------------------------------
-\begin{frame}{A perda de serviço é de prazo, não de capacidade}
-
-  \vspace{0.6em}
-  \begin{center}
-    \begin{tikzpicture}[font=\small]
-
-      \node[rectangle,rounded corners=3pt,draw=cinza,very thick,fill=cinza!12,
-            minimum width=4.6cm,minimum height=2.3cm] (t) at (0,0) {};
-      \node[font=\footnotesize\bfseries,text=cinzaEsc] at (0,0.8) {semanal};
-      \node[font=\Large\bfseries,text=cinza] at (0,0.05) {100,00\%};
-      \node[font=\scriptsize,text=cinza] at (0,-0.65) {13 semanas};
-
-      \node[rectangle,rounded corners=3pt,draw=laranja,very thick,fill=laranja!12,
-            minimum width=4.6cm,minimum height=2.3cm] (o) at (6.4,0) {};
-      \node[font=\footnotesize\bfseries,text=cinzaEsc] at (6.4,0.8) {operacional};
-      \node[font=\Large\bfseries,text=laranja] at (6.4,0.05) {99,97\%};
-      \node[font=\scriptsize,text=cinza] at (6.4,-0.65) {18 turnos \; $\cdot$ \; 3 trocas de cor};
-
-      \draw[-{Stealth[length=3mm]},very thick,laranjaEsc] (2.5,0) -- (4.0,0);
-      \node[font=\scriptsize,text=laranjaEsc,align=center] at (3.25,0.75) {$-0{,}03$};
-
-      \node[font=\footnotesize,text=cinza] at (3.2,-1.9) {nível de serviço};
-    \end{tikzpicture}
-  \end{center}
-
-  \vspace{0.5em}
-  \begin{center}
-    {\scriptsize\color{cinza}instância pequena --- 4 balões, 6 máquinas}
-  \end{center}
-
-  \note{Este é um resultado pequeno em escala, mas conceitualmente é o mais interessante obtido, e é por
-  isso que está aqui.
-
-  O semanal fecha com cem por cento de atendimento da carteira: em volume agregado, sobre treze
-  semanas, existe capacidade para todos os pedidos. O operacional, detalhando a primeira semana em
-  dezoito turnos sobre exatamente esse plano, cai para noventa e nove vírgula noventa e sete.
-
-  A perda não vem de falta de capacidade, e esse é o ponto do slide. As horas estão lá. O pedido
-  atrasa porque a ordem viável das cores, dada a matriz de transições proibidas, não permite
-  chegar naquela cor antes do prazo do turno. É perda de sequência, não de volume.
-
-  Isso valida a decomposição por um caminho que talvez não seja o esperado: mostra que o nível
-  agregado é otimista por construção. Um modelo semanal sozinho nunca enxergaria esse atraso,
-  porque não tem cor nem ordem — e é exatamente essa informação que precisa subir de volta.
-
-  Duas ressalvas de honestidade. O semanal atingiu o limite de tempo nesta execução, então cem por
-  cento é o melhor encontrado, não o ótimo provado. E os números consolidados sobre o conjunto
-  completo de instâncias, com o estudo As-Is contra otimizado, ainda estão em andamento.}
-\end{frame}
-
-% ===========================================================================
 \section{Conclusão}
 % ===========================================================================
 
@@ -1572,7 +1415,6 @@
       \begin{itemize}\setlength\itemsep{0.45em}
         \item Látex perecível não modelado
         \item Sem realimentação do turno para a semana
-        \item Porte do modelo na instância real
         \item Dado real ainda em base mensal
       \end{itemize}}
     \end{column}
@@ -1590,14 +1432,12 @@
   modela tanque e validade, ou a menção é rebaixada a premissa. É uma decisão em aberto.
 
   Não há realimentação do turno para a semana dentro de uma execução; ela acontece na
-  re-execução seguinte, em horizonte rolante. Na instância real o modelo por turno é grande o
-  bastante para não fechar dentro do tempo limite, e o que se reporta ali é a melhor solução
-  encontrada com o gap correspondente — não o ótimo provado. E o dado real da fábrica ainda está
-  em base mensal; as instâncias semanais são sintéticas.}
+  re-execução seguinte, em horizonte rolante. E o dado real da fábrica ainda está em base mensal,
+  enquanto o contrato dos modelos é semanal.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{Quatro frentes restam até a defesa}
+\begin{frame}{Duas frentes restam até a defesa}
 
   \vspace{0.5em}
   \begin{center}
@@ -1611,9 +1451,7 @@
         bar label node/.append style={align=right,text width=4.6cm}
       ]{1}{8}
       \gantttitlelist{1,...,8}{1} \\
-      \ganttbar[bar/.append style={fill=laranjaEsc}]{tratabilidade da instância real}{1}{3} \\
-      \ganttbar[bar/.append style={fill=cinza!55}]{dado real: mensal $\to$ semanal}{2}{4} \\
-      \ganttbar[bar/.append style={fill=laranja}]{As-Is \textit{vs.} Otimizado}{4}{6} \\
+      \ganttbar[bar/.append style={fill=laranjaEsc}]{dado real: mensal $\to$ semanal}{2}{4} \\
       \ganttbar[bar/.append style={fill=cinza!55}]{redação final}{5}{8}
     \end{ganttchart}
   \end{center}
@@ -1623,20 +1461,14 @@
     {\footnotesize\color{cinza}trimestres}
   \end{center}
 
-  \note{Quatro frentes, em trimestres. As frentes de modelagem que estavam nesta lista na revisão
+  \note{Duas frentes, em trimestres. As frentes de modelagem que estavam nesta lista na revisão
   anterior — bucket semanal, carteira separada da previsão, carryover entre turnos e metas com
   folga — foram concluídas e estão nos modelos que acabei de apresentar.
 
-  A primeira frente é a que me preocupa: a instância real, com vinte e oito máquinas e dezoito
-  turnos, tem porte suficiente para não fechar dentro do tempo limite. O caminho aqui é de
-  formulação, não de heurística de resolução: apertar limitantes, buscar desigualdades válidas,
-  e avaliar se o número de posições por turno pode ser reduzido sem perder solução relevante.
-  O que se reporta enquanto isso é a melhor solução encontrada com o gap.
+  A primeira é converter o dado real da fábrica, que está em base mensal, para o contrato semanal
+  com carteira de pedidos.
 
-  A segunda é converter o dado real da fábrica, que está em base mensal, para o contrato semanal
-  com carteira de pedidos — hoje só as instâncias sintéticas estão no formato novo.
-
-  Depois vem o estudo As-Is contra otimizado, que é o capítulo de resultados, e a redação final.}
+  Depois vem a redação final.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
@@ -1652,75 +1484,6 @@
 \begin{frame}[allowframebreaks]{Referências}
   \scriptsize
   \bibliography{referencias}
-\end{frame}
-
-% ===========================================================================
-\appendix
-% ===========================================================================
-
-\begin{frame}{Anexo --- Erro de previsão do produto de nicho}
-
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.46\textwidth}
-      \small
-      \begin{tabular}{@{}lrrrr@{}}
-        \toprule
-        & \textbf{real} & \textbf{glob.} & \textbf{form.} & \textbf{balão} \\
-        \midrule
-        Jan &   469 &   748 &   567 &   513 \\
-        Fev &   936 &   712 &   807 &   890 \\
-        Mar & 1.319 &   935 & 1.101 & 1.241 \\
-        Abr & 2.456 &   902 & 1.307 & 1.632 \\
-        Mai & 2.252 &   973 & 1.274 & 1.514 \\
-        \bottomrule
-      \end{tabular}
-    \end{column}
-    \begin{column}{0.46\textwidth}
-      \small
-      \begin{tabular}{@{}lrrr@{}}
-        \toprule
-        & \textbf{glob.} & \textbf{form.} & \textbf{balão} \\
-        \midrule
-        Jan  & $+59\%$ & $+21\%$ &  $+9\%$ \\
-        Fev  & $-24\%$ & $-14\%$ &  $-5\%$ \\
-        Mar  & $-29\%$ & $-16\%$ &  $-6\%$ \\
-        Abr  & $-63\%$ & $-47\%$ & $-34\%$ \\
-        Mai  & $-57\%$ & $-43\%$ & $-33\%$ \\
-        \midrule
-        MAPE & 46{,}5\% & 28{,}3\% & 17{,}3\% \\
-        \bottomrule
-      \end{tabular}
-    \end{column}
-  \end{columns}
-
-  \vspace{0.8em}
-  \begin{center}
-    {\scriptsize\color{cinza}$i_{21}$, kg, 5 períodos de teste}
-  \end{center}
-\end{frame}
-
-% ---------------------------------------------------------------------------
-\begin{frame}{Anexo --- MAPE por produto e nível}
-
-  \vspace{1.0em}
-  \begin{center}
-    \small
-    \begin{tabular}{@{}lccc@{}}
-      \toprule
-      \textbf{produto} & \textbf{global} & \textbf{formato} & \textbf{balão} \\
-      \midrule
-      $i_{31}$ (37\% do volume) & 21,8 & 23,9 & 24,8 \\
-      $i_{11}$                  & 21,3 & 20,9 & 21,3 \\
-      $i_{12}$                  & 29,0 & 27,1 & 29,4 \\
-      $i_{21}$ (nicho)          & 46,5 & 28,3 & \color{laranja}\textbf{17,3} \\
-      \bottomrule
-    \end{tabular}
-  \end{center}
-
-  \vspace{1.0em}
-  \begin{center}
-    {\scriptsize\color{cinza}MAPE (\%), 5 períodos de teste}
-  \end{center}
 \end{frame}
 
 \end{document}

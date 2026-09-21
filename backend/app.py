@@ -35,6 +35,11 @@ async def check_shared_secret(request, call_next):
     return response
 
 
+@app.get('/api/health')
+async def get_health():
+    return {'status': 'ok'}
+
+
 @app.get('/api/data-files')
 async def get_data_files():
     if dict_instance:

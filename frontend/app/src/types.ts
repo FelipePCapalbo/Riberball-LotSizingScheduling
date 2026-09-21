@@ -202,7 +202,10 @@ export interface HistoryRecord {
   } | null;
 }
 
+export type BackendState = 'unknown' | 'starting' | 'connected' | 'disconnected';
+
 export interface BackendStatus {
+  state: BackendState;
   connected: boolean;
   machine_label?: string;
 }

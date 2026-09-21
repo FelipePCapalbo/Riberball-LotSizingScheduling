@@ -1,46 +1,21 @@
-import { useEffect, useState } from 'react';
-import { getBackendStatus } from '../api';
+import type { BackendState } from '../types';
 
-const POLL_INTERVAL_MS = 5000;
+interface Props {
+  state: BackendState;
+  machineLabel?: string;
+}
 
-export default function BackendStatusBadge() {
-  const [status, setStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
-  const [machineLabel, setMachineLabel] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const refresh = () => {
-      getBackendStatus()
-        .then((data) => {
-          if (!cancelled) {
-            setStatus(data.connected ? 'connected' : 'disconnected');
-            setMachineLabel(data.machine_label);
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setStatus('disconnected');
-          }
-        });
-    };
-
-    refresh();
-    const intervalId = setInterval(refresh, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-    };
-  }, []);
-
+export default function BackendStatusBadge({ state, machineLabel }: Props) {
   let text: string;
-  if (status === 'connected') {
+  if (state === 'connected') {
     text = `backend conectado (${machineLabel})`;
-  } else if (status === 'disconnected') {
+  } else if (state === 'starting') {
+    text = `backend iniciando o túnel (${machineLabel})`;
+  } else if (state === 'disconnected') {
     text = 'nenhum backend conectado';
   } else {
     text = 'verificando backend...';
   }
 
-  return <div className={`status status--${status}`}>{text}</div>;
+  return <div className={`status status--${state}`}>{text}</div>;
 }

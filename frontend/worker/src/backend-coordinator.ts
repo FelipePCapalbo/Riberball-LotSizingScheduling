@@ -60,16 +60,26 @@ export class BackendCoordinator implements DurableObject {
       }
       response = Response.json({ status: 'ok' });
     } else if (url.pathname === '/status' && request.method === 'GET') {
-      if (leaseActive) {
+      if (leaseActive && lease!.publicUrl) {
         response = Response.json({
+          state: 'connected',
           connected: true,
           machine_label: lease!.machineLabel,
           public_url: lease!.publicUrl,
           since: lease!.registeredAt,
           last_heartbeat_at: lease!.lastHeartbeatAt,
         });
+      } else if (leaseActive) {
+        response = Response.json({
+          state: 'starting',
+          connected: false,
+          machine_label: lease!.machineLabel,
+          public_url: null,
+          since: lease!.registeredAt,
+          last_heartbeat_at: lease!.lastHeartbeatAt,
+        });
       } else {
-        response = Response.json({ connected: false });
+        response = Response.json({ state: 'disconnected', connected: false, public_url: null });
       }
     } else {
       response = new Response('not found', { status: 404 });

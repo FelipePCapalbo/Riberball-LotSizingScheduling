@@ -13,7 +13,9 @@ import OperationsTable from './components/tables/OperationsTable';
 import OrdersTable from './components/tables/OrdersTable';
 import WeeklyPlanTable from './components/tables/WeeklyPlanTable';
 import { fmtN } from './format';
-import type { DailyResult, HistoryRun, Settings, WeeklyResult } from './types';
+import type { BackendState, DailyResult, HistoryRun, Settings, WeeklyResult } from './types';
+
+const BACKEND_POLL_INTERVAL_MS = 3000;
 
 const DEFAULT_SETTINGS: Settings = {
   start_week: null,
@@ -52,6 +54,8 @@ export default function App() {
   const [daily, setDaily] = useState<DailyResult | null>(null);
   const [mainTab, setMainTab] = useState('weekly');
   const [historyRuns, setHistoryRuns] = useState<HistoryRun[]>([]);
+  const [backendState, setBackendState] = useState<BackendState>('unknown');
+  const [backendMachine, setBackendMachine] = useState<string | undefined>(undefined);
 
   const reloadInitData = async () => {
     const init = await api.getInitData();
@@ -72,35 +76,66 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    let timer: number | undefined;
+    let loaded = false;
+    let loadInFlight = false;
 
-    const attemptInitialLoad = async () => {
+    const pollBackend = async () => {
+      let backendIsReady = false;
       try {
-        const files = await api.getDataFiles();
-        if (cancelled) {
-          return;
-        }
-        setDataFiles(files.files);
-        setActiveDataFile(files.active);
-        await reloadInitData();
+        const status = await api.getBackendStatus();
         if (!cancelled) {
-          setStatusText('');
+          setBackendState(status.state);
+          setBackendMachine(status.machine_label);
+          backendIsReady = status.state === 'connected';
+          if (!loaded && !backendIsReady) {
+            if (status.state === 'starting') {
+              setStatusText(`Backend registrado em ${status.machine_label}, aguardando o túnel ficar pronto...`);
+              setStatusTone('warn');
+            } else {
+              setStatusText('Nenhum backend conectado. Rode init.sh na máquina do backend.');
+              setStatusTone('bad');
+            }
+          }
         }
       } catch (err) {
         if (!cancelled) {
-          setStatusText(`Aguardando backend conectar... (${(err as Error).message})`);
-          setStatusTone('bad');
-          timer = window.setTimeout(attemptInitialLoad, 5000);
+          setBackendState('disconnected');
+          if (!loaded) {
+            setStatusText(`Sem resposta do Worker... (${(err as Error).message})`);
+            setStatusTone('bad');
+          }
         }
+      }
+
+      if (backendIsReady && !loaded && !loadInFlight && !cancelled) {
+        loadInFlight = true;
+        try {
+          const files = await api.getDataFiles();
+          if (!cancelled) {
+            setDataFiles(files.files);
+            setActiveDataFile(files.active);
+            await reloadInitData();
+          }
+          loaded = true;
+          if (!cancelled) {
+            setStatusText('');
+            setStatusTone('neutral');
+          }
+        } catch (err) {
+          if (!cancelled) {
+            setStatusText(`Backend conectado, carregando dados... (${(err as Error).message})`);
+            setStatusTone('warn');
+          }
+        }
+        loadInFlight = false;
       }
     };
 
-    attemptInitialLoad();
+    pollBackend();
+    const intervalId = window.setInterval(pollBackend, BACKEND_POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
-      if (timer !== undefined) {
-        window.clearTimeout(timer);
-      }
+      window.clearInterval(intervalId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -254,7 +289,7 @@ export default function App() {
       <main className="main-content">
         <div className="main-header">
           <h1>Planejamento de produção</h1>
-          <BackendStatusBadge />
+          <BackendStatusBadge state={backendState} machineLabel={backendMachine} />
         </div>
 
         {weekly ? <KpiBar items={kpiItems} /> : null}

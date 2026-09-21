@@ -20,7 +20,9 @@ export default {
 
     if (url.pathname === '/api/backend-status') {
       const coordinator = getCoordinatorStub(env);
-      response = await coordinator.fetch('https://coordinator/status');
+      const statusResponse = await coordinator.fetch('https://coordinator/status');
+      response = new Response(statusResponse.body, statusResponse);
+      response.headers.set('Cache-Control', 'no-store');
     } else if (url.pathname.startsWith('/internal/backend/')) {
       if (request.headers.get('Authorization') !== `Bearer ${env.SHARED_SECRET}`) {
         response = new Response('unauthorized', { status: 401 });
@@ -36,9 +38,14 @@ export default {
     } else if (url.pathname.startsWith('/api/')) {
       const coordinator = getCoordinatorStub(env);
       const statusResponse = await coordinator.fetch('https://coordinator/status');
-      const status = await statusResponse.json<{ connected: boolean; public_url: string | null }>();
-      if (!status.connected || !status.public_url) {
-        response = Response.json({ error: 'no backend connected' }, { status: 503 });
+      const status = await statusResponse.json<{ state: string; public_url: string | null }>();
+      if (!status.public_url) {
+        const message =
+          status.state === 'starting'
+            ? 'backend registrado, tunel ainda nao esta pronto'
+            : 'nenhum backend conectado';
+        response = Response.json({ state: status.state, error: message }, { status: 503 });
+        response.headers.set('Cache-Control', 'no-store');
       } else {
         const proxyUrl = status.public_url + url.pathname + url.search;
         const proxyHeaders = new Headers(request.headers);

@@ -25,7 +25,7 @@ Reportar no capitulo de Resultados o status e o gap de cada instancia, nao apena
 
 ## Dados
 
-- Converter `data/OLD_MENSAL/input_asis.xlsx` (dado real, mensal) para o contrato semanal:
+- Converter `data/input_asis.xlsx` (dado real, mensal) para o contrato semanal:
   desagregar a demanda mensal por dias uteis da semana e montar as abas de carteira.
 
 ## Modelo

@@ -181,6 +181,20 @@ adiciona. Sem ele, aponte `VITE_PROXY_TARGET` para o Worker publicado.
 
 Para rodar o backend sem túnel, defina `TUNNEL_ENABLED=false` em `backend/.env`.
 
+### Estados da conexão
+
+`/api/backend-status` devolve três estados, e a interface só libera as chamadas de dados no terceiro:
+
+| Estado | Significado |
+|---|---|
+| `disconnected` | nenhum lease ativo no Worker — rode `init.sh` na máquina do backend |
+| `starting` | backend registrado, mas o túnel ainda não responde: `/api/*` devolve 503 |
+| `connected` | o Worker já tem a URL pública e o túnel respondeu `/api/health` |
+
+O backend registra o lease, sobe o uvicorn e só então publica a URL do túnel, depois de confirmar
+com uma sondagem em `/api/health` que ela já atravessa até a porta local. O heartbeat começa no
+registro, então o lease não expira enquanto o `cloudflared` sobe.
+
 ## Abas da interface
 
 - **Plano semanal** — estoque projetado × meta de cobertura, natureza da produção (contra pedido /
