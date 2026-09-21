@@ -20,6 +20,9 @@ REGISTER_ATTEMPTS = 4
 REGISTER_RETRY_SECONDS = 5
 PROBE_INTERVAL_SECONDS = 1
 PROBE_TIMEOUT_SECONDS = 90
+DNS_INTERVAL_SECONDS = 3
+DNS_TIMEOUT_SECONDS = 120
+DOH_RESOLVER_URL = 'https://cloudflare-dns.com/dns-query'
 
 instance_id = str(uuid.uuid4())
 published_url = None
@@ -40,7 +43,34 @@ async def publish_tunnel():
     tunnel_process, public_url = await tunnel.start_tunnel(PORT)
     print(f'[backend] Túnel público em {public_url}', flush=True)
 
+    str_tunnel_host = public_url.split('://')[1]
     loop = asyncio.get_event_loop()
+    dns_deadline = loop.time() + DNS_TIMEOUT_SECONDS
+    dns_is_published = False
+    while not dns_is_published and loop.time() < dns_deadline:
+        async with httpx.AsyncClient(timeout=10) as client:
+            try:
+                lookup = await client.get(
+                    DOH_RESOLVER_URL,
+                    params={'name': str_tunnel_host, 'type': 'A'},
+                    headers={'Accept': 'application/dns-json'},
+                )
+                dict_lookup = lookup.json()
+                if dict_lookup.get('Status') == 0 and dict_lookup.get('Answer'):
+                    dns_is_published = True
+                else:
+                    dns_is_published = False
+            except httpx.HTTPError:
+                dns_is_published = False
+        if not dns_is_published:
+            await asyncio.sleep(DNS_INTERVAL_SECONDS)
+
+    if not dns_is_published:
+        raise RuntimeError(
+            f'O nome {str_tunnel_host} não entrou no DNS em {DNS_TIMEOUT_SECONDS}s. '
+            'O túnel subiu, mas ninguém conseguiria alcançá-lo.'
+        )
+
     deadline = loop.time() + PROBE_TIMEOUT_SECONDS
     tunnel_is_serving = False
     while not tunnel_is_serving and loop.time() < deadline:
