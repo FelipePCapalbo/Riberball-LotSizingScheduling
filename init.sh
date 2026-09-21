@@ -19,24 +19,25 @@ echo
 echo "Riberball - planejamento semanal e programacao por turno"
 echo
 
-case "$(uname -s)" in
-    Linux)
+case "$(uname -s)/$(uname -m)" in
+    Linux/x86_64)
         CLOUDFLARED_ASSET="cloudflared-linux-amd64"
         ;;
-    Darwin)
+    Linux/aarch64|Linux/arm64)
+        CLOUDFLARED_ASSET="cloudflared-linux-arm64"
+        ;;
+    Darwin/x86_64)
         CLOUDFLARED_ASSET="cloudflared-darwin-amd64.tgz"
         ;;
+    Darwin/arm64)
+        CLOUDFLARED_ASSET="cloudflared-darwin-arm64.tgz"
+        ;;
     *)
-        echo "Sistema nao suportado: $(uname -s)"
+        echo "Sistema nao suportado: $(uname -s) $(uname -m)"
+        echo "Baixe o binario do cloudflared para a sua plataforma e coloque nesta pasta como ./cloudflared."
         exit 1
         ;;
 esac
-
-if [ "$(uname -m)" != "x86_64" ]; then
-    echo "Esta maquina nao e x86_64 ($(uname -m))."
-    echo "Baixe o binario do cloudflared para a sua arquitetura e coloque nesta pasta como ./cloudflared."
-    echo
-fi
 
 echo "[1/5] Procurando um Python compativel ..."
 
@@ -104,15 +105,35 @@ fi
 
 echo "[4/5] Conferindo o cloudflared ..."
 
+bool_cloudflared_ok=0
 if [ -x "./cloudflared" ]; then
+    if "./cloudflared" --version >/dev/null 2>&1; then
+        bool_cloudflared_ok=1
+    fi
+fi
+
+if [ "$bool_cloudflared_ok" -eq 1 ]; then
     echo "      ja presente nesta pasta"
 else
-    echo "      baixando cloudflared para esta pasta"
+    if [ -e "./cloudflared" ]; then
+        echo "      binario anterior invalido para esta plataforma - baixando de novo"
+        rm -f "./cloudflared"
+    else
+        echo "      baixando cloudflared para esta pasta"
+    fi
     rm -f "./cloudflared.part"
     curl -fL --progress-bar -o "./cloudflared.part" \
         "https://github.com/cloudflare/cloudflared/releases/latest/download/$CLOUDFLARED_ASSET"
-    chmod +x "./cloudflared.part"
-    mv "./cloudflared.part" "./cloudflared"
+    case "$CLOUDFLARED_ASSET" in
+        *.tgz)
+            tar -xzf "./cloudflared.part" -O cloudflared > "./cloudflared"
+            rm -f "./cloudflared.part"
+            ;;
+        *)
+            mv "./cloudflared.part" "./cloudflared"
+            ;;
+    esac
+    chmod +x "./cloudflared"
 fi
 
 if [ ! -f "backend/.env" ]; then

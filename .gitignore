@@ -77,3 +77,6 @@ frontend/app/tsconfig.tsbuildinfo
 
 # Wheels vendorizados para instalacao offline no cliente
 /wheels/
+
+# Saida do run.py standalone
+/results.json
