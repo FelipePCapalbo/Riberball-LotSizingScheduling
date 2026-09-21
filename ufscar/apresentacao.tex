@@ -826,7 +826,6 @@
       \begin{tabularx}{\linewidth}{@{}L{1.0cm}R@{}}
         $o_{it}$        & Carteira (kg). \\
         $\hat{d}_{it}$  & Previsão líquida (kg). \\
-        $\sigma_{it}$   & Meta de cobertura (kg). \\
         $m_i$           & Margem (R\$/kg). \\
         $v_i$           & Valor do estoque (R\$/kg). \\
         $c_j$           & \textit{Setup} (R\$/h). \\
@@ -844,7 +843,6 @@
         $I_{it}$  & Estoque. \\
         $a_{it}$  & Atraso da carteira. \\
         $l_{it}$  & Venda perdida. \\
-        $g_{it}$  & Folga da cobertura. \\
       \end{tabularx}}
 
       \vspace{0.8em}
@@ -853,7 +851,6 @@
             b/.style={rectangle,rounded corners=2pt,minimum width=2.9cm,minimum height=0.44cm}]
           \node[b,fill=laranjaEsc!25,draw=laranjaEsc] at (0,0.9) {carteira $o_{it}$};
           \node[b,fill=laranja!20,draw=laranja]       at (0,0.35) {previsão $\hat{d}_{it}$};
-          \node[b,fill=laranjaCla!30,draw=laranjaCla] at (0,-0.2) {cobertura $\sigma_{it}$};
           \node[font=\scriptsize,text=cinzaEsc,anchor=north] at (0,-0.62)
             {carteira $+$ previsão $=$ demanda total};
         \end{tikzpicture}
@@ -868,8 +865,8 @@
   nada, e passa a ser quanto se produz, com o lote mínimo q i impondo o piso econômico da corrida.
 
   E a demanda deixa de ser uma corrente só. Carteira é o que já está vendido, com prazo; previsão
-  líquida é o que se espera vender além dela; cobertura é o estoque que se quer ter à frente. As
-  três competem pela mesma capacidade, e o preço de cada falta é que decide quem cede.
+  líquida é o que se espera vender além dela. As duas competem pela mesma capacidade, e a estrutura
+  do balanço é que decide quem cede.
 
   Os parâmetros de custo também se separam: margem para as faltas, valor unitário para o estoque,
   custo horário para o setup. Antes um único custo unitário fazia os três papéis.}
@@ -880,52 +877,54 @@
 
   {\footnotesize
   \begin{equation*}
-    Z^{S} = \underbrace{\sum_{i,t} \beta\, m_i\, a_{it}}_{\text{\footnotesize\color{laranjaEsc}atraso carteira}}
+    Z^{S} = \underbrace{\sum_{i,t} m_i\, a_{it}}_{\text{\footnotesize\color{laranjaEsc}atraso carteira}}
       + \underbrace{\sum_{i,t} m_i\, l_{it}}_{\text{\footnotesize\color{laranja}venda perdida}}
-      + \underbrace{\sum_{i,t} \rho\, m_i\, g_{it}}_{\text{\footnotesize\color{laranjaCla!70!black}cobertura}}
       + \underbrace{\sum_{i,j,t} c_j\, \tau_i\, y_{ijt}}_{\text{\footnotesize\color{cinza}\textit{setup}}}
       + \underbrace{\sum_{i,t} \tfrac{\theta}{52}\, v_i\, \bar{I}_{it}}_{\text{\footnotesize\color{cinza}estoque}}
   \end{equation*}}
 
   \restricoes{%
-    (A) balanço de estoque \hfill (B) meta de cobertura \hfill
-    (C) horas da máquina \hfill (D) lote mínimo e ligação}
+    (A) balanço de estoque \hfill (B) horas da máquina \hfill
+    (C) lote mínimo e ligação}
 
   {\footnotesize
   \begin{align*}
     I_{i,t-1} + \sum_{j \in J_i} x_{ijt}
       &= I_{it} + \bigl(o_{it} + a_{i,t-1} - a_{it}\bigr) + \bigl(\hat{d}_{it} - l_{it}\bigr) \tag{A} \\
-    I_{it} + g_{it} &\ge \sigma_{it} \tag{B} \\
-    \sum_{i \in I} \Bigl( \tfrac{x_{ijt}}{p_{ij}} + \tau_i\, y_{ijt} \Bigr) &\le \kappa_{jt} \tag{C} \\
-    q_i\, y_{ijt} \le x_{ijt} &\le M_{ijt}\, y_{ijt} \tag{D}
+    \sum_{i \in I} \Bigl( \tfrac{x_{ijt}}{p_{ij}} + \tau_i\, y_{ijt} \Bigr) &\le \kappa_{jt} \tag{B} \\
+    q_i\, y_{ijt} \le x_{ijt} &\le M_{ijt}\, y_{ijt} \tag{C}
   \end{align*}}
 
   \notacao{%
     \sy{i}{balão} · \sy{j}{máquina} · \sy{t}{semana} · \sy{J_i}{máquinas compatíveis} · 
     \sy{x}{produção} · \sy{y}{\textit{setup}} · \sy{I}{estoque} · \sy{\bar{I}}{estoque médio} · 
-    \sy{a}{atraso} · \sy{l}{venda perdida} · \sy{g}{folga} · \sy{o}{carteira} · 
-    \sy{\hat{d}}{previsão líquida} · \sy{\sigma}{meta de cobertura} · \sy{\kappa}{horas} · 
+    \sy{a}{atraso} · \sy{l}{venda perdida} · \sy{o}{carteira} · 
+    \sy{\hat{d}}{previsão líquida} · \sy{\kappa}{horas} · 
     \sy{p}{taxa} · \sy{\tau}{horas de \textit{setup}} · \sy{q}{lote mínimo} · \sy{m}{margem} · 
-    \sy{v}{valor} · \sy{c}{custo horário} · \sy{\beta,\rho}{pesos} · \sy{\theta}{carregamento}}
+    \sy{v}{valor} · \sy{c}{custo horário} · \sy{\theta}{carregamento}}
 
-  \note{Cinco parcelas, todas em reais, o que dispensa calibrar peso entre elas.
+  \note{Quatro parcelas, todas em reais, e nenhum peso a calibrar entre elas.
 
-  As três primeiras são as faltas, e a ordem de preço é a decisão de negócio: o atraso de pedido
-  firme custa beta vezes a margem, e custa de novo a cada semana em que persiste; a previsão
-  perdida custa a margem uma vez só, porque não volta; a cobertura é a mais barata, porque violar
-  uma meta de estoque não é o mesmo que faltar com um cliente.
+  As duas primeiras são as faltas, ambas cobradas à margem. Não há multiplicador separando uma da
+  outra, e mesmo assim a carteira é estritamente mais cara: o atraso entra no somatório a cada
+  semana em que persiste, e o quilograma atrasado continua no balanço, ainda terá de ser produzido.
+  A venda perdida é cobrada uma vez e sai do balanço, poupando a produção. A hierarquia sai da
+  estrutura, não de um peso arbitrado por quem opera o modelo.
 
-  A quarta parcela é o setup como custo direto: horas de troca vezes custo horário da máquina.
+  A terceira parcela é o setup como custo direto: horas de troca vezes custo horário da máquina.
   O custo de oportunidade do setup deixou de ser cobrado, como fazia o modelo anterior, porque
   essas horas já consomem capacidade em C, e a produção perdida já reaparece como falta penalizada.
   Cobrar nos dois lugares contava a mesma perda duas vezes.
 
-  A quinta é o carregamento de estoque: taxa anual sobre o valor unitário, rateada por semana,
+  A quarta é o carregamento de estoque: taxa anual sobre o valor unitário, rateada por semana,
   aplicada ao estoque médio. É o que dá fundamento financeiro ao trade-off entre setup e estoque.
 
   Em A o termo da carteira é o que venceu, mais o que vinha atrasado, menos o que segue atrasado:
-  a falta de pedido firme não some, é transportada. B é a cobertura, agora com folga — antes era
-  rígida e inviabilizava o modelo sob capacidade apertada. D é o lote mínimo.}
+  a falta de pedido firme não some, é transportada. C é o lote mínimo.
+
+  Não há camada de cobertura. Uma meta semana a semana seria redundante com o horizonte: o modelo
+  já enxerga a demanda futura dentro de T e antecipa produção sozinho quando a capacidade aperta.
+  O que ela evitaria é só o efeito de borda na última semana, e isso o horizonte rolante resolve.}
 \end{frame}
 
 % ---------------------------------------------------------------------------

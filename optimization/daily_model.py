@@ -183,8 +183,6 @@ def solve_daily_model(dict_scenario, dict_settings):
     int_positions = dict_scenario['positions']
 
     float_holding_rate = float(dict_settings['annual_holding_rate'])
-    float_backlog_multiplier = float(dict_settings['order_backlog_multiplier'])
-    float_coverage_weight = float(dict_settings['coverage_weight'])
 
     problem = pulp.LpProblem('DailyScheduling', pulp.LpMinimize)
 
@@ -276,12 +274,11 @@ def solve_daily_model(dict_scenario, dict_settings):
     for str_product in list_products:
         float_margin = dict_scenario['margin'][str_product]
         float_unit_cost = dict_scenario['unit_cost'][str_product]
-        list_objective_terms.append(float_coverage_weight * float_margin * dict_target_slack[str_product])
+        list_objective_terms.append(float_margin * dict_target_slack[str_product])
         for str_sku in dict_scenario['skus_of_product'][str_product]:
             for int_index in range(len(list_shifts)):
                 tuple_key = (str_sku, int_index)
-                list_objective_terms.append(
-                    float_backlog_multiplier * float_margin * dict_backlog[tuple_key])
+                list_objective_terms.append(float_margin * dict_backlog[tuple_key])
                 list_objective_terms.append(float_margin * dict_lost[tuple_key])
                 float_holding_per_shift = (float_holding_rate * float_unit_cost
                                            / (52.0 * dict_scenario['shifts_per_week']))
@@ -618,7 +615,7 @@ def solve_daily_model(dict_scenario, dict_settings):
                     float_previous_stock = dict_scenario['initial_stock'][str_sku]
                 else:
                     float_previous_stock = resolve(dict_inventory[(str_sku, int_index - 1)])
-                float_backlog_cost += float_backlog_multiplier * float_margin * float_backlog
+                float_backlog_cost += float_margin * float_backlog
                 float_lost_cost += float_margin * float_lost
                 float_holding_cost += float_holding_per_shift * 0.5 * (float_previous_stock + float_inventory)
                 float_total_orders += dict_scenario['orders'][(str_sku, int_index)]
@@ -638,13 +635,13 @@ def solve_daily_model(dict_scenario, dict_settings):
                 })
 
     list_target_rows = []
-    float_coverage_cost = 0.0
+    float_target_slack_cost = 0.0
     for str_product in list_products:
         float_slack = resolve(dict_target_slack[str_product])
         float_final_stock = 0.0
         for str_sku in dict_scenario['skus_of_product'][str_product]:
             float_final_stock += resolve(dict_inventory[(str_sku, len(list_shifts) - 1)])
-        float_coverage_cost += float_coverage_weight * dict_scenario['margin'][str_product] * float_slack
+        float_target_slack_cost += dict_scenario['margin'][str_product] * float_slack
         list_target_rows.append({
             'product': str_product,
             'target': dict_scenario['target'][str_product],
@@ -673,11 +670,11 @@ def solve_daily_model(dict_scenario, dict_settings):
         'targets': list_target_rows,
         'shifts': len(list_shifts),
         'kpis': {
-            'total_cost': (float_backlog_cost + float_lost_cost + float_coverage_cost
+            'total_cost': (float_backlog_cost + float_lost_cost + float_target_slack_cost
                            + float_setup_cost + float_holding_cost),
             'backlog_cost': float_backlog_cost,
             'lost_sales_cost': float_lost_cost,
-            'coverage_cost': float_coverage_cost,
+            'target_slack_cost': float_target_slack_cost,
             'setup_cost': float_setup_cost,
             'holding_cost': float_holding_cost,
             'order_service_level': float_order_service,

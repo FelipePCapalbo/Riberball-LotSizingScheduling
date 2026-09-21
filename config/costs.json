@@ -1,5 +1,3 @@
 {
-    "annual_holding_rate": 0.25,
-    "order_backlog_multiplier": 2,
-    "coverage_weight": 0.25
+    "annual_holding_rate": 0.25
 }

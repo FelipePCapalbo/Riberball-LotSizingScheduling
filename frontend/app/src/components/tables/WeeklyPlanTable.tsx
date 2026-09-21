@@ -24,11 +24,9 @@ export default function WeeklyPlanTable({ demand, inventory, production }: Weekl
       }
     }
     let stock = 0;
-    let target = 0;
     for (const row of inventory) {
       if (row.week === week) {
         stock += row.inventory;
-        target += row.target;
       }
     }
     let produced = 0;
@@ -39,7 +37,7 @@ export default function WeeklyPlanTable({ demand, inventory, production }: Weekl
         setupHours += row.setup_hours;
       }
     }
-    return { week, orders, forecast, backlog, lost, stock, target, produced, setupHours };
+    return { week, orders, forecast, backlog, lost, stock, produced, setupHours };
   });
 
   return (
@@ -51,7 +49,7 @@ export default function WeeklyPlanTable({ demand, inventory, production }: Weekl
           onClick={() =>
             downloadCSV(
               rows,
-              ['Semana', 'Carteira', 'Previsao', 'Produzido', 'Atraso carteira', 'Venda perdida', 'Estoque', 'Meta cobertura', 'Horas setup'],
+              ['Semana', 'Carteira', 'Previsao', 'Produzido', 'Atraso carteira', 'Venda perdida', 'Estoque', 'Horas setup'],
               (row) => [
                 formatDate(row.week),
                 fmtCSV(row.orders),
@@ -60,7 +58,6 @@ export default function WeeklyPlanTable({ demand, inventory, production }: Weekl
                 fmtCSV(row.backlog),
                 fmtCSV(row.lost),
                 fmtCSV(row.stock),
-                fmtCSV(row.target),
                 fmtCSV(row.setupHours),
               ],
               'plano_semanal.csv',
@@ -81,7 +78,6 @@ export default function WeeklyPlanTable({ demand, inventory, production }: Weekl
               <th className="text-end">Atraso carteira</th>
               <th className="text-end">Venda perdida</th>
               <th className="text-end">Estoque</th>
-              <th className="text-end">Meta cobertura</th>
               <th className="text-end">h setup</th>
             </tr>
           </thead>
@@ -95,7 +91,6 @@ export default function WeeklyPlanTable({ demand, inventory, production }: Weekl
                 <td className={row.backlog > 0.5 ? 'text-end cell-bad' : 'text-end'}>{fmtN(row.backlog, 0)}</td>
                 <td className={row.lost > 0.5 ? 'text-end cell-warn' : 'text-end'}>{fmtN(row.lost, 0)}</td>
                 <td className="text-end">{fmtN(row.stock, 0)}</td>
-                <td className="text-end">{fmtN(row.target, 0)}</td>
                 <td className="text-end">{fmtN(row.setupHours, 1)}</td>
               </tr>
             ))}

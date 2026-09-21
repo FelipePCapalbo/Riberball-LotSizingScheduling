@@ -5,10 +5,10 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_DIR = os.path.join(ROOT_DIR, 'config')
 
 SECTIONS = {
-    'scenario.json': ['start_week', 'weeks_in_plan', 'frozen_weeks', 'coverage_weeks'],
+    'scenario.json': ['start_week', 'weeks_in_plan', 'frozen_weeks'],
     'capacity.json': ['shifts_per_day', 'hours_per_shift', 'working_days_per_week'],
     'machines.json': ['active_machines', 'setup_hourly_cost_default', 'setup_hourly_cost_by_machine'],
-    'costs.json': ['annual_holding_rate', 'order_backlog_multiplier', 'coverage_weight'],
+    'costs.json': ['annual_holding_rate'],
     'solver.json': ['weekly_solver_name', 'weekly_time_limit', 'daily_solver_name',
                     'daily_time_limit', 'positions_per_shift', 'threads'],
 }

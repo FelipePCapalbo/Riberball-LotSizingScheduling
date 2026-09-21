@@ -73,19 +73,16 @@ for float_hours in [8.0, 4.0, 2.0, 1.0, 0.5]:
     dict_result = solve_weekly_model(dict_scenario, dict_settings)
     dict_kpis = dict_result['kpis']
     float_sum = (dict_kpis['backlog_cost'] + dict_kpis['lost_sales_cost']
-                 + dict_kpis['coverage_cost'] + dict_kpis['setup_cost'] + dict_kpis['holding_cost'])
+                 + dict_kpis['setup_cost'] + dict_kpis['holding_cost'])
     check(abs(float_sum - dict_kpis['total_cost']) < 1e-6,
           f'h/turno={float_hours}: decomposicao de custo soma o total')
 
-    float_coverage = 0.0
-    for dict_row in dict_result['inventory']:
-        float_coverage += dict_row['slack']
     float_lost = 0.0
     float_backlog = 0.0
     for dict_row in dict_result['demand']:
         float_lost += dict_row['lost']
         float_backlog += dict_row['backlog']
-    list_first_failure.append((float_hours, float_coverage, float_lost, float_backlog))
+    list_first_failure.append((float_hours, float_lost, float_backlog))
 
     bool_balance = True
     for str_product in dict_scenario['products']:
@@ -126,19 +123,15 @@ for float_hours in [8.0, 4.0, 2.0, 1.0, 0.5]:
                 bool_capacity = False
     check(bool_capacity, f'h/turno={float_hours}: capacidade semanal respeitada')
 
-float_first_coverage = None
 float_first_lost = None
 float_first_backlog = None
 for tuple_row in list_first_failure:
-    if tuple_row[1] > 1 and float_first_coverage is None:
-        float_first_coverage = tuple_row[0]
-    if tuple_row[2] > 1 and float_first_lost is None:
+    if tuple_row[1] > 1 and float_first_lost is None:
         float_first_lost = tuple_row[0]
-    if tuple_row[3] > 1 and float_first_backlog is None:
+    if tuple_row[2] > 1 and float_first_backlog is None:
         float_first_backlog = tuple_row[0]
-check(float_first_coverage >= float_first_lost >= float_first_backlog,
-      f'cobertura cede em h={float_first_coverage}, previsao em h={float_first_lost}, '
-      f'carteira em h={float_first_backlog}')
+check(float_first_lost >= float_first_backlog,
+      f'previsao cede em h={float_first_lost}, carteira em h={float_first_backlog}')
 
 
 print('\n== modelo diario: sequenciamento de cor com transicao proibida ==')
@@ -178,8 +171,7 @@ dict_scenario = {
     'unit_cost': {str_product: 5.0}, 'margin': {str_product: 10.0},
     'setup_hourly_cost': {'1': 100.0}, 'positions': 2, 'shifts_per_week': 4,
 }
-dict_settings = {'annual_holding_rate': 0.25, 'order_backlog_multiplier': 2.0,
-                 'coverage_weight': 0.25, 'daily_solver_name': 'CBC',
+dict_settings = {'annual_holding_rate': 0.25, 'daily_solver_name': 'CBC',
                  'daily_time_limit': 60, 'threads': None}
 dict_result = solve_daily_model(dict_scenario, dict_settings)
 list_rows = []

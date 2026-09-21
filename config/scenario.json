@@ -1,6 +1,5 @@
 {
     "start_week": "2024-01-01",
     "weeks_in_plan": 13,
-    "frozen_weeks": 1,
-    "coverage_weeks": 2
+    "frozen_weeks": 1
 }

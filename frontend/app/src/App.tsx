@@ -21,7 +21,6 @@ const DEFAULT_SETTINGS: Settings = {
   start_week: null,
   weeks_in_plan: 13,
   frozen_weeks: 1,
-  coverage_weeks: 2,
   shifts_per_day: 3,
   hours_per_shift: 8,
   working_days_per_week: 6,
@@ -29,8 +28,6 @@ const DEFAULT_SETTINGS: Settings = {
   setup_hourly_cost_default: 250,
   setup_hourly_cost_by_machine: {},
   annual_holding_rate: 0.25,
-  order_backlog_multiplier: 2,
-  coverage_weight: 0.25,
   weekly_solver_name: 'CBC',
   weekly_time_limit: 300,
   daily_solver_name: 'CBC',
@@ -249,7 +246,6 @@ export default function App() {
     ? [
         { label: 'Atraso de carteira', value: wk.backlog_cost },
         { label: 'Venda perdida', value: wk.lost_sales_cost },
-        { label: 'Folga de cobertura', value: wk.coverage_cost },
         { label: 'Setup', value: wk.setup_cost },
         { label: 'Estoque', value: wk.holding_cost },
       ]

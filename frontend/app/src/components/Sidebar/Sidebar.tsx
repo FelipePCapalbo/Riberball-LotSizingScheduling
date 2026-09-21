@@ -128,20 +128,6 @@ export default function Sidebar({
                 onBlur={() => onFieldChange({}, true)}
               />
             </div>
-            <div className="sb-field">
-              <label>
-                Cobertura <span className="text-muted fw-normal">(semanas à frente, α)</span>
-              </label>
-              <input
-                type="number"
-                className="form-control form-control-sm"
-                min={0}
-                max={12}
-                value={settings.coverage_weeks}
-                onChange={(e) => onFieldChange({ coverage_weeks: parseInt(e.target.value, 10) || 0 }, false)}
-                onBlur={() => onFieldChange({}, true)}
-              />
-            </div>
           </AccordionSection>
 
           <AccordionSection title="Capacidade" open={openSections.capacity} onToggle={() => toggleSection('capacity')}>
@@ -235,32 +221,6 @@ export default function Sidebar({
             </div>
             <div className="sb-hint">
               Capital (WACC) + armazenagem + seguro/impostos + obsolescência. Faixa usual: 0,20 a 0,30 ao ano.
-            </div>
-            <div className="sb-field mt-3">
-              <label>Multiplicador de atraso da carteira</label>
-              <input
-                type="number"
-                className="form-control form-control-sm"
-                min={1}
-                step={0.5}
-                value={settings.order_backlog_multiplier}
-                onChange={(e) => onFieldChange({ order_backlog_multiplier: parseFloat(e.target.value) || 1 }, false)}
-                onBlur={() => onFieldChange({}, true)}
-              />
-            </div>
-            <div className="sb-hint">Quanto o atraso de pedido firme custa frente à venda perdida de previsão.</div>
-            <div className="sb-field mt-3">
-              <label>Peso da meta de cobertura (ρ)</label>
-              <input
-                type="number"
-                className="form-control form-control-sm"
-                min={0}
-                max={1}
-                step={0.05}
-                value={settings.coverage_weight}
-                onChange={(e) => onFieldChange({ coverage_weight: parseFloat(e.target.value) || 0 }, false)}
-                onBlur={() => onFieldChange({}, true)}
-              />
             </div>
           </AccordionSection>
 

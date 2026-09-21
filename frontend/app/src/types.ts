@@ -2,7 +2,6 @@ export interface Settings {
   start_week: string | null;
   weeks_in_plan: number;
   frozen_weeks: number;
-  coverage_weeks: number;
   shifts_per_day: number;
   hours_per_shift: number;
   working_days_per_week: number;
@@ -10,8 +9,6 @@ export interface Settings {
   setup_hourly_cost_default: number;
   setup_hourly_cost_by_machine: Record<string, number>;
   annual_holding_rate: number;
-  order_backlog_multiplier: number;
-  coverage_weight: number;
   weekly_solver_name: string;
   weekly_time_limit: number;
   daily_solver_name: string;
@@ -37,7 +34,6 @@ export interface WeeklyKpis {
   solver_objective: number;
   backlog_cost: number;
   lost_sales_cost: number;
-  coverage_cost: number;
   setup_cost: number;
   holding_cost: number;
   order_service_level: number;
@@ -62,8 +58,6 @@ export interface WeeklyInventoryRow {
   week: string;
   product: string;
   inventory: number;
-  target: number;
-  slack: number;
 }
 
 export interface WeeklyDemandRow {
@@ -95,7 +89,7 @@ export interface DailyKpis {
   total_cost: number;
   backlog_cost: number;
   lost_sales_cost: number;
-  coverage_cost: number;
+  target_slack_cost: number;
   setup_cost: number;
   holding_cost: number;
   order_service_level: number;

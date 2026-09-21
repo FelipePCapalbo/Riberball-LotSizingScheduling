@@ -64,6 +64,12 @@ Todo conjunto, parâmetro e variável é uma letra, possivelmente acentuada, gre
 
 **Variáveis**: uma letra reservada por papel, mantida constante no documento inteiro uma vez fixada ($s$ para estado de *setup*, $\delta$ para ocorrência de *setup*, $I$ para estoque; a sobreposição com o conjunto $I$ já existe no modelo atual e é resolvida pelo contexto, porque $I$ é conjunto só sob $\sum_{i \in I}$ ou equivalente, enquanto $I_{it}$ é sempre a variável de estoque).
 
+**Letra grega é para parâmetro, nunca para variável de decisão.** Variável de decisão é letra latina minúscula, que é o que a literatura de *lot sizing*/*scheduling* e a prática industrial praticam; $\nu$, $\zeta$, $\varphi$, $\eta$ e afins como variáveis tornam o modelo ilegível e já foram removidos deste documento por essa razão. Maiúscula grega como parâmetro é pior ainda quando colide visualmente com operador, como $\Sigma$ ao lado de somatórios.
+
+**Dois modelos que compartilham papéis compartilham letras.** Um símbolo que cumpre o mesmo papel nos dois níveis usa a mesma letra nos dois ($x$ quantidade, $y$ binária de alocação, $I$ estoque, $a$ atraso, $l$ venda perdida, $g$ violação de meta, $\kappa$ horas disponíveis, $\tau$ tempo de *setup*), variando apenas os índices. O que existe só no nível mais detalhado é distinguido por sobrescrito que nomeia o conceito, não por letra nova: $w^{\mathrm{F}}$ e $w^{\mathrm{C}}$ para os estados de forma e de cor, $z^{\mathrm{F}}$ e $z^{\mathrm{C}}$ para as trocas correspondentes. Assim o segundo modelo é lido como refinamento do primeiro, e não como notação nova a decorar.
+
+**Nada de função de índice dentro de subscrito.** Escrever $m_{i(k)}$ ou $p_{i(k)j}$ para recuperar o balão a que um SKU pertence obriga o leitor a desempilhar duas indexações a cada termo. A forma correta é particionar o conjunto ($K_i \subseteq K$) e percorrer com somatório duplo sobre $i \in I$ e $k \in K_i$, o que mantém o índice $i$ disponível e deixa os parâmetros escritos em $m_i$ e $p_{ij}$.
+
 Antes de introduzir uma letra nova, checar que ela não está presa a outro significado em outro lugar do documento. Se a colisão for inevitável entre modelos independentes (um escalar de um capítulo e um parâmetro subscrito de outro compartilhando a mesma letra), sinalizar isso explicitamente numa nota, nunca deixar em silêncio.
 
 Todo símbolo aparece numa tabela, nesta ordem: Conjuntos, Parâmetros, Variáveis, antes do primeiro uso, uma linha por símbolo, descrição terminada em ponto final, unidade entre parênteses quando o símbolo tiver uma.
@@ -128,6 +134,7 @@ Restrições que, juntas, implementam um único mecanismo (por exemplo, uma cade
 - Repetição de um fato recém-afirmado, sem ângulo novo, só por ênfase.
 - Dois parágrafos consecutivos abrindo com o mesmo conectivo.
 - Nome descritivo em notação algébrica (nada de `estoque_i`, é $I_i$).
+- Letra grega como variável de decisão, ou função de índice dentro de subscrito como $m_{i(k)}$ (Seção 6).
 - Sinônimo para um termo já fixado (Seção 5).
 - Explicação de conceito corrente de engenharia de produção como se o leitor não o conhecesse, ou paráfrase em linguagem corrente de conceito que tem termo técnico consagrado (Seção 1).
 
@@ -135,6 +142,7 @@ Restrições que, juntas, implementam um único mecanismo (por exemplo, uma cade
 
 - `grep -- '---'` no `.tex` não retorna nada, e não há ambiente de lista no corpo do texto?
 - Todo símbolo usado já apareceu antes numa tabela de Conjuntos/Parâmetros/Variáveis?
+- As variáveis de decisão são todas latinas minúsculas, e um mesmo papel usa a mesma letra nos dois modelos (Seção 6)?
 - Todo termo técnico e toda sigla foram definidos no primeiro uso?
 - Nenhum conceito corrente da área está sendo explicado ou parafraseado em vez de nomeado (Seção 1)?
 - Cada parágrafo retoma o fio do anterior, sem conectivo vazio?

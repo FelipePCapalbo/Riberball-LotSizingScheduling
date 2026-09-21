@@ -11,7 +11,6 @@ def clean_name(str_raw):
 def build_weekly_scenario(dict_instance, dict_settings):
     timestamp_start = pd.Timestamp(dict_settings['start_week'])
     int_weeks_in_plan = int(dict_settings['weeks_in_plan'])
-    int_coverage_weeks = int(dict_settings['coverage_weeks'])
 
     list_all_weeks = dict_instance['weeks']
     list_weeks = []
@@ -43,23 +42,6 @@ def build_weekly_scenario(dict_instance, dict_settings):
             if float_net < 0.0:
                 float_net = 0.0
             dict_forecast[str_product][timestamp_week] = float_net
-
-    dict_coverage_target = {}
-    for str_product in dict_instance['products']:
-        dict_coverage_target[str_product] = {}
-        for int_index in range(len(list_weeks)):
-            float_target = 0.0
-            for int_ahead in range(1, int_coverage_weeks + 1):
-                int_future = list_all_weeks.index(list_weeks[int_index]) + int_ahead
-                if int_future < len(list_all_weeks):
-                    timestamp_future = list_all_weeks[int_future]
-                    float_target += dict_orders[str_product][timestamp_future]
-                    float_target += dict_forecast[str_product][timestamp_future]
-                else:
-                    timestamp_last = list_all_weeks[-1]
-                    float_target += dict_orders[str_product][timestamp_last]
-                    float_target += dict_forecast[str_product][timestamp_last]
-            dict_coverage_target[str_product][list_weeks[int_index]] = float_target
 
     float_hours_per_week = (float(dict_settings['working_days_per_week'])
                             * float(dict_settings['shifts_per_day'])
@@ -105,7 +87,6 @@ def build_weekly_scenario(dict_instance, dict_settings):
         'machines': list(dict_settings['active_machines']),
         'orders': dict_orders,
         'forecast': dict_forecast,
-        'coverage_target': dict_coverage_target,
         'capacity': dict_capacity,
         'productivity': dict_instance['productivity'],
         'machines_of_product': dict_machines_of_product,
@@ -123,8 +104,6 @@ def solve_weekly_model(dict_scenario, dict_settings):
     list_products = dict_scenario['products']
 
     float_holding_rate = float(dict_settings['annual_holding_rate'])
-    float_backlog_multiplier = float(dict_settings['order_backlog_multiplier'])
-    float_coverage_weight = float(dict_settings['coverage_weight'])
 
     problem = pulp.LpProblem('WeeklyPlanning', pulp.LpMinimize)
 
@@ -141,7 +120,6 @@ def solve_weekly_model(dict_scenario, dict_settings):
     dict_inventory = {}
     dict_backlog = {}
     dict_lost = {}
-    dict_coverage_slack = {}
     for str_product in list_products:
         for timestamp_week in list_weeks:
             tuple_key = (str_product, timestamp_week)
@@ -149,7 +127,6 @@ def solve_weekly_model(dict_scenario, dict_settings):
             dict_inventory[tuple_key] = pulp.LpVariable(f'I_{str_label}', lowBound=0)
             dict_backlog[tuple_key] = pulp.LpVariable(f'a_{str_label}', lowBound=0)
             dict_lost[tuple_key] = pulp.LpVariable(f'l_{str_label}', lowBound=0)
-            dict_coverage_slack[tuple_key] = pulp.LpVariable(f'g_{str_label}', lowBound=0)
 
     list_objective_terms = []
     for str_product in list_products:
@@ -158,9 +135,8 @@ def solve_weekly_model(dict_scenario, dict_settings):
         for int_index in range(len(list_weeks)):
             timestamp_week = list_weeks[int_index]
             tuple_key = (str_product, timestamp_week)
-            list_objective_terms.append(float_backlog_multiplier * float_margin * dict_backlog[tuple_key])
+            list_objective_terms.append(float_margin * dict_backlog[tuple_key])
             list_objective_terms.append(float_margin * dict_lost[tuple_key])
-            list_objective_terms.append(float_coverage_weight * float_margin * dict_coverage_slack[tuple_key])
             if int_index == 0:
                 float_previous = dict_scenario['initial_inventory'][str_product]
                 list_objective_terms.append(
@@ -211,8 +187,6 @@ def solve_weekly_model(dict_scenario, dict_settings):
 
             problem += dict_backlog[tuple_key] <= float_orders + expression_previous_backlog
             problem += dict_lost[tuple_key] <= float_forecast
-            problem += (dict_inventory[tuple_key] + dict_coverage_slack[tuple_key]
-                        >= dict_scenario['coverage_target'][str_product][timestamp_week])
 
     for str_machine in dict_scenario['machines']:
         for timestamp_week in list_weeks:
@@ -235,7 +209,6 @@ def solve_weekly_model(dict_scenario, dict_settings):
                 timestamp_future = list_weeks[int_future]
                 float_remaining_demand += dict_scenario['orders'][str_product][timestamp_future]
                 float_remaining_demand += dict_scenario['forecast'][str_product][timestamp_future]
-            float_remaining_demand += dict_scenario['coverage_target'][str_product][list_weeks[-1]]
             for str_machine in dict_scenario['machines_of_product'][str_product]:
                 tuple_key = (str_product, str_machine, timestamp_week)
                 float_rate = dict_scenario['productivity'][str_product][str_machine]
@@ -285,7 +258,6 @@ def solve_weekly_model(dict_scenario, dict_settings):
     float_holding_cost = 0.0
     float_backlog_cost = 0.0
     float_lost_cost = 0.0
-    float_coverage_cost = 0.0
 
     for str_product in list_products:
         dict_targets[str_product] = {}
@@ -299,7 +271,6 @@ def solve_weekly_model(dict_scenario, dict_settings):
             float_inventory = resolve(dict_inventory[tuple_key])
             float_backlog = resolve(dict_backlog[tuple_key])
             float_lost = resolve(dict_lost[tuple_key])
-            float_slack = resolve(dict_coverage_slack[tuple_key])
             dict_targets[str_product][str_week] = float_inventory
 
             if int_index == 0:
@@ -316,8 +287,6 @@ def solve_weekly_model(dict_scenario, dict_settings):
             list_inventory_rows.append({
                 'week': str_week, 'product': str_product,
                 'inventory': float_inventory,
-                'target': dict_scenario['coverage_target'][str_product][timestamp_week],
-                'slack': float_slack,
             })
             list_demand_rows.append({
                 'week': str_week, 'product': str_product,
@@ -328,9 +297,8 @@ def solve_weekly_model(dict_scenario, dict_settings):
                 'lost': float_lost,
             })
 
-            float_backlog_cost += float_backlog_multiplier * float_margin * float_backlog
+            float_backlog_cost += float_margin * float_backlog
             float_lost_cost += float_margin * float_lost
-            float_coverage_cost += float_coverage_weight * float_margin * float_slack
             float_holding_cost += ((float_holding_rate / 52.0) * float_unit_cost
                                    * 0.5 * (float_previous_inventory + float_inventory))
 
@@ -395,12 +363,11 @@ def solve_weekly_model(dict_scenario, dict_settings):
         'demand': list_demand_rows,
         'targets': dict_targets,
         'kpis': {
-            'total_cost': (float_backlog_cost + float_lost_cost + float_coverage_cost
+            'total_cost': (float_backlog_cost + float_lost_cost
                            + float_setup_cost + float_holding_cost),
             'solver_objective': pulp.value(problem.objective),
             'backlog_cost': float_backlog_cost,
             'lost_sales_cost': float_lost_cost,
-            'coverage_cost': float_coverage_cost,
             'setup_cost': float_setup_cost,
             'holding_cost': float_holding_cost,
             'order_service_level': float_order_service,

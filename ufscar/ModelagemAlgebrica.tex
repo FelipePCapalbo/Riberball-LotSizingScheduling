@@ -91,7 +91,7 @@ O CLSP é dito de \textit{big-bucket}: cada período (tipicamente uma semana ou 
 
 Aplicações industriais acrescentam ao CLSP canônico restrições que a formulação de livro-texto não tem. \citeonline{clark2011} mapeiam essas extensões e argumentam que os modelos acadêmicos padrão precisam ser reformulados caso a caso. Uma delas é o lote mínimo: \citeonline{andersoncheah1993} introduzem o tamanho mínimo de batelada junto com tempos de \textit{setup} num CLSP multi-item e mostram que a combinação exige decomposição para ser resolvida; \citeonline{okhrinrichter2011} caracterizam a versão em que o mínimo é imposto por quantidade mínima de pedido, sem custo fixo de \textit{setup}. Nos dois casos a forma padrão é $q_i\,y_{it} \le x_{it} \le M_{it}\,y_{it}$, com $y_{it}$ binária de \textit{setup}, e a qualidade da relaxação linear depende de $M_{it}$ ser o menor limitante válido disponível.
 
-O nível semanal do problema dos balões é um CLSP em máquinas paralelas não relacionadas, com produtividade $p_{ij}$ distinta por par máquina-balão e compatibilidades próprias, ao qual se somam lote mínimo, custo de estoque explícito e três camadas de demanda arbitradas por preço. É essa combinação que distingue o problema do CLSP canônico.
+O nível semanal do problema dos balões é um CLSP em máquinas paralelas não relacionadas, com produtividade $p_{ij}$ distinta por par máquina-balão e compatibilidades próprias, ao qual se somam lote mínimo, custo de estoque explícito e duas camadas de demanda arbitradas por preço. É essa combinação que distingue o problema do CLSP canônico.
 
 \subsection{Dimensionamento e sequenciamento integrados}
 
@@ -369,11 +369,11 @@ O \textit{forecast} para um período futuro $t+h$ projeta a demanda base multipl
 \section{Modelo de otimização}
 \label{sec:modelo_otimizacao}
 
-O problema é resolvido em dois níveis encadeados. O nível semanal decide, para todo o horizonte de planejamento, quanto produzir de cada balão em cada máquina e em cada semana, arbitrando entre carteira, previsão e estoque de cobertura. O nível operacional recebe desse plano uma única informação, a meta de estoque ao fim da primeira semana, e decide, para essa semana congelada, o que cada máquina produz em cada turno e em que ordem. As duas formulações compartilham a mesma unidade monetária e os mesmos parâmetros de custo; diferem no \textit{bucket} de tempo e no nível de agregação do produto.
+O problema é resolvido em dois níveis encadeados. O nível semanal decide, para todo o horizonte de planejamento, quanto produzir de cada balão em cada máquina e em cada semana, arbitrando entre carteira e previsão. O nível operacional recebe desse plano uma única informação, a meta de estoque ao fim da primeira semana, e decide, para essa semana congelada, o que cada máquina produz em cada turno e em que ordem. As duas formulações compartilham a mesma unidade monetária e os mesmos parâmetros de custo; diferem no \textit{bucket} de tempo e no nível de agregação do produto.
 
 \subsection{Notação comum}
 
-Os índices são fixos nos dois modelos: $i$ para balão (formato e acabamento, sem cor), $j$ para máquina, $t$ para semana, $s$ para turno, $n$ para posição dentro do turno e $k$ para SKU-cor, isto é, a combinação de balão e cor. O balão a que o SKU $k$ pertence é denotado $i(k)$.
+Os índices são fixos nos dois modelos: $i$ para balão (formato e acabamento, sem cor), $j$ para máquina, $t$ para semana, $s$ para turno, $n$ para posição dentro do turno e $k$ para SKU-cor, isto é, a combinação de balão e cor. O SKU é sempre tratado junto com o balão a que pertence, por meio do subconjunto $K_i$ definido adiante, de modo que os parâmetros indexados por balão permanecem escritos em $i$.
 
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
 $v_{i}$ & Valor unitário do balão $i$: custo variável de produção acumulado (R\$/kg).\\
@@ -382,8 +382,6 @@ $c_{j}$ & Custo horário de \textit{setup} da máquina $j$: mão de obra, energi
 $p_{ij}$ & Produtividade do balão $i$ na máquina $j$ (kg/hora).\\
 $q_{i}$ & Lote mínimo do balão $i$ (kg).\\
 $\theta$ & Taxa anual de carregamento de estoque (Seção~\ref{sec:custo_estoque}).\\
-$\beta$ & Multiplicador da penalidade de atraso da carteira, $\beta > 1$.\\
-$\rho$ & Peso da penalidade de violação da meta de cobertura, $0 < \rho < 1$.\\
 \end{tabularx}
 
 Os três parâmetros de custo são distintos por construção. A venda que deixa de acontecer custa a margem $m_i$, não o custo $v_i$; o estoque parado custa sobre $v_i$, que é o capital imobilizado; e o \textit{setup} custa as horas de máquina e equipe que consome, medidas por $c_j$. O custo de oportunidade das horas de \textit{setup} não entra na função objetivo: essas horas já reduzem a capacidade disponível na restrição correspondente, e a produção que deixa de ocorrer reaparece como falta penalizada; cobrá-la também no objetivo contaria a mesma perda duas vezes.
@@ -405,7 +403,6 @@ $J_{i} \subseteq J$ & Máquinas compatíveis com o balão $i$.\\
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
 $o_{it}$ & Carteira firme do balão $i$ com vencimento na semana $t$ (kg).\\
 $\hat{d}_{it}$ & Previsão líquida do balão $i$ na semana $t$: previsão total menos $o_{it}$, limitada inferiormente a zero (kg).\\
-$\sigma_{it}$ & Meta de estoque de cobertura do balão $i$ ao fim da semana $t$: soma da demanda das $\alpha$ semanas seguintes (kg).\\
 $\kappa_{jt}$ & Horas produtivas disponíveis da máquina $j$ na semana $t$.\\
 $\tau_{i}$ & Tempo médio de \textit{setup} para o balão $i$ (horas).\\
 $I^{0}_{i}$ & Estoque do balão $i$ no início do horizonte (kg).\\
@@ -418,14 +415,13 @@ $y_{ijt} \in \{0,1\}$ & 1 se a máquina $j$ é preparada para o balão $i$ na se
 $I_{it} \ge 0$ & Estoque do balão $i$ ao fim da semana $t$ (kg).\\
 $a_{it} \ge 0$ & Carteira do balão $i$ ainda não entregue ao fim da semana $t$ (kg).\\
 $l_{it} \ge 0$ & Previsão do balão $i$ perdida na semana $t$ (kg).\\
-$g_{it} \ge 0$ & Violação da meta de cobertura do balão $i$ na semana $t$ (kg).\\
 \end{tabularx}
 
 \subsection*{\textbf{Minimizar}}
 \begin{ceqn}
 \begin{equation}
 \begin{aligned}
-Z^{S} = {} & \sum_{i \in I}\sum_{t \in T} \bigl( \beta\, m_{i}\, a_{it} + m_{i}\, l_{it} + \rho\, m_{i}\, g_{it} \bigr)
+Z^{S} = {} & \sum_{i \in I}\sum_{t \in T} m_{i} \bigl( a_{it} + l_{it} \bigr)
     + \sum_{i \in I}\sum_{j \in J_i}\sum_{t \in T} c_{j}\, \tau_{i}\, y_{ijt} \\
     & + \sum_{i \in I}\sum_{t \in T} \frac{\theta}{52}\, v_{i}\, \frac{I_{i,t-1} + I_{it}}{2}
 \end{aligned}
@@ -442,8 +438,6 @@ a_{it} &\le o_{it} + a_{i,t-1}
     && \forall\, i \in I,\; t \in T \label{eq:atraso_limite} \\
 l_{it} &\le \hat{d}_{it}
     && \forall\, i \in I,\; t \in T \label{eq:perda_limite} \\
-I_{it} + g_{it} &\ge \sigma_{it}
-    && \forall\, i \in I,\; t \in T \label{eq:cobertura} \\
 \sum_{i \in I} \left( \frac{x_{ijt}}{p_{ij}} + \tau_{i}\, y_{ijt} \right)
     &\le \kappa_{jt}
     && \forall\, j \in J,\; t \in T \label{eq:capacidade_semanal} \\
@@ -451,65 +445,71 @@ q_{i}\, y_{ijt} \le x_{ijt} &\le M_{ijt}\, y_{ijt}
     && \forall\, i \in I,\; j \in J_i,\; t \in T \label{eq:lote_minimo}
 \end{align}
 
-A função objetivo \eqref{eq:obj_semanal} soma cinco parcelas, todas em reais. As três primeiras são as faltas, ordenadas por preço: o atraso da carteira custa $\beta\,m_i$ por quilograma \emph{a cada semana} em que persiste, a previsão perdida custa $m_i$ uma única vez, e a violação da meta de cobertura custa $\rho\,m_i$. A quarta parcela cobra as horas de \textit{setup} ao custo horário da máquina. A quinta cobra o carregamento de estoque sobre o saldo médio da semana, com a taxa anual $\theta$ rateada pelas 52 semanas do ano. Nenhuma das três faltas é proibida: a hierarquia entre elas é dada pelos preços, o que mantém o modelo viável sob qualquer capacidade e faz a prioridade emergir da otimização em vez de ser imposta por restrição.
+A função objetivo \eqref{eq:obj_semanal} soma quatro parcelas, todas em reais. As duas primeiras são as faltas, ambas cobradas à margem $m_i$: o atraso da carteira e a previsão perdida. A terceira cobra as horas de \textit{setup} ao custo horário da máquina, e a quarta o carregamento de estoque sobre o saldo médio da semana, com a taxa anual $\theta$ rateada pelas 52 semanas do ano.
+
+Cobrar as duas faltas ao mesmo preço unitário não as torna equivalentes. O atraso $a_{it}$ entra no somatório \emph{em toda semana em que persiste}, e a carteira atrasada permanece no balanço \eqref{eq:balanco_semanal}: ela ainda terá de ser produzida. A previsão perdida $l_{it}$ é cobrada uma única vez e sai do balanço, poupando a produção correspondente. Atrasar um quilograma por uma semana custa, portanto, $m_i$ mais o custo de produzi-lo adiante, ao passo que perdê-lo custa $m_i$ e dispensa a produção. A carteira é estritamente mais cara que a previsão por construção da formulação, sem que seja necessário um multiplicador de calibração. Nenhuma das duas faltas é proibida: a hierarquia entre elas decorre da estrutura do balanço, o que mantém o modelo viável sob qualquer capacidade e faz a prioridade emergir da otimização em vez de ser imposta por restrição ou por um peso arbitrado fora do modelo.
 
 O balanço \eqref{eq:balanco_semanal} separa as duas naturezas de demanda no mesmo estoque. O termo $o_{it} + a_{i,t-1} - a_{it}$ é a carteira efetivamente entregue na semana, ou seja, o que venceu mais o que vinha atrasado menos o que segue atrasado, de modo que a falta de pedido firme não desaparece: é transportada adiante e volta a ser cobrada. O termo $\hat{d}_{it} - l_{it}$ é a previsão atendida, e o que não se atende em $l_{it}$ está perdido. A restrição \eqref{eq:atraso_limite} impede que o atraso exceda a carteira acumulada, o que tornaria a entrega negativa; \eqref{eq:perda_limite} faz o mesmo do lado da previsão.
 
-A meta de cobertura \eqref{eq:cobertura} é a terceira camada de demanda, e é o mecanismo pelo qual o modelo antecipa produção contra a sazonalidade: $\sigma_{it}$ soma a demanda das $\alpha$ semanas seguintes, de modo que o estoque exigido ao fim de $t$ cresce antes do pico. A restrição é suave, com $g_{it}$ absorvendo a violação a um preço menor que o das outras duas faltas, o que a distingue da formulação rígida do modelo anterior, que tornava o problema inviável quando a capacidade não bastava.
+Não há terceira camada de demanda. Uma meta de cobertura semana a semana, que exigisse estoque não inferior à demanda das semanas seguintes, seria redundante com o próprio horizonte: o modelo já enxerga essa demanda dentro de $T$ e antecipa produção por conta própria quando a capacidade aperta, comportamento característico do CLSP. A única função que tal meta cumpriria é conter o efeito de borda, em que o estoque é drenado a zero na última semana por não haver demanda além de $T$, e esse é um artefato de horizonte finito, tratado pelo horizonte rolante descrito nas premissas, em que apenas a primeira semana é congelada e o plano é refeito a cada execução. Acrescentar uma meta $\sigma_{it}$ e um peso $\rho$ para esse fim introduziria dois parâmetros sem contrapartida observável na operação, cuja calibração recairia sobre quem opera o modelo.
 
 A capacidade \eqref{eq:capacidade_semanal} converte quantidade em horas pela produtividade e acrescenta as horas de \textit{setup} de cada par ativado, ambas competindo pelas $\kappa_{jt}$ horas disponíveis. O lote mínimo \eqref{eq:lote_minimo} liga quantidade e ativação nos dois sentidos: produzir exige preparar a máquina, e preparar exige produzir ao menos $q_i$. O limitante $M_{ijt}$ é tomado como o menor valor válido entre a capacidade da máquina na semana, $p_{ij}\,\kappa_{jt}$, e a demanda remanescente do balão no horizonte; um $M$ frouxo degradaria a relaxação linear e, com ela, o desempenho do \textit{branch-and-bound} \cite{jansdegraeve2008}.
 
 \subsection{Modelo operacional por turno}
 \label{sec:modelo_turno}
 
-O nível operacional detalha a primeira semana do plano com \textit{bucket} de turno. Cada turno é subdividido em $|N|$ posições de comprimento variável, e a ordem das posições é a sequência de produção, na estrutura de macroperíodo e microperíodos do GLSP \cite{fleischmannmeyr1997}. Uma máquina mantém uma única forma montada ao longo do turno; dentro dele apenas a cor muda. A troca de forma ocorre na fronteira entre turnos e consome horas do turno que se inicia, o que reproduz a prática de fábrica de concentrar as trocas longas na virada de turno.
+O nível operacional detalha a primeira semana do plano com \textit{bucket} de turno. A unidade de decisão é o par máquina-turno: nele uma única forma fica montada, e o turno é dividido em $\bar{n}$ posições ordenadas, que são os microperíodos em que a sequência de cores se realiza. É a estrutura de macroperíodo e microperíodos do GLSP \cite{fleischmannmeyr1997}, com o macroperíodo fixado no turno e a forma fixada no macroperíodo, o que corresponde à adaptação do \textit{block planning} de \citeonline{gunther2014} a este processo: o bloco é o turno, o \textit{setup} maior é pago na fronteira e a sequência interna percorre apenas as cores.
+
+A notação acompanha a do nível semanal sempre que o papel do símbolo é o mesmo. As quantidades produzidas continuam em $x$, as binárias de alocação em $y$, o estoque em $I$, o atraso da carteira em $a$, a previsão perdida em $l$, a violação de meta em $g$ e as horas disponíveis em $\kappa$. O que é próprio deste nível são os dois tipos de \textit{setup}, e eles se distinguem por um sobrescrito: $\mathrm{F}$ para forma e $\mathrm{C}$ para cor. Assim, $w^{\mathrm{F}}_{ijs}$ e $w^{\mathrm{C}}_{kjs}$ são os dois estados de configuração da máquina, $z^{\mathrm{F}}$ e $z^{\mathrm{C}}$ são as trocas correspondentes, e $\tau^{\mathrm{F}}$ e $\tau^{\mathrm{C}}$ são seus tempos, na mesma letra $\tau$ que o nível semanal usa para o tempo médio de \textit{setup}.
+
+O produto aparece em dois níveis de agregação. O balão $i$ continua sendo a unidade da forma, do lote mínimo e da produtividade; o SKU $k$ acrescenta a cor e é a unidade da demanda, do estoque e da sequência. O conjunto $K_i$ reúne os SKU do balão $i$ e particiona $K$, de modo que um somatório duplo sobre $i \in I$ e $k \in K_i$ percorre todos os SKU e mantém disponível o índice $i$ de que os parâmetros por balão dependem.
 
 \subsubsection*{Conjuntos}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$S$ & Turnos da semana congelada, ordenados.\\
-$N = \{1,\dots,\bar{n}\}$ & Posições dentro de um turno.\\
-$K$ & Conjunto de SKU-cor.\\
-$K_{i} \subseteq K$ & Cores do balão $i$.\\
-$A \subseteq K \times K$ & Pares de SKU-cor cuja transição imediata é permitida.\\
+$S$ & Turnos da semana congelada, ordenados; $\bar{s}$ é o último.\\
+$N = \{1,\dots,\bar{n}\}$ & Posições dentro de um turno, ordenadas.\\
+$K$ & Conjunto de SKU, isto é, pares de balão e cor.\\
+$K_{i} \subseteq K$ & SKU do balão $i$; os conjuntos $K_i$ particionam $K$.\\
+$A \subseteq K \times K$ & Pares de SKU cuja transição imediata é permitida.\\
 \end{tabularx}
 
 \subsubsection*{Parâmetros}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$b_{js}$ & Horas produtivas da máquina $j$ no turno $s$.\\
-$f_{i'i}$ & Tempo de \textit{setup} para trocar a forma de $i'$ para $i$ (horas).\\
-$e_{kk'}$ & Tempo de \textit{setup} para trocar a cor de $k$ para $k'$, definido em $A$ (horas).\\
-$o_{ks}$ & Carteira do SKU $k$ com vencimento no turno $s$ (kg).\\
+$\kappa_{js}$ & Horas produtivas disponíveis da máquina $j$ no turno $s$.\\
+$\tau^{\mathrm{F}}_{i'i}$ & Tempo de \textit{setup} para trocar a forma do balão $i'$ para a do balão $i$ (horas).\\
+$\tau^{\mathrm{C}}_{kk'}$ & Tempo de \textit{setup} para trocar a cor de $k$ para $k'$, definido nos pares de $A$ (horas).\\
+$o_{ks}$ & Carteira firme do SKU $k$ com vencimento no turno $s$ (kg).\\
 $\hat{d}_{ks}$ & Previsão líquida do SKU $k$ atribuída ao turno $s$ (kg).\\
-$\Sigma_{i}$ & Meta de estoque do balão $i$ ao fim da semana, herdada do nível semanal (kg).\\
+$\bar{I}_{i}$ & Estoque do balão $i$ ao fim da semana escolhido pelo plano semanal (kg).\\
 $I^{0}_{k}$ & Estoque do SKU $k$ no início da semana (kg).\\
 \end{tabularx}
 
 \subsubsection*{Variáveis}
 \begin{tabularx}{\linewidth}{@{}L{2.8cm}R@{}}
-$w_{ijs} \in [0,1]$ & 1 se a máquina $j$ está com a forma do balão $i$ montada no turno $s$.\\
+$x_{kjsn} \ge 0$ & Quantidade do SKU $k$ produzida na posição $n$ do turno $s$ na máquina $j$ (kg).\\
+$y_{kjsn} \in \{0,1\}$ & 1 se o SKU $k$ ocupa essa posição.\\
+$w^{\mathrm{F}}_{ijs} \in [0,1]$ & 1 se a máquina $j$ está com a forma do balão $i$ montada no turno $s$.\\
+$w^{\mathrm{C}}_{kjs} \in [0,1]$ & 1 se a máquina $j$ termina o turno $s$ com a cor do SKU $k$ montada.\\
 $u_{js} \in [0,1]$ & 1 se a máquina $j$ produz no turno $s$.\\
-$z_{i'ijs} \in [0,1]$ & 1 se a máquina $j$ troca a forma de $i'$ para $i$ na abertura do turno $s$.\\
-$\nu_{kjsn} \in \{0,1\}$ & 1 se o SKU $k$ ocupa a posição $n$ do turno $s$ na máquina $j$.\\
-$x_{kjsn} \ge 0$ & Quantidade do SKU $k$ produzida nessa posição (kg).\\
-$\zeta_{kk'jsn} \in [0,1]$ & 1 se a cor passa de $k$ para $k'$ ao entrar na posição $n$.\\
-$\varphi_{kjs} \in [0,1]$ & 1 se a máquina $j$ termina o turno $s$ com a cor do SKU $k$ montada.\\
+$z^{\mathrm{F}}_{i'ijs} \in [0,1]$ & 1 se a máquina $j$ troca a forma de $i'$ para $i$ na abertura do turno $s$.\\
+$z^{\mathrm{C}}_{kk'jsn} \in [0,1]$ & 1 se a cor passa de $k$ para $k'$ ao entrar na posição $n$.\\
 $I_{ks}, a_{ks}, l_{ks} \ge 0$ & Estoque, carteira em atraso e previsão perdida do SKU $k$ ao fim do turno $s$ (kg).\\
-$\eta^{o}_{ks}, \eta^{d}_{ks} \ge 0$ & Quantidade do SKU $k$ entregue no turno $s$ contra carteira e contra previsão (kg).\\
+$e^{o}_{ks}, e^{d}_{ks} \ge 0$ & Quantidade do SKU $k$ entregue no turno $s$ contra carteira e contra previsão (kg).\\
 $g_{i} \ge 0$ & Violação da meta de estoque do balão $i$ ao fim da semana (kg).\\
 \end{tabularx}
 
-Somente $\nu_{kjsn}$ é declarada binária. As demais variáveis de configuração são contínuas em $[0,1]$ e assumem valor inteiro na solução ótima por consequência das restrições: $w$ e $u$ ficam presas ao valor de $\nu$ pelas equações \eqref{eq:posicao_ocupada}--\eqref{eq:forma_da_posicao}, enquanto $z$, $\zeta$ e $\varphi$ são minimizadas contra limitantes inferiores do tipo $\text{AND}$ linearizado. Declarar apenas $\nu$ como binária reduz substancialmente o número de variáveis inteiras sem relaxar o modelo.
+Somente $y_{kjsn}$ é declarada binária. As demais variáveis de configuração são contínuas em $[0,1]$ e assumem valor inteiro na solução ótima por consequência das restrições: $w^{\mathrm{F}}$ e $u$ ficam presos ao valor de $y$ pelas equações \eqref{eq:posicao_ocupada} e \eqref{eq:forma_da_posicao}, enquanto $w^{\mathrm{C}}$, $z^{\mathrm{F}}$ e $z^{\mathrm{C}}$ são minimizados contra limitantes inferiores do tipo $\text{AND}$ linearizado. Declarar apenas $y$ como binária reduz substancialmente o número de variáveis inteiras sem relaxar o modelo.
 
 \subsection*{\textbf{Minimizar}}
 \begin{ceqn}
 \begin{equation}
 \begin{aligned}
-Z^{O} = {} & \sum_{k \in K}\sum_{s \in S} \bigl( \beta\, m_{i(k)}\, a_{ks} + m_{i(k)}\, l_{ks} \bigr)
-    + \sum_{i \in I} \rho\, m_{i}\, g_{i} \\
+Z^{O} = {} & \sum_{i \in I}\sum_{k \in K_i}\sum_{s \in S} m_{i} \bigl( a_{ks} + l_{ks} \bigr)
+    + \sum_{i \in I} m_{i}\, g_{i} \\
     & + \sum_{j \in J}\sum_{s \in S} c_{j} \left(
-        \sum_{i' \in I}\sum_{i \in I} f_{i'i}\, z_{i'ijs}
-        + \sum_{(k,k') \in A}\sum_{n \in N} e_{kk'}\, \zeta_{kk'jsn} \right) \\
-    & + \sum_{k \in K}\sum_{s \in S} \frac{\theta}{52\,|S|}\, v_{i(k)}\, \frac{I_{k,s-1} + I_{ks}}{2}
+        \sum_{i' \in I}\sum_{i \in I} \tau^{\mathrm{F}}_{i'i}\, z^{\mathrm{F}}_{i'ijs}
+        + \sum_{(k,k') \in A}\sum_{n \in N} \tau^{\mathrm{C}}_{kk'}\, z^{\mathrm{C}}_{kk'jsn} \right) \\
+    & + \sum_{i \in I}\sum_{k \in K_i}\sum_{s \in S} \frac{\theta}{52\,|S|}\, v_{i}\, \frac{I_{k,s-1} + I_{ks}}{2}
 \end{aligned}
 \label{eq:obj_turno}
 \end{equation}
@@ -517,70 +517,78 @@ Z^{O} = {} & \sum_{k \in K}\sum_{s \in S} \bigl( \beta\, m_{i(k)}\, a_{ks} + m_{
 
 \noindent\textbf{Sujeito a}
 \begin{align}
-\sum_{i \in I} w_{ijs} &\le 1
+\sum_{i \in I} w^{\mathrm{F}}_{ijs} &\le 1
     && \forall\, j \in J,\; s \in S \label{eq:forma_unica} \\
-u_{js} &\le \sum_{i \in I} w_{ijs}
+u_{js} &\le \sum_{i \in I} w^{\mathrm{F}}_{ijs}
     && \forall\, j \in J,\; s \in S \label{eq:maquina_ativa} \\
-\sum_{k \in K} \nu_{kjsn} &= u_{js}
+\sum_{k \in K} y_{kjsn} &= u_{js}
     && \forall\, j \in J,\; s \in S,\; n \in N \label{eq:posicao_ocupada} \\
-\nu_{kjsn} &\le w_{i(k)js}
-    && \forall\, k \in K,\; j \in J,\; s \in S,\; n \in N \label{eq:forma_da_posicao} \\
-z_{i'ijs} &\ge w_{i'j,s-1} + w_{ijs} - 1
+y_{kjsn} &\le w^{\mathrm{F}}_{ijs}
+    && \forall\, i \in I,\; k \in K_i,\; j \in J,\; s \in S,\; n \in N \label{eq:forma_da_posicao} \\
+z^{\mathrm{F}}_{i'ijs} &\ge w^{\mathrm{F}}_{i'j,s-1} + w^{\mathrm{F}}_{ijs} - 1
     && \forall\, i' \neq i,\; j \in J,\; s \in S \label{eq:troca_forma} \\
-\zeta_{kk'jsn} &\ge \nu_{kjs,n-1} + \nu_{k'jsn} - 1
+z^{\mathrm{C}}_{kk'jsn} &\ge y_{kjs,n-1} + y_{k'jsn} - 1
     && \forall\, (k,k') \in A,\; j \in J,\; s \in S,\; n \in N \label{eq:troca_cor} \\
-\nu_{kjs,n-1} + \nu_{k'jsn} &\le 1
+y_{kjs,n-1} + y_{k'jsn} &\le 1
     && \forall\, (k,k') \notin A,\; j \in J,\; s \in S,\; n \in N \label{eq:transicao_proibida} \\
-\sum_{k \in K_i} \varphi_{kjs} &= w_{ijs}
+\sum_{k \in K_i} w^{\mathrm{C}}_{kjs} &= w^{\mathrm{F}}_{ijs}
     && \forall\, i \in I,\; j \in J,\; s \in S \label{eq:estado_cor} \\
-\varphi_{kjs} &\ge \nu_{kjs\bar{n}}
+w^{\mathrm{C}}_{kjs} &\ge y_{kjs\bar{n}}
     && \forall\, k \in K,\; j \in J,\; s \in S \label{eq:estado_ultima} \\
-\bigl| w_{ijs} - w_{ij,s-1} \bigr| &\le u_{js}
+\bigl| w^{\mathrm{F}}_{ijs} - w^{\mathrm{F}}_{ij,s-1} \bigr| &\le u_{js}
     && \forall\, i \in I,\; j \in J,\; s \in S \label{eq:carryover_forma} \\
-\bigl| \varphi_{kjs} - \varphi_{kj,s-1} \bigr| &\le u_{js}
+\bigl| w^{\mathrm{C}}_{kjs} - w^{\mathrm{C}}_{kj,s-1} \bigr| &\le u_{js}
     && \forall\, k \in K,\; j \in J,\; s \in S \label{eq:carryover_cor}
 \end{align}
 \begin{ceqn}
 \begin{equation}
 \begin{aligned}
-\sum_{k \in K}\sum_{n \in N} \frac{x_{kjsn}}{p_{i(k)j}}
-    + \sum_{i' \in I}\sum_{i \in I} f_{i'i}\, z_{i'ijs}
-    + \sum_{(k,k') \in A}\sum_{n \in N} e_{kk'}\, \zeta_{kk'jsn}
-    \;\le\; b_{js}
+\sum_{i \in I}\sum_{k \in K_i}\sum_{n \in N} \frac{x_{kjsn}}{p_{ij}}
+    + \sum_{i' \in I}\sum_{i \in I} \tau^{\mathrm{F}}_{i'i}\, z^{\mathrm{F}}_{i'ijs}
+    + \sum_{(k,k') \in A}\sum_{n \in N} \tau^{\mathrm{C}}_{kk'}\, z^{\mathrm{C}}_{kk'jsn}
+    \;\le\; \kappa_{js}
     \qquad \forall\, j \in J,\; s \in S
 \end{aligned}
 \label{eq:capacidade_turno}
 \end{equation}
 \end{ceqn}
 
+\begin{ceqn}
+\begin{equation}
+\begin{aligned}
+q_{i} \bigl( y_{kjsn} - y_{kjs,n-1} \bigr) \;\le\; x_{kjsn} \;\le\; p_{ij}\, \kappa_{js}\, y_{kjsn}
+    \qquad \forall\, i \in I,\; k \in K_i,\; j \in J,\; s \in S,\; n \in N
+\end{aligned}
+\label{eq:lote_minimo_turno}
+\end{equation}
+\end{ceqn}
+
 \begin{align}
-q_{i(k)} \bigl( \nu_{kjsn} - \nu_{kjs,n-1} \bigr) \le x_{kjsn} &\le p_{i(k)j}\, b_{js}\, \nu_{kjsn}
-    && \forall\, k,\, j,\, s,\, n \label{eq:lote_minimo_turno} \\
-I_{ks} &= I_{k,s-1} + \sum_{j \in J}\sum_{n \in N} x_{kjsn} - \eta^{o}_{ks} - \eta^{d}_{ks}
+I_{ks} &= I_{k,s-1} + \sum_{j \in J}\sum_{n \in N} x_{kjsn} - e^{o}_{ks} - e^{d}_{ks}
     && \forall\, k \in K,\; s \in S \label{eq:balanco_turno} \\
-a_{ks} &= a_{k,s-1} + o_{ks} - \eta^{o}_{ks}
+a_{ks} &= a_{k,s-1} + o_{ks} - e^{o}_{ks}
     && \forall\, k \in K,\; s \in S \label{eq:atraso_turno} \\
-\eta^{d}_{ks} + l_{ks} &= \hat{d}_{ks}
+e^{d}_{ks} + l_{ks} &= \hat{d}_{ks}
     && \forall\, k \in K,\; s \in S \label{eq:previsao_turno} \\
-\sum_{k \in K_i} I_{k,\bar{s}} + g_{i} &\ge \Sigma_{i}
+\sum_{k \in K_i} I_{k,\bar{s}} + g_{i} &\ge \bar{I}_{i}
     && \forall\, i \in I \label{eq:meta_final}
 \end{align}
 
-A função objetivo \eqref{eq:obj_turno} repete a estrutura de custos do nível semanal, com duas diferenças de escala: o carregamento de estoque é rateado por turno em vez de por semana, e o \textit{setup} é cobrado pelos tempos efetivos da matriz de troca, $f_{i'i}$ para forma e $e_{kk'}$ para cor, em vez do tempo médio $\tau_i$. A meta de cobertura aparece uma única vez, ao fim do horizonte, e não semana a semana.
+A função objetivo \eqref{eq:obj_turno} tem as mesmas parcelas de \eqref{eq:obj_semanal}, com duas diferenças de escala. O \textit{setup} é cobrado pelos tempos efetivos das matrizes de troca, $\tau^{\mathrm{F}}_{i'i}$ e $\tau^{\mathrm{C}}_{kk'}$, em vez do tempo médio $\tau_i$ que o nível semanal usa por não conhecer a sequência; e o carregamento de estoque é rateado pelos $|S|$ turnos da semana, não pelas 52 semanas do ano. A violação da meta aparece uma única vez, ao fim do horizonte, porque a meta que desce do nível semanal é um estado terminal e não uma exigência turno a turno, e é cobrada à mesma margem $m_i$ das demais faltas: entrar a semana seguinte com menos estoque do que o plano previu é falta adiada, não uma categoria de custo à parte.
 
-As restrições \eqref{eq:forma_unica}--\eqref{eq:forma_da_posicao} definem a estrutura do turno: no máximo uma forma montada por máquina, a máquina só produz se tiver forma montada, toda posição de um turno ativo recebe exatamente um SKU, e o SKU tem de pertencer à forma montada. Fixar a forma no turno inteiro é a adaptação do \textit{block planning} de \citeonline{gunther2014} a este processo: o bloco é o turno, o \textit{setup} maior é pago na fronteira e a sequência interna percorre apenas as cores.
+As restrições \eqref{eq:forma_unica} a \eqref{eq:forma_da_posicao} definem a estrutura do turno, de fora para dentro: no máximo uma forma montada por máquina, a máquina só produz se tiver forma montada, toda posição de um turno ativo recebe exatamente um SKU, e esse SKU tem de pertencer à forma montada. É essa cadeia que reduz a sequência interna a uma sequência de cores dentro de um mesmo balão.
 
-As trocas são detectadas por linearização de conjunção. A troca de forma \eqref{eq:troca_forma} compara a montagem em turnos consecutivos; a troca de cor \eqref{eq:troca_cor} compara posições consecutivas, e a versão para $n = 1$ compara a primeira posição do turno com o estado de cor herdado, $\varphi_{kj,s-1}$. Um par ausente da matriz DE-PARA não gera variável de troca: em seu lugar entra a proibição \eqref{eq:transicao_proibida}, que impede que as duas cores se sucedam. Como uma troca de forma leva a máquina a um SKU de outro balão, nenhum par de mesma forma existe naquela fronteira e nenhum \textit{setup} de cor é cobrado junto, porque a troca de forma o subsume.
+As trocas são detectadas por linearização de conjunção, com a mesma forma nos dois tipos: a variável de troca é forçada a 1 quando os dois estados que a definem valem 1 ao mesmo tempo, e o objetivo a empurra de volta a 0 no resto dos casos. A troca de forma \eqref{eq:troca_forma} compara a montagem em turnos consecutivos; a troca de cor \eqref{eq:troca_cor} compara posições consecutivas, e a versão para $n = 1$ compara a primeira posição do turno com a cor herdada, $w^{\mathrm{C}}_{kj,s-1}$. Um par ausente da matriz DE-PARA não gera variável de troca: em seu lugar entra a proibição \eqref{eq:transicao_proibida}, que impede que as duas cores se sucedam. Como uma troca de forma leva a máquina a um SKU de outro balão, nenhum par de mesma forma existe naquela fronteira e nenhum \textit{setup} de cor é cobrado junto, porque a troca de forma o subsume.
 
-As equações \eqref{eq:estado_cor}--\eqref{eq:carryover_cor} implementam o \textit{carryover} de estado. O estado de cor ao fim do turno é o da última posição ocupada, e existe exatamente um estado por forma montada. Quando a máquina não produz no turno, $u_{js} = 0$ e as restrições \eqref{eq:carryover_forma} e \eqref{eq:carryover_cor}, escritas em valor absoluto por concisão e implementadas como o par de desigualdades correspondente, forçam forma e cor a permanecerem as do turno anterior. É o que impede que um turno ocioso apague a configuração da máquina e permita atravessar uma troca sem pagá-la, e é a contrapartida formal do mecanismo de estado descrito por \citeonline{soxgao1999}.
+As equações \eqref{eq:estado_cor} a \eqref{eq:carryover_cor} implementam o \textit{carryover} de estado. A cor ao fim do turno é a da última posição ocupada, e existe exatamente uma cor montada por forma montada. Quando a máquina não produz no turno, $u_{js} = 0$ e as restrições \eqref{eq:carryover_forma} e \eqref{eq:carryover_cor}, escritas em valor absoluto por concisão e implementadas como o par de desigualdades correspondente, forçam forma e cor a permanecerem as do turno anterior. É o que impede que um turno ocioso apague a configuração da máquina e permita atravessar uma troca sem pagá-la, e é a contrapartida formal do mecanismo de estado descrito por \citeonline{soxgao1999}.
 
-A capacidade \eqref{eq:capacidade_turno} exige que produção e \textit{setups} caibam no turno. É uma restrição dura, e não um relatório de excedente: uma ordem de produção não atravessa a fronteira do turno. O lote mínimo \eqref{eq:lote_minimo_turno} é imposto apenas quando a posição \emph{inicia} uma corrida de cor, porque o termo $\nu_{kjsn} - \nu_{kjs,n-1}$ vale 1 nesse caso e 0 quando a cor continua, o que evita exigir o mínimo de novo a cada posição de uma mesma corrida.
+A capacidade \eqref{eq:capacidade_turno} tem a mesma forma da capacidade semanal \eqref{eq:capacidade_semanal}, com produção convertida em horas pela produtividade e as horas de \textit{setup} somadas ao lado esquerdo; o que muda é que agora há dois termos de \textit{setup} em vez de um. É uma restrição dura, e não um relatório de excedente: uma ordem de produção não atravessa a fronteira do turno. O lote mínimo \eqref{eq:lote_minimo_turno} repete a forma de \eqref{eq:lote_minimo}, com uma diferença: ele é imposto apenas quando a posição \emph{inicia} uma corrida de cor, porque o termo $y_{kjsn} - y_{kjs,n-1}$ vale 1 nesse caso e 0 quando a cor continua, o que evita exigir o mínimo de novo a cada posição de uma mesma corrida.
 
-O bloco \eqref{eq:balanco_turno}--\eqref{eq:previsao_turno} espelha o balanço semanal no nível de SKU-cor e turno, com uma diferença deliberada: as entregas são explícitas. $\eta^{o}_{ks}$ e $\eta^{d}_{ks}$ separam o que foi entregue contra pedido firme do que foi entregue contra previsão, e o que sobra alimenta o estoque. Essa separação não altera o ótimo, já que é implicada pelo balanço, mas torna a natureza de cada quilograma entregue uma saída do modelo, e não uma atribuição feita a posteriori.
+O bloco \eqref{eq:balanco_turno} a \eqref{eq:previsao_turno} espelha o balanço semanal \eqref{eq:balanco_semanal} no nível de SKU e turno, com uma diferença deliberada: as entregas são explícitas. Onde o nível semanal deduz a carteira entregue de um termo composto, aqui $e^{o}_{ks}$ e $e^{d}_{ks}$ nomeiam separadamente o que foi entregue contra pedido firme e contra previsão, e o que sobra alimenta o estoque. Essa separação não altera o ótimo, já que é implicada pelo balanço, mas torna a natureza de cada quilograma entregue uma saída do modelo, e não uma atribuição feita a posteriori.
 
 \subsection{Coordenação entre os níveis}
 
-O contrato entre os dois modelos é a restrição \eqref{eq:meta_final}: o estoque do balão $i$ ao fim do último turno deve alcançar a meta $\Sigma_i$ que o nível semanal planejou para o fim daquela semana, e a violação $g_i$ é penalizada. É a única informação que desce, e ela é suave.
+O contrato entre os dois modelos é a restrição \eqref{eq:meta_final}: o estoque do balão $i$ ao fim do último turno deve alcançar a meta $\bar{I}_i$ que o nível semanal planejou para o fim daquela semana, e a violação $g_i$ é penalizada. É a única informação que desce, e ela é suave.
 
 A escolha é deliberada e se opõe à alternativa de fixar as janelas de produção. Passar do nível semanal a alocação máquina-balão já resolvida garantiria consistência automática entre os planos, mas ao custo de tornar o nível operacional incapaz de reagir: qualquer prazo da carteira que não coubesse na janela herdada viraria atraso, sem possibilidade de realocar. Com a meta de estoque como único vínculo, o nível operacional decide livremente máquina, turno e sequência, e a consistência com o plano semanal é cobrada pelo estado terminal em vez de pelo caminho. É o esquema de metas com folga penalizada que \citeonline{bitranhaashax1981} formalizam para a desagregação em horizonte rolante, e a folga $g_i$ é o que impede que uma meta inatingível propague inviabilidade para o nível de baixo, no sentido apontado por \citeonline{schneeweiss2003}.
 
@@ -588,7 +596,7 @@ A escolha é deliberada e se opõe à alternativa de fixar as janelas de produç
 
 As premissas a seguir delimitam o alcance das duas formulações.
 
-\textbf{A demanda é determinística.} Carteira, previsão e metas de cobertura são dadas como conhecidas em cada execução, e a previsão vem do modelo da Seção~\ref{sec:modelo_demanda}, sem atualização dentro de uma execução. \textbf{A carteira é a parcela confirmada da demanda total}, de modo que a previsão entra líquida, isto é, previsão total menos carteira, e as duas correntes não se somam nem se sobrepõem no balanço.
+\textbf{A demanda é determinística.} Carteira e previsão são dadas como conhecidas em cada execução, e a previsão vem do modelo da Seção~\ref{sec:modelo_demanda}, sem atualização dentro de uma execução. \textbf{A carteira é a parcela confirmada da demanda total}, de modo que a previsão entra líquida, isto é, previsão total menos carteira, e as duas correntes não se somam nem se sobrepõem no balanço.
 
 \textbf{O \textit{setup} do nível semanal é independente de sequência.} Com \textit{bucket} de uma semana, a ordem de produção interna é decisão do nível operacional; $\tau_i$ é o tempo médio de entrada no balão $i$, calculado sobre a matriz de troca de formas.
 
@@ -596,7 +604,7 @@ As premissas a seguir delimitam o alcance das duas formulações.
 
 \textbf{O estado da máquina sobrevive a turnos ociosos.} Forma e cor montadas permanecem enquanto a máquina não produz, e a troca seguinte é cobrada a partir desse estado. \textbf{O horizonte operacional é a primeira semana do plano}, e as demais semanas permanecem no nível semanal até a re-execução seguinte, em horizonte rolante.
 
-\textbf{O \textit{setup} de forma é independente de máquina.} A matriz $f_{i'i}$ é comum a todas as máquinas; a diferenciação entre equipamentos está no custo horário $c_j$. \textbf{A troca de forma subsume a troca de cor}, porque ao remontar a forma a máquina é preparada para a primeira cor do novo balão sem \textit{setup} adicional de cor.
+\textbf{O \textit{setup} de forma é independente de máquina.} A matriz $\tau^{\mathrm{F}}_{i'i}$ é comum a todas as máquinas; a diferenciação entre equipamentos está no custo horário $c_j$. \textbf{A troca de forma subsume a troca de cor}, porque ao remontar a forma a máquina é preparada para a primeira cor do novo balão sem \textit{setup} adicional de cor.
 
 \textbf{A taxa de carregamento é linear no tempo.} A taxa anual $\theta$ é rateada uniformemente pelas 52 semanas do ano e, no nível operacional, pelos turnos da semana. \textbf{A perecibilidade do látex não é modelada}: o recebimento diário e a capacidade dos tanques são tratados como não restritivos, e a decisão de produção é limitada por capacidade de moldagem, não por disponibilidade de composto.
 
