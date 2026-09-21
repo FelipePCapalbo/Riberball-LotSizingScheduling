@@ -25,8 +25,18 @@ Reportar no capitulo de Resultados o status e o gap de cada instancia, nao apena
 
 ## Dados
 
-- Converter `data/input_asis.xlsx` (dado real, mensal) para o contrato semanal:
-  desagregar a demanda mensal por dias uteis da semana e montar as abas de carteira.
+- Feito: `input_adjuster.py` converte `data/input_asis.xlsx` para `data/input_asis_ajustado.xlsx`
+  no contrato semanal.
+- Levantar em campo as quatro dimensoes que a operacao nao registra e que hoje sao sinteticas no
+  arquivo ajustado: mix de cores por balao, carteira de pedidos, matrizes de setup (cor e forma) e
+  lote minimo. Enquanto forem sinteticas, os custos absolutos do ajustado nao sao comparaveis ao
+  realizado — so a estrutura da solucao e'.
+- Confirmar com a operacao a regra de sequenciamento de cor assumida (clarear caro, escurecer
+  barato, `PRETO -> BRANCO` proibido) e o calendario de paradas (preventivas, coletiva, carnaval),
+  que hoje substitui a disponibilidade constante de 1,0 da extracao original.
+- `CUSTO_UNITARIO` vem 10 R$/kg para todos os 17 balões na extracao original — e' um valor de
+  preenchimento, nao um custo apurado. Sem custo real por balao o custo de carregamento nao
+  diferencia produto.
 
 ## Modelo
 

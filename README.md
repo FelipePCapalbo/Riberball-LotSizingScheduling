@@ -39,10 +39,13 @@ config/
     costs.json    — annual_holding_rate, order_backlog_multiplier, coverage_weight
     solver.json   — motores, tempos limite, positions_per_shift, daily_strategy
 data/
-    *.xlsx        — instâncias (ver abas abaixo)
+    instance_*.xlsx           — instâncias sintéticas (ver abas abaixo)
+    input_asis_ajustado.xlsx  — dado real da operação no contrato semanal
+    input_asis.xlsx           — dado real da operação, mensal, fora do contrato
 tests/
     test_models.py — bateria de validação dos dois modelos
 instance_generator.py — gera as instâncias sintéticas
+input_adjuster.py     — converte input_asis.xlsx para input_asis_ajustado.xlsx
 run.py                — execução standalone das duas etapas
 ```
 
@@ -140,6 +143,39 @@ python instance_generator.py
 Cinco perfis (`micro`, `pequeno`, `medio`, `grande`, `real`). A fração da demanda já confirmada em
 carteira decai ao longo do horizonte (`φ(t) = φ₀·e^{−t/τ}`): perto do início quase tudo é pedido
 firme, no fim quase tudo é previsão. Isso é característica da **instância**, não do sistema.
+
+### Converter o dado real
+
+```bash
+python input_adjuster.py
+```
+
+Lê `data/input_asis.xlsx` (extração mensal da operação) e grava `data/input_asis_ajustado.xlsx`
+no contrato semanal. O dado real é preservado; o que a operação não coletou é sintetizado.
+
+| Aba | Origem |
+|-----|--------|
+| `Produtividade` | **real** — 17 balões × 28 máquinas, kg/h |
+| `Demanda` | **real**, desagregada de mês para semana por dias úteis (total mensal preservado) |
+| `Estoque` | **real** — saldo de abertura de 01/2024 |
+| `Custos` | `CUSTO_UNITARIO` **real**; `PRECO_VENDA` sintético |
+| `Disponibilidade de maquinas` | sintética — preventivas, parada coletiva e carnaval |
+| `Pedidos`, `Itens_Pedido` | sintéticos — carteira com `φ(t) = 0,95·e^{−t/8}` |
+| `Estoque_Cor` | **real** no total por balão, rateado pelo mix de cores |
+| `De_Para_Cores` | sintética — clarear custa mais que escurecer |
+| `De_Para_Formas` | sintética — família, calibre e troca de composto |
+| `Lote_Minimo` | sintético — corrida mínima de ~2 h |
+| `Faturado`, `Produzido` | **reais**, mensais, mantidos como referência As-Is |
+
+A operação não registra cor, carteira, matrizes de setup nem lote mínimo: essas quatro dimensões
+existem só no arquivo ajustado e devem ser levantadas em campo antes de qualquer leitura absoluta
+dos custos.
+
+O sequenciamento de cor segue a regra de limpeza do látex: escurecer é uma purga curta
+(0,25 h + 0,08 h por degrau), clarear exige limpeza profunda (0,70 h + 0,45 h por degrau) e
+`PRETO → BRANCO`, `PRETO → AMARELO` e `ROXO → BRANCO` são **proibidas** — é preciso passar por uma
+cor intermediária. A troca de forma zera quando o `MODELO` não muda: `RED. 10-LISO → RED. 10-PLATINO`
+custa só a troca de composto (1,5 h), contra 4,5–6,3 h entre famílias diferentes.
 
 ### Rodar sem interface
 

@@ -4,12 +4,22 @@ import pandas as pd
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT_DIR, 'data')
 
+REQUIRED_SHEETS = ['Produtividade', 'Demanda', 'Estoque', 'Custos', 'Disponibilidade de maquinas',
+                   'Pedidos', 'Itens_Pedido', 'Estoque_Cor', 'De_Para_Cores', 'De_Para_Formas',
+                   'Lote_Minimo']
+
 
 def list_data_files():
     list_files = []
     for str_name in sorted(os.listdir(DATA_DIR)):
         if str_name.endswith('.xlsx') and not str_name.startswith('~'):
-            list_files.append(str_name)
+            list_sheets = pd.ExcelFile(os.path.join(DATA_DIR, str_name)).sheet_names
+            bool_complete = True
+            for str_sheet in REQUIRED_SHEETS:
+                if str_sheet not in list_sheets:
+                    bool_complete = False
+            if bool_complete:
+                list_files.append(str_name)
     return list_files
 
 
