@@ -161,12 +161,40 @@ carryover através de turnos ociosos, capacidade do turno).
 
 ### Interface web
 
-Backend (sobe o túnel e registra no Worker):
+Backend (prepara o ambiente, sobe o túnel e registra no Worker):
 
 ```bash
 ./init.sh      # macOS / Linux
 init.bat       # Windows
 ```
+
+Único pré-requisito na máquina: **Python 3.10 a 3.13, 64 bits**. No Windows, o instalador
+padrão do python.org basta — não é preciso marcar "Add to PATH", porque o script localiza o
+interpretador pelo launcher `py`. O resto o script resolve sozinho, sem instalar nada no
+sistema nem alterar o PATH:
+
+| Passo | O que faz |
+|---|---|
+| 1 | Localiza um Python compatível e valida versão, arquitetura, `venv` e `ensurepip` |
+| 2 | Cria (ou recria, se estiver corrompida) a `.venv` dentro da pasta do projeto |
+| 3 | Instala as dependências na `.venv`; reinstala só quando `requirements.txt` muda |
+| 4 | Baixa o `cloudflared` para a própria pasta, se ainda não estiver lá |
+| 5 | Abre o navegador na interface e sobe o backend |
+
+Tudo o que é criado (`.venv/`, `cloudflared`) fica dentro da pasta e some ao apagá-la. O
+interpretador é sempre invocado por caminho absoluto e com `-E -s`, e as variáveis `PYTHONHOME`,
+`PYTHONPATH` e `PYTHONSTARTUP` são neutralizadas dentro do script — um Python, um Anaconda ou um
+`PYTHONPATH` já existentes na máquina não interferem.
+
+Se existir uma pasta `wheels/` ao lado do script, a instalação usa `--no-index --find-links wheels`
+e roda sem rede. Para montar esse diretório a partir de qualquer sistema operacional:
+
+```bash
+pip download -r requirements.txt --platform win_amd64 --python-version 312 --only-binary=:all: -d wheels
+```
+
+O backend exige `backend/.env` com o `SHARED_SECRET` igual ao configurado no Worker. Na entrega a um
+cliente, o arquivo já vai preenchido dentro do pacote.
 
 Desenvolvimento do frontend contra um backend local:
 

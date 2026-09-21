@@ -1,10 +1,12 @@
 import asyncio
 import atexit
+import os
 import re
 import shutil
 
 TRYCLOUDFLARE_URL_PATTERN = re.compile(r'https://[a-z0-9-]+\.trycloudflare\.com')
 STARTUP_TIMEOUT_SECONDS = 30
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 _tunnel_process = None
 
@@ -24,11 +26,21 @@ async def _drain_stdout(process):
 
 async def start_tunnel(port):
     global _tunnel_process
-    cloudflared_path = shutil.which('cloudflared')
+    if os.name == 'nt':
+        str_bundled_name = 'cloudflared.exe'
+    else:
+        str_bundled_name = 'cloudflared'
+
+    str_bundled_path = os.path.join(ROOT_DIR, str_bundled_name)
+    if os.path.isfile(str_bundled_path):
+        cloudflared_path = str_bundled_path
+    else:
+        cloudflared_path = shutil.which('cloudflared')
+
     if not cloudflared_path:
         raise RuntimeError(
-            'cloudflared não encontrado no PATH. Instale com "brew install cloudflared" (macOS) '
-            'ou "choco install cloudflared" (Windows) antes de iniciar o backend.'
+            f'cloudflared não encontrado. Esperado em "{str_bundled_path}" ou no PATH. '
+            'Rode init.sh (Linux/macOS) ou init.bat (Windows), que baixam o binário nesta pasta.'
         )
 
     _tunnel_process = await asyncio.create_subprocess_exec(

@@ -2,6 +2,6 @@ pandas
 openpyxl
 pulp
 fastapi
-uvicorn[standard]
+uvicorn
 httpx
 python-dotenv
