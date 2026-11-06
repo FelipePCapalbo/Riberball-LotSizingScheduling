@@ -3,8 +3,8 @@
 Otimização de produção em dois níveis hierárquicos, com interface web:
 
 1. **Plano semanal** (MILP) — decide, por balão (`MODELO-TIPO`) e máquina, quanto produzir em cada
-   semana, arbitrando entre **carteira firme**, **previsão de demanda** e **meta de estoque de
-   cobertura**, com custo financeiro real (setup, estocagem, faltas).
+   semana, arbitrando entre **carteira firme** e **previsão de demanda**, com custo financeiro real
+   (setup, estocagem, faltas).
 2. **Programação por turno** (MILP) — recebe do semanal apenas a **meta de estoque de fim de semana**
    e decide, com **sequenciamento embutido**, o que cada máquina produz em cada turno e em que ordem,
    respeitando lote mínimo, troca de forma na fronteira de turno e troca de cor dentro do turno.
@@ -33,10 +33,10 @@ frontend/
     app/    — dashboard React + Vite + TypeScript
     worker/ — Cloudflare Worker (serve o app, proxy /api/*, lock de conexão única)
 config/
-    scenario.json — start_week, weeks_in_plan, frozen_weeks, coverage_weeks
+    scenario.json — start_week, weeks_in_plan, frozen_weeks
     capacity.json — shifts_per_day, hours_per_shift, working_days_per_week
     machines.json — active_machines, setup_hourly_cost_default, setup_hourly_cost_by_machine
-    costs.json    — annual_holding_rate, order_backlog_multiplier, coverage_weight
+    costs.json    — annual_holding_rate
     solver.json   — motores, tempos limite, positions_per_shift, daily_strategy
 data/
     instance_*.xlsx           — instâncias sintéticas (ver abas abaixo)
@@ -69,16 +69,25 @@ Um pedido pode conter itens de balões e cores diferentes; a data de vencimento 
 A carteira é a parcela já confirmada da demanda total: o modelo usa **previsão líquida**
 (`demanda total − carteira`), sem dupla contagem.
 
-## As três camadas de demanda
+## As duas camadas de demanda
 
 | Camada | Falta | Penalidade unitária |
 |--------|-------|---------------------|
-| Carteira firme | *backlog* transportado adiante | `order_backlog_multiplier × margem`, cobrada a cada semana em atraso |
-| Previsão líquida | venda perdida, não recuperável | `margem` |
-| Meta de cobertura (α semanas à frente) | folga da restrição | `coverage_weight × margem` |
+| Carteira firme | *backlog* transportado adiante | `margem`, cobrada **a cada semana** em atraso |
+| Previsão líquida | venda perdida, não recuperável | `margem`, cobrada uma única vez |
 
-Nenhuma camada é rígida: o modelo permanece viável sob qualquer capacidade e a prioridade emerge dos
-preços. Sob aperto de capacidade a degradação segue a ordem cobertura → previsão → carteira.
+As duas custam a mesma margem e mesmo assim a carteira é estritamente mais cara, sem multiplicador
+nenhum: o atraso é cobrado a cada semana em que persiste **e** o quilograma atrasado continua no
+balanço, ainda terá de ser produzido; a venda perdida é cobrada uma vez e sai do balanço, poupando a
+produção. A hierarquia sai da estrutura da formulação, não de um peso calibrado por quem opera.
+
+Nenhuma camada é rígida: o modelo permanece viável sob qualquer capacidade. Sob aperto de capacidade
+a degradação segue a ordem previsão → carteira, verificada em `tests/test_models.py`.
+
+Não há camada de cobertura. Uma meta semana a semana seria redundante com o horizonte — o modelo já
+enxerga a demanda futura dentro de `weeks_in_plan` e antecipa produção sozinho quando a capacidade
+aperta. O que ela evitaria é só o efeito de borda na última semana, e isso o horizonte rolante
+(`frozen_weeks = 1`, replanejamento a cada execução) resolve sem introduzir parâmetro novo.
 
 ## Custos
 
@@ -261,7 +270,7 @@ registro, então o lease não expira enquanto o `cloudflared` sobe.
 
 ## Abas da interface
 
-- **Plano semanal** — estoque projetado × meta de cobertura, natureza da produção (contra pedido /
+- **Plano semanal** — estoque projetado, natureza da produção (contra pedido /
   previsão / estoque), composição do custo e tabela semanal.
 - **Programação por turno** — Gantt máquina × turno (produção e setup, com o tipo de setup
   hachurado), horas por máquina e a tabela de operações (data, turno, máquina, posição, balão, cor,

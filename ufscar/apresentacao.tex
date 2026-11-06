@@ -52,6 +52,10 @@
 \definecolor{corLaranja}{HTML}{E8781F}
 \definecolor{corVermelho}{HTML}{C62E1F}
 \definecolor{corVinho}{HTML}{7E1F16}
+\definecolor{corAzul}{HTML}{2E5FA3}
+\definecolor{corVerde}{HTML}{3F8F4A}
+\definecolor{corRosa}{HTML}{E58BA9}
+\definecolor{corPreto}{HTML}{1F1F1F}
 
 \setbeamercolor{structure}{fg=laranja}
 \setbeamercolor{alerted text}{fg=laranjaEsc}
@@ -177,64 +181,151 @@
 \section{Contexto}
 % ===========================================================================
 
-\begin{frame}{Formato e acabamento definem o balão; a cor, o SKU}
+\begin{frame}{O vermelho passa de 34\% a 50\% da carteira}
 
-  \vspace{0.4em}
+  \vspace{0.9em}
   \begin{center}
-    \resizebox{\textwidth}{!}{%
-    \begin{tikzpicture}[font=\small,
-        dim/.style={rectangle,rounded corners=2pt,draw=cinza,thick,fill=white,
-                    minimum width=2.4cm,minimum height=0.9cm},
-        saida/.style={rectangle,rounded corners=2pt,very thick,draw=cinza,
-                      fill=cinza!12,minimum width=2.6cm,minimum height=1.3cm}]
+    \begin{tikzpicture}
+      \begin{axis}[
+          width=11.6cm, height=5.6cm,
+          ybar stacked, bar width=0.8cm,
+          area legend,
+          ylabel={\% da carteira}, ylabel style={font=\scriptsize},
+          tick label style={font=\scriptsize},
+          xmin=0.4, xmax=7.6,
+          xtick={1,2,3,4,5,6,7},
+          xticklabels={jan,fev,mar,abr,mai,jun,jul},
+          ymin=0, ymax=100, ytick={0,50,100},
+          axis lines*=left,
+          legend style={at={(0.5,1.04)},anchor=south,draw=none,fill=none,
+                        legend columns=7,font=\scriptsize,column sep=5pt},
+          clip=false,
+        ]
 
-      \node[dim] (f) at (0,4.3) {formato};
-      \node[dim] (a) at (0,2.6) {acabamento};
-      \node[dim,draw=laranja,very thick,fill=laranja!12] (c) at (0,0.5) {cor};
+        \addplot[draw=none,fill=corVermelho] coordinates {(1,34.1)(2,34.7)(3,32.7)(4,35.7)(5,42.7)(6,50.4)(7,46.0)};
+        \addlegendentry{vermelho}
+        \addplot[draw=none,fill=corAzul] coordinates {(1,19.3)(2,18.5)(3,19.6)(4,19.7)(5,19.4)(6,15.4)(7,20.2)};
+        \addlegendentry{azul}
+        \addplot[draw=none,fill=corBranco] coordinates {(1,16.0)(2,15.2)(3,16.9)(4,16.0)(5,13.1)(6,11.0)(7,18.6)};
+        \addlegendentry{branco}
+        \addplot[draw=none,fill=corAmarelo] coordinates {(1,12.0)(2,12.6)(3,12.5)(4,12.1)(5,9.5)(6,8.8)(7,12.0)};
+        \addlegendentry{amarelo}
+        \addplot[draw=none,fill=corVerde] coordinates {(1,9.5)(2,8.3)(3,8.7)(4,7.9)(5,6.7)(6,5.2)(7,3.3)};
+        \addlegendentry{verde}
+        \addplot[draw=none,fill=corRosa] coordinates {(1,4.6)(2,5.6)(3,4.5)(4,4.5)(5,4.2)(6,4.4)(7,0.0)};
+        \addlegendentry{rosa}
+        \addplot[draw=none,fill=corPreto] coordinates {(1,4.6)(2,5.1)(3,5.0)(4,4.1)(5,4.4)(6,4.7)(7,0.0)};
+        \addlegendentry{preto}
 
-      \node[circle,draw=none,fill=cinza!60,minimum size=0.85cm] at (2.7,4.3) {};
-      \node[ellipse,draw=none,fill=cinza!60,
-            minimum width=0.55cm,minimum height=1.1cm] at (3.9,4.3) {};
-      \node[star,star points=5,star point ratio=2.1,draw=none,fill=cinza!60,
-            minimum size=1.1cm,inner sep=0pt] at (5.1,4.3) {};
-      \node[diamond,draw=none,fill=cinza!60,
-            minimum width=0.85cm,minimum height=1.1cm,inner sep=0pt] at (6.3,4.3) {};
+        \coordinate (rotJan) at (axis cs:1,17);
+        \coordinate (rotJun) at (axis cs:6,25);
 
-      \node[circle,draw=none,fill=cinza!60,minimum size=0.85cm] at (2.7,2.6) {};
-      \node[circle,draw=none,fill=cinza!60,minimum size=0.85cm] at (4.3,2.6) {};
-      \draw[white,line width=1.6pt] (4.3,2.6) circle (0.24);
-      \node[circle,draw=none,fill=cinza!60,minimum size=0.85cm] at (5.9,2.6) {};
-      \fill[white] (5.75,2.75) circle (0.14);
-      \node[font=\scriptsize,text=cinza] at (2.7,1.9) {fosco};
-      \node[font=\scriptsize,text=cinza] at (4.3,1.9) {perolado};
-      \node[font=\scriptsize,text=cinza] at (5.9,1.9) {brilhante};
+      \end{axis}
 
-      \foreach \i/\co in {0/corAmarelo,1/corLaranja,2/corVermelho,3/corVinho}
-        \node[circle,draw=none,fill=\co,minimum size=0.85cm]
-          at (2.7+\i*1.2,0.5) {};
-
-      \node[saida] (balao) at (9.9,3.45)
-        {\begin{tabular}{@{}c@{}}balão\\[-0.1em]{\scriptsize\color{cinza}tático}\end{tabular}};
-      \node[saida,draw=laranja,fill=laranja!12] (sku) at (9.9,0.5)
-        {\begin{tabular}{@{}c@{}}SKU\\[-0.1em]{\scriptsize\color{cinza}operacional}\end{tabular}};
-
-      \draw[cinza,thick] (6.9,4.3) -- (7.5,4.3);
-      \draw[cinza,thick] (6.5,2.6) -- (7.5,2.6);
-      \draw[cinza,thick] (7.5,4.3) -- (7.5,2.6);
-      \draw[-{Stealth[length=3mm]},thick,cinza] (7.5,3.45) -- (8.5,3.45);
-      \draw[-{Stealth[length=3mm]},thick,laranja] (6.9,0.5) -- (8.5,0.5);
-      \draw[-{Stealth[length=3mm]},thick,cinza] (9.9,2.75) -- (9.9,1.25);
-
-    \end{tikzpicture}}
+      \node[font=\scriptsize,text=white] at (rotJan) {34\%};
+      \node[font=\scriptsize,text=white] at (rotJun) {50\%};
+    \end{tikzpicture}
   \end{center}
 
-  \note{Formato é o molde físico. Acabamento é o tratamento de superfície: fosco, perolado ou brilhante.
-  A combinação de formato e acabamento define o balão, e é esse o produto que o planejamento
-  tático enxerga.
+  \note{O eixo de meses é o do slide anterior, agora decomposto por cor. Cada coluna é a
+  participação de cada cor na carteira, por mês de vencimento, e todas somam cem por cento: o
+  total foi normalizado justamente para que só a composição apareça.
 
-  A cor entra depois, na pigmentação do composto, e é ela que fecha o SKU. As cardinalidades não
-  aparecem na tela porque não são o ponto: o que importa é a hierarquia — formato e acabamento
-  no tático, cor no operacional. Essa divisão organiza o restante da apresentação.}
+  O vermelho sai de trinta e quatro por cento em janeiro e chega a cinquenta em junho, dezoito
+  pontos percentuais entre o menor e o maior mês. O verde faz o caminho inverso, de nove e meio
+  para três. Volume igual não significa, portanto, conjunto igual de SKU.
+
+  Daí saem duas consequências. A decisão de capacidade trabalha com o agregado em quilogramas e
+  não informa qual cor entra em qual máquina. E a matriz de tempos de troca de cor é percorrida de
+  um jeito diferente a cada mês, porque a sequência que a carteira pede muda com ela. São dois
+  problemas distintos sobre o mesmo parque, e é por isso que a decisão de quanto produzir e a
+  decisão de em que ordem produzir são tomadas em níveis diferentes.
+
+  Uma observação sobre o dado: a carteira rareia à medida que o vencimento se afasta da data de
+  corte, e em julho as cores de menor participação ainda não têm pedido colocado. O que a última
+  coluna representa é a parcela vendida com mais antecedência.}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{A carga semanal varia de 37\% a 135\% da capacidade}
+
+  \vspace{0.3em}
+  \begin{center}
+    \begin{tikzpicture}
+      \begin{axis}[
+          width=12.4cm, height=6.0cm,
+          ybar stacked, bar width=0.128cm,
+          ylabel={\% da capacidade}, ylabel style={font=\scriptsize},
+          tick label style={font=\scriptsize},
+          xmin=0.1, xmax=70.9,
+          xtick={1,14,27,41,54,67},
+          xticklabels={jan/24,abr,jul,out,jan/25,abr},
+          ymin=0, ymax=150, ytick={0,50,100,150},
+          ymajorgrids, grid style={cinzaCla!60},
+          axis lines*=left,
+          clip=false,
+        ]
+
+        \addplot[draw=none,fill=cinza!60] coordinates {
+          (1,100.0) (2,53.5) (3,53.3) (4,52.9) (5,57.1) (6,60.8) (7,70.8) (8,70.8) (9,63.8) (10,69.6) (11,69.6) (12,69.9) (13,69.6) (14,71.3)
+          (15,71.0) (16,71.7) (17,71.6) (18,73.9) (19,73.3) (20,73.6) (21,75.1) (22,75.9) (23,87.4) (24,87.5) (25,86.6) (26,85.9) (27,62.2) (28,61.2)
+          (29,60.7) (30,61.2) (31,68.5) (32,75.4) (33,74.7) (34,74.2) (35,74.2) (36,82.7) (37,83.0) (38,82.3) (39,82.0) (40,83.7) (41,84.0) (42,84.8)
+          (43,85.7) (44,83.6) (45,81.7) (46,82.2) (47,81.3) (48,81.2) (49,36.8) (50,36.8) (51,37.0) (52,92.1) (53,100.0) (54,100.0) (55,54.0) (56,56.2)
+          (57,58.0) (58,66.2) (59,75.1) (60,75.1) (61,66.4) (62,68.0) (63,70.0) (64,68.4) (65,67.6) (66,73.1) (67,76.0) (68,73.8) (69,74.8) (70,37.6)};
+
+        \addplot[draw=none,fill=cinzaCla!45] coordinates {
+          (1,0.0) (2,46.5) (3,46.7) (4,47.1) (5,42.9) (6,39.2) (7,29.2) (8,29.2) (9,36.2) (10,30.4) (11,30.4) (12,30.1) (13,30.4) (14,28.7)
+          (15,29.0) (16,28.3) (17,28.4) (18,26.1) (19,26.7) (20,26.4) (21,24.9) (22,24.1) (23,12.6) (24,12.5) (25,13.4) (26,14.1) (27,37.8) (28,38.8)
+          (29,39.3) (30,38.8) (31,31.5) (32,24.6) (33,25.3) (34,25.8) (35,25.8) (36,17.3) (37,17.0) (38,17.7) (39,18.0) (40,16.3) (41,16.0) (42,15.2)
+          (43,14.3) (44,16.4) (45,18.3) (46,17.8) (47,18.7) (48,18.8) (49,63.2) (50,63.2) (51,63.0) (52,7.9) (53,0.0) (54,0.0) (55,46.0) (56,43.8)
+          (57,42.0) (58,33.8) (59,24.9) (60,24.9) (61,33.6) (62,32.0) (63,30.0) (64,31.6) (65,32.4) (66,26.9) (67,24.0) (68,26.2) (69,25.2) (70,62.4)};
+
+        \addplot[draw=none,fill=laranja] coordinates {
+          (1,32.2) (2,0.0) (3,0.0) (4,0.0) (5,0.0) (6,0.0) (7,0.0) (8,0.0) (9,0.0) (10,0.0) (11,0.0) (12,0.0) (13,0.0) (14,0.0)
+          (15,0.0) (16,0.0) (17,0.0) (18,0.0) (19,0.0) (20,0.0) (21,0.0) (22,0.0) (23,0.0) (24,0.0) (25,0.0) (26,0.0) (27,0.0) (28,0.0)
+          (29,0.0) (30,0.0) (31,0.0) (32,0.0) (33,0.0) (34,0.0) (35,0.0) (36,0.0) (37,0.0) (38,0.0) (39,0.0) (40,0.0) (41,0.0) (42,0.0)
+          (43,0.0) (44,0.0) (45,0.0) (46,0.0) (47,0.0) (48,0.0) (49,0.0) (50,0.0) (51,0.0) (52,0.0) (53,20.7) (54,35.1) (55,0.0) (56,0.0)
+          (57,0.0) (58,0.0) (59,0.0) (60,0.0) (61,0.0) (62,0.0) (63,0.0) (64,0.0) (65,0.0) (66,0.0) (67,0.0) (68,0.0) (69,0.0) (70,0.0)};
+
+        \coordinate (capIni) at (axis cs:0.1,100);
+        \coordinate (capFim) at (axis cs:70.9,100);
+        \coordinate (rotCap) at (axis cs:57.5,110);
+        \coordinate (rotCarga) at (axis cs:2.5,30);
+        \coordinate (rotOcio) at (axis cs:2.5,85);
+        \coordinate (rotExc) at (axis cs:47,128);
+        \coordinate (alvoExc) at (axis cs:52.3,124);
+
+      \end{axis}
+
+      \draw[cinzaEsc,dashed,thick] (capIni) -- (capFim);
+      \node[font=\scriptsize,text=cinzaEsc,anchor=west] at (rotCap) {capacidade};
+      \node[font=\scriptsize,text=white,anchor=west] at (rotCarga) {carga};
+      \node[font=\scriptsize,text=cinzaEsc,anchor=west] at (rotOcio) {ociosidade};
+      \node[font=\scriptsize,text=laranjaEsc,anchor=east] at (rotExc) {excedente};
+      \draw[laranjaEsc,-{Stealth[length=2mm]}] ($(rotExc)+(2pt,0)$) -- (alvoExc);
+    \end{tikzpicture}
+  \end{center}
+
+  \note{A série é a razão entre as horas necessárias para atender a demanda da semana e as horas
+  disponíveis das vinte e oito máquinas de moldagem, sobre setenta semanas de histórico escalado
+  por um fator aleatório para descaracterizar a grandeza. A média é de setenta e três por cento e a
+  faixa vai de trinta e sete a cento e trinta e cinco.
+
+  A parte escura é a carga, a parte clara é a capacidade que sobra na semana e a parte laranja é o
+  que não cabe nela. Três semanas das setenta passam de cem por cento e quatro passam de noventa;
+  as três estão na virada de ano, quando o calendário de turnos encolhe por parada programada e a
+  demanda não encolhe junto.
+
+  O parque de moldagem é fixo e o calendário de turnos é praticamente invariante ao longo do ano,
+  porque dimensionar a fábrica para o máximo deixaria o investimento ocioso na maior parte do
+  horizonte. Atender as semanas de maior carga exige antecipar produção nas semanas de ociosidade
+  e carregar o estoque até lá: é assim que a folga sai da capacidade e passa para o estoque, que
+  deixa de ser consequência do plano e vira variável de decisão. É também o que amarra a previsão
+  de demanda ao dimensionamento de lotes, porque antecipar contra um máximo só é possível se o
+  modelo enxerga esse máximo.
+
+  Convém registrar o que a conta não inclui: as horas de \textit{setup} e a compatibilidade entre
+  máquina e balão. A utilização efetiva é, portanto, maior que a apurada aqui.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
@@ -289,152 +380,198 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{Os dois \textit{setups} diferem em tempo e em cadência}
+\begin{frame}{A troca de formato ocupa 60\% do turno; a de cor, 11\%}
 
-  \vspace{0.8em}
+  \vspace{0.5em}
   \begin{center}
-    \begin{tikzpicture}[font=\small]
+    \begin{tikzpicture}[x=0.865cm,y=1.42cm,font=\small,
+        chamada/.style={align=center,inner sep=1pt,text=cinzaEsc},
+        guia/.style={draw=cinza,thin}]
 
-      \node[font=\Large\bfseries,text=laranjaEsc] at (0,2.4) {3--7 h};
-      \node[font=\footnotesize,text=cinzaEsc] at (0,1.75) {troca de formato};
-      \node[font=\Large\bfseries,text=laranja] at (0,0.7) {0,5--2 h};
-      \node[font=\footnotesize,text=cinzaEsc] at (0,0.05) {troca de cor};
+      \fill[cinzaCla!30] (0,0) rectangle (8,1);
+      \fill[cinzaCla!30] (8,0) rectangle (16,1);
 
-      \draw[-{Stealth[length=3mm]},thick,cinza] (2.6,-0.6) -- (12.2,-0.6);
-      \foreach \x/\l in {3.2/dia,5.6/semana,8.0/mês,10.4/trimestre}
-        \draw[cinza] (\x,-0.48) -- (\x,-0.72) node[below,font=\scriptsize] {\l};
+      \fill[corBranco]   (0,0.13)    rectangle (2.20,0.87);
+      \fill[laranja]     (2.20,0)    rectangle (3.05,1);
+      \fill[corAmarelo]  (3.05,0.13) rectangle (5.30,0.87);
+      \fill[laranja]     (5.30,0)    rectangle (6.15,1);
+      \fill[corVermelho] (6.15,0.13) rectangle (8,0.87);
 
-      \draw[laranjaEsc,line width=7pt] (5.2,2.1) -- (9.6,2.1);
-      \node[font=\scriptsize,text=cinzaEsc,anchor=west] at (9.9,2.1) {revisada por semana};
+      \fill[laranjaEsc]  (8,0)       rectangle (12.80,1);
+      \fill[corVermelho] (12.80,0.13) rectangle (16,0.87);
 
-      \draw[laranja,line width=7pt] (2.9,0.4) -- (4.6,0.4);
-      \node[font=\scriptsize,text=cinzaEsc,anchor=west] at (4.9,0.4) {revisada por dia};
+      \draw[cinza!50] (0,0) rectangle (8,1);
+      \draw[cinza!50] (8,0) rectangle (16,1);
+      \draw[cinzaEsc,thick] (8,-0.18) -- (8,1.18);
 
-      \node[font=\scriptsize,text=cinzaEsc,anchor=west] at (2.6,3.3)
-        {sequência-dependente, direcional, com transições proibidas};
-      \draw[cinza,-{Stealth[length=2mm]},thick] (2.4,3.3) -- (1.45,3.3) -- (1.45,0.95);
+      \draw[guia] (2.625,1) -- (2.625,1.45);
+      \node[chamada,anchor=south] at (2.625,1.50)
+        {{\footnotesize troca de cor}\\[0.15em]
+         {\bfseries 0,85 h}\;{\scriptsize\color{cinza}0,33--3,40}\\[0.05em]
+         {\scriptsize\color{cinza}decidida no dia}};
+
+      \draw[guia] (10.40,1) -- (10.40,1.45);
+      \node[chamada,anchor=south] at (10.40,1.50)
+        {{\footnotesize troca de formato}\\[0.15em]
+         {\bfseries 4,8 h}\;{\scriptsize\color{cinza}1,5--6,3}\\[0.05em]
+         {\scriptsize\color{cinza}decidida na semana}};
+
+      \draw[cinza,{Bar[width=5pt]}-{Bar[width=5pt]}] (0,-0.45) -- (8,-0.45);
+      \draw[cinza!50,{Bar[width=5pt]}-{Bar[width=5pt]}] (8,-0.45) -- (16,-0.45);
+      \node[font=\scriptsize,text=cinzaEsc,anchor=north,fill=white,inner sep=2pt] at (4,-0.36) {turno 8 h};
+      \node[font=\scriptsize,text=cinza,anchor=north,fill=white,inner sep=2pt] at (12,-0.36) {turno};
 
     \end{tikzpicture}
   \end{center}
 
-  \note{Esta é a característica que estrutura o trabalho inteiro. A troca de formato leva de três a
-  sete horas, dependendo da máquina, e é decidida com semanas de antecedência: na prática a
-  máquina fica dias no mesmo formato, porque o custo de trocar é alto demais. Ela não depende do
-  par de produtos, só da máquina.
+  \note{A escala de tempo dos dois \textit{setups} é a característica que estrutura o trabalho inteiro.
+  Na planilha da fábrica, a troca de formato vai de 1,5 a 6,3 horas entre os dezessete balões, com
+  mediana de 4,8 horas, e depende do par de formatos e da máquina. A troca de cor vai de 0,33 a
+  3,40 horas, com mediana de 0,85 hora. A razão entre as duas medianas é de 5,6 vezes. As faixas
+  se sobrepõem, e por isso a comparação apresentada é entre as medianas, não entre os extremos.
 
-  A troca de cor é uma limpeza, leva de meia a duas horas, e é decidida no dia. Ela depende da
-  sequência: de claro para escuro o tempo é menor, de escuro para claro é maior, e algumas
-  transições são inviáveis sem purgar o tanque inteiro.
+  O que torna essa diferença decisiva é o turno de oito horas. A troca de formato consome cerca de
+  sessenta por cento da capacidade do turno, de modo que executá-la no meio dele não é operação
+  real: ela ocorre na virada, quando a máquina já está parando, e é decidida com semanas de
+  antecedência, no plano semanal. A troca de cor cabe entre duas corridas do mesmo balão, consome
+  em torno de um décimo do turno e é decidida no dia, dentro do turno corrente.
 
-  Duas decisões, duas cadências, uma ordem de grandeza de diferença. É isso que vai justificar
-  separar o problema em dois modelos.}
+  A troca de cor é ainda direcional, com transições proibidas; a matriz completa aparece adiante,
+  no modelo por turno. O ponto deste slide é apenas a diferença de escala e de cadência, porque é
+  dela que vem a decomposição em dois modelos: um semanal, que decide formato e volume por máquina,
+  e outro por turno, que sequencia as cores sobre o formato já fixado.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{A demanda máxima é 1,9 vez a mínima}
+\begin{frame}{A carteira cai de 95\% a 20\% da demanda no horizonte}
 
+  \vspace{0.2em}
   \begin{center}
     \begin{tikzpicture}
       \begin{axis}[
-          width=11.0cm, height=5.4cm,
-          ylabel={mil kg}, ylabel style={font=\scriptsize},
+          width=11.6cm, height=5.5cm,
+          xlabel={semana}, ylabel={mil kg},
+          xlabel style={font=\scriptsize}, ylabel style={font=\scriptsize},
           tick label style={font=\scriptsize},
-          xtick={1,2,3,4,5,6,7,8,9,10,11,12},
-          xticklabels={J,F,M,A,M,J,J,A,S,O,N,D},
-          ymin=230, ymax=580,
+          xtick={1,2,3,4,5,6,7,8,9,10,11,12,13},
+          xmin=1, xmax=13,
+          ymin=0, ymax=56, ytick={0,20,40},
           ymajorgrids, grid style={cinza!20},
           axis lines*=left,
+          clip=false,
         ]
-        \addplot[laranja,very thick,mark=*,mark size=1.8pt]
-          coordinates {(1,283)(2,270)(3,354)(4,342)(5,369)(6,410)(7,346)(8,402)(9,475)(10,518)(11,467)(12,357)};
-        \addplot[cinza!55,dashed,thick,forget plot] coordinates {(1,518)(12,518)};
-        \addplot[cinza!55,dashed,thick,forget plot] coordinates {(1,270)(12,270)};
-        \node[font=\scriptsize,text=cinzaEsc,anchor=west] at (axis cs:10.2,545) {máximo};
-        \node[font=\scriptsize,text=cinzaEsc,anchor=west] at (axis cs:2.5,240) {mínimo};
-        \node[font=\Large\bfseries,text=laranjaEsc,anchor=west] at (axis cs:1.6,430) {1,9$\times$};
+
+        \addplot[draw=none,fill=cinzaCla] coordinates {
+          (1,40.7) (2,40.7) (3,40.7) (4,40.7) (5,43.5) (6,46.2) (7,46.2)
+          (8,46.2) (9,48.3) (10,52.5) (11,52.5) (12,52.5) (13,52.5)} \closedcycle;
+
+        \addplot[draw=none,fill=laranja] coordinates {
+          (1,38.5) (2,33.9) (3,29.9) (4,26.4) (5,24.8) (6,23.3) (7,20.4)
+          (8,17.9) (9,16.5) (10,15.9) (11,14.0) (12,12.2) (13,10.7)} \closedcycle;
+
+        \node[font=\small\bfseries,text=cinzaEsc,anchor=west] at (axis cs:1.35,21.5) {carteira};
+        \node[font=\scriptsize,text=cinzaEsc,anchor=west]     at (axis cs:1.35,16.0) {falta $=$ atraso};
+
+        \node[font=\small\bfseries,text=cinzaEsc,anchor=west] at (axis cs:7.1,42.0) {previsão};
+        \node[font=\scriptsize,text=cinzaEsc,anchor=west]     at (axis cs:7.1,36.5) {falta $=$ venda perdida};
+
+        \draw[laranjaEsc,thick] (axis cs:1.55,45.5) -- (axis cs:1.08,39.6);
+        \node[font=\small\bfseries,text=laranjaEsc,anchor=south west] at (axis cs:1.45,45.5) {95\%};
+
+        \draw[laranjaEsc,thick] (axis cs:12.25,19.0) -- (axis cs:12.85,11.6);
+        \node[font=\small\bfseries,text=laranjaEsc,anchor=south east] at (axis cs:12.35,18.6) {20\%};
+
       \end{axis}
     \end{tikzpicture}
   \end{center}
 
-  \note{Este é o histórico agregado da fábrica, escalado por um fator aleatório para
-  descaracterizar a grandeza. O máximo é outubro, o mínimo é fevereiro, e a razão entre eles é de
-  quase o dobro.
+  \note{A demanda que alimenta o planejamento não chega por uma via única. Parte está confirmada em
+  pedidos com quantidade, cor e prazo acordados, tratada aqui como carteira; o restante é previsão.
+  A carteira apurada na fábrica reúne oitocentos e sessenta e três pedidos, dois mil e oitenta e
+  dois itens e vinte clientes, e os valores do gráfico estão escalados por um fator aleatório.
 
-  Com capacidade praticamente constante ao longo do ano, atender o máximo exige antecipar produção
-  meses antes. Isso é o que torna a decisão de estoque não trivial, e é o que amarra a previsão de
-  demanda ao dimensionamento de lotes. Um erro de previsão aqui não é um erro estatístico
-  qualquer: é máquina alocada ao produto errado durante semanas.}
+  A proporção entre as duas correntes varia ao longo do horizonte. Na primeira semana noventa e
+  cinco por cento da demanda já está vendida, e na décima terceira restam vinte por cento: à
+  medida que o horizonte se afasta a carteira rareia e a previsão predomina. A área total ainda
+  cresce, porque o horizonte entra na subida sazonal, de modo que o que encolhe é a participação
+  da carteira, não o seu volume apenas.
+
+  A distinção não é nominal. A falta contra carteira é atraso, transportado adiante e ainda
+  devido; a falta contra previsão é venda perdida, que não se recupera. A operação é híbrida entre
+  produção contra pedido e produção para estoque sobre o mesmo parque de máquinas, com as duas
+  correntes disputando a mesma capacidade, e o modelo semanal carrega duas variáveis de falta
+  distintas exatamente por causa dessa assimetria.}
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{Um modelo único chegaria a 1,0 milhão de binárias}
 
-  \vspace{0.3em}
+% ---------------------------------------------------------------------------
+\begin{frame}{A cadência da decisão separa os dois modelos}
+
+  \vspace{0.6em}
   \begin{center}
-    \resizebox{\textwidth}{!}{%
-    \begin{tikzpicture}[font=\small,
-        fat/.style={font=\normalsize,text=cinzaEsc,inner sep=2pt},
-        band/.style={rectangle,rounded corners=3pt,very thick,
-                     minimum width=12.4cm,minimum height=1.05cm}]
+    \begin{tikzpicture}[font=\small]
 
-      \node[anchor=west,font=\scriptsize,text=cinza] at (-6.2,2.05) {modelo único};
-      \node[fat,anchor=west]            (c1) at (-6.2,1.45) {28 máquinas};
-      \node[fat,right=3pt of c1]        (x1) {$\times$};
-      \node[fat,right=3pt of x1]        (c2) {17 balões};
-      \node[fat,right=3pt of c2]        (x2) {$\times$};
-      \node[fat,right=3pt of x2]        (c3) {6 cores};
-      \node[fat,right=3pt of c3]        (x3) {$\times$};
-      \node[fat,right=3pt of x3]        (c4) {365 dias};
-      \node[fat,right=3pt of c4]        (eq) {$=$};
-      \node[fat,right=3pt of eq]        (rs) {\textbf{1,0 M} binárias};
-      \draw[laranja,line width=1.4pt] (c3.south west) -- (c3.south east);
+      \foreach \sem/\part in {1/95,2/83,3/73,4/65,5/57,6/50,7/44,8/39,9/34,
+                              10/30,11/27,12/23,13/20} {
+        \pgfmathsetmacro{\xesq}{(\sem-1)*0.72}
+        \pgfmathsetmacro{\xdir}{\xesq+0.66}
+        \fill[laranja!\part] (\xesq,1.62) rectangle (\xdir,2.28);
+        \node[font=\scriptsize,text=cinza] at ({(\xesq+\xdir)/2},2.50) {\sem};
+      }
 
-      \node[band,draw=laranjaCla,fill=laranjaCla!30] at (0,-0.2) {};
-      \node[band,draw=laranja,fill=laranja!20]       at (0,-1.4){};
-      \node[band,draw=laranjaEsc,fill=laranjaEsc!18] at (0,-2.6){};
+      \node[font=\small\bfseries,text=laranjaEsc,anchor=west] at (0,2.92) {carteira 95\%};
+      \node[font=\small\bfseries,text=laranjaEsc,anchor=east] at (9.36,2.92) {20\%};
 
-      \node[anchor=west,font=\small\bfseries] at (-6.0,-0.2) {Previsão};
-      \node[anchor=west,font=\small\bfseries] at (-6.0,-1.4){Semanal};
-      \node[anchor=west,font=\small\bfseries] at (-6.0,-2.6){Operacional};
+      \fill[cinzaCla!45] (0,1.62) -- (0.66,1.62) -- (9.36,0.74) -- (0,0.74) -- cycle;
+      \draw[laranjaEsc,thick] (0,1.62) rectangle (0.66,2.28);
 
-      \node[anchor=west,font=\footnotesize,text=cinza] at (-3.6,-0.2) {mês};
-      \node[anchor=west,font=\footnotesize,text=cinza] at (-3.6,-1.4){semana};
-      \node[anchor=west,font=\footnotesize,text=cinza] at (-3.6,-2.6){turno};
+      \foreach \dia in {0,1,2,3,4,5} {
+        \foreach \turno in {0,1,2} {
+          \pgfmathsetmacro{\xesq}{\dia*1.56+\turno*0.46}
+          \pgfmathsetmacro{\xdir}{\xesq+0.40}
+          \fill[laranjaEsc] (\xesq,0.08) rectangle (\xdir,0.68);
+        }
+      }
 
-      \node[anchor=east,font=\footnotesize,text=cinzaEsc] at (6.0,-1.4)
-        {28 $\times$ 17 $\times$ 13 sem. $=$ \textbf{6,2 k}};
-      \node[anchor=east,font=\footnotesize,text=cinzaEsc] at (6.0,-2.6)
-        {\underline{1 semana} $\times$ 18 turnos $=$ \textbf{29 k}};
+      \node[anchor=east,font=\small\bfseries]                      at (-0.22,2.10) {Semanal};
+      \node[anchor=east,font=\scriptsize,text=cinza,
+            text width=1.9cm,align=right]                          at (-0.22,1.70) {quantidade por máquina};
+      \node[anchor=east,font=\small\bfseries]                      at (-0.22,0.56) {Turno};
+      \node[anchor=east,font=\scriptsize,text=cinza,
+            text width=1.9cm,align=right]                          at (-0.22,0.18) {sequência de cores};
 
-      \draw[-{Stealth[length=2.5mm]},very thick,laranja]
-        (c3.south) -- ($(c3.south)+(0,-0.62)$);
-      \node[anchor=west,font=\scriptsize,text=cinzaEsc] at ($(c3.east)+(0.35,-0.62)$)
-        {a cor sai do semanal e desce para o turno};
+      \node[anchor=west,font=\scriptsize,text=cinza] at (9.55,0.38) {18 turnos};
 
-    \end{tikzpicture}}
+      \draw[cinza,-{Stealth[length=2.5mm]},thick]
+        (9.36,3.55) .. controls (6.5,4.15) and (2.5,4.15) .. (0.05,3.55);
+      \node[font=\scriptsize,text=cinza] at (4.68,4.22) {horizonte rolante};
+
+    \end{tikzpicture}
   \end{center}
 
-  \note{Um MILP único, indexado por máquina, balão, cor e dia sobre um ano, chega a um milhão de
-  binárias de estado — sem contar as de transição, que são quadráticas no número de cores.
+  \note{As decisões não compartilham a mesma cadência, e é essa diferença que fixa a fronteira
+  entre os dois modelos. Quanto produzir de cada balão, em que máquina e em que semana é decisão
+  revisada semanalmente, sobre um horizonte que precisa conter a subida sazonal. Em que turno e em
+  que ordem as cores entram em cada máquina é decisão da semana corrente, condicionada à carteira
+  já existente.
 
-  Convém ser preciso sobre o que a decomposição faz e o que não faz. O nível semanal fica pequeno:
-  seis mil binárias sobre treze semanas, porque a cor sai e o dia desaparece. O nível operacional
-  não fica pequeno — vinte e nove mil binárias — mas ele só existe para uma semana de cada vez,
-  a semana congelada, e é reconstruído a cada revisão.
+  A intensidade das células retoma o gráfico anterior: a participação da carteira cai de noventa e
+  cinco por cento na primeira semana para vinte por cento na décima terceira. É o argumento
+  decisivo contra o modelo único, que obrigaria a decidir hoje a cor que a máquina produz em
+  dezembro, quando a carteira de pedidos de dezembro ainda não existe. Decidir cedo demais não é
+  decidir melhor, é decidir sobre informação que ainda não chegou.
 
-  Ou seja: o ganho não é reduzir o modelo pela metade. É que nenhum dos dois modelos precisa
-  decidir tudo. E o argumento de fundo nem é computacional: um modelo único obrigaria a decidir
-  hoje a cor que a máquina produz em dezembro, e a carteira de pedidos de dezembro ainda não
-  existe. A decomposição reflete quando cada decisão é tomada, e a proporção entre carteira e
-  previsão ao longo do horizonte é o que torna isso concreto.
+  Só a primeira semana é detalhada em dezoito turnos, três por dia ao longo de seis dias; as
+  demais permanecem agregadas até a revisão seguinte, num esquema de horizonte rolante. Cada uma
+  das três escalas encaixadas, semana, turno e posição dentro do turno, responde a um fenômeno
+  físico do processo e não a conveniência de modelagem: a semana é o intervalo de revisão do
+  plano, o turno é a fronteira das trocas de forma e a posição é o que determina qual tempo de
+  limpeza entre cores é pago.
 
-  A previsão não entra nessa contagem porque não tem variável binária, mas entra na hierarquia:
-  ela trabalha em mês. A granularidade de produto acompanha a cadência — o semanal decide formato
-  e acabamento, que é a família; o operacional decide a cor, que é o item. Essa correspondência
-  família-item vem de Hax e Meal e é o que a literatura de planejamento hierárquico prescreve.
-
-  Os três níveis são apresentados nesta ordem, cada um com sua formulação, e em seguida a
-  apresentação mostra como eles se conectam num sistema só.}
+  O que desce da semana para o turno é uma única grandeza, o estoque que cada balão deve ter ao
+  fim da semana. O que sobe de volta, na revisão seguinte, é o estado real. A decomposição reduz o
+  tamanho de cada modelo, mas o tamanho é consequência, não motivo.}
 \end{frame}
 
 % ===========================================================================
@@ -561,7 +698,7 @@
   conjunto de transições permitidas, os dois estados não podem ser consecutivos. Isso normalmente
   é modelado com custo alto; aqui é restrição, porque depois de preto voltar para branco não é
   questão de tempo, é inviável sem purgar o tanque. Essa linha carrega o \textit{setup}
-  direcional, que é a característica sem equivalente na tabela de posicionamento.
+  direcional, que é a característica sem equivalente nas quatro classes revisadas.
 
   A quarta linha é o \textit{carryover} na forma que este trabalho usa: o $\varphi$ carrega a cor
   montada de um turno para o seguinte, e quando a máquina não produz o $u$ é zero e a cor
@@ -637,48 +774,6 @@
   Duas diferenças mantêm este trabalho fora dessas formulações: elas tratam a troca de mistura
   como setup nulo, enquanto aqui a troca de formato é o setup dominante; e elas usam backorder com
   custo de estoque explícito, enquanto aqui se usa venda perdida e custo de oportunidade puro.}
-\end{frame}
-
-% ---------------------------------------------------------------------------
-\begin{frame}{A contribuição está na interseção das quatro classes}
-
-  \vspace{0.3em}
-  \begin{center}
-  \scriptsize
-  \begin{tabular}{@{}L{5.6cm}ccccc@{}}
-    \toprule
-     & \textbf{CLSP} & \textbf{GLSP/CLSD} & \textbf{Bebidas} & \textbf{Fiação} & \textbf{\color{laranjaEsc}Balões} \\
-    \midrule
-    Máquinas paralelas não relacionadas             & \checkmark & parcial    & --         & \checkmark & \color{laranjaEsc}\checkmark \\
-    \textit{Setup} dependente de sequência          & --         & \checkmark & \checkmark & \checkmark & \color{laranjaEsc}\checkmark \\
-    \textit{Setup} direcional                       & --         & parcial    & --         & --         & \color{laranjaEsc}\checkmark \\
-    Dois \textit{setups}, escalas distintas         & --         & --         & parcial    & --         & \color{laranjaEsc}\checkmark \\
-    Venda perdida                                   & parcial    & parcial    & --         & --         & \color{laranjaEsc}\checkmark \\
-    Custo de oportunidade puro                      & --         & --         & --         & --         & \color{laranjaEsc}\checkmark \\
-    Previsão própria integrada                      & --         & --         & --         & --         & \color{laranjaEsc}\checkmark \\
-    \bottomrule
-  \end{tabular}
-  \end{center}
-
-  \vspace{0.8em}
-  \begin{center}
-    {\scriptsize\color{cinza}\checkmark~presente \quad parcial \quad --~ausente}
-  \end{center}
-
-  \note{Esta tabela é o posicionamento do trabalho. Cada linha é uma característica do problema real;
-  cada coluna, uma classe da literatura.
-
-  Convém ser preciso sobre o que se reivindica: nenhuma linha isolada é novidade. Máquinas
-  paralelas não relacionadas existem no CLSP. Setup dependente de sequência existe no GLSP.
-
-  A contribuição está na interseção. E entre as linhas, duas concentram o argumento: o setup
-  direcional, com transições proibidas, que nenhuma das quatro classes trata; e a coexistência de
-  dois setups em escalas de tempo distintas, que é justamente o que motiva a estrutura hierárquica
-  — não a reaproveita por conveniência.
-
-  Quanto à perecibilidade do látex: ela está declarada no texto como característica sem
-  equivalente na literatura, e ainda não tem restrição correspondente no modelo. É uma dívida
-  reconhecida e declarada nas limitações.}
 \end{frame}
 
 % ===========================================================================
@@ -768,7 +863,6 @@
       \node[rectangle,rounded corners=2pt,draw=cinza,very thick,fill=cinza!12,
             minimum width=2.6cm,minimum height=0.8cm] (t) at (5.2,0) {semanal};
       \draw[-{Stealth[length=3mm]},very thick,cinza] (d) -- node[above,font=\scriptsize,text=cinza] {$d_{it}$} (t);
-      \node[anchor=west,font=\scriptsize,text=cinza] at (6.8,0) {e o parâmetro $\alpha$};
     \end{tikzpicture}
   \end{center}
 
@@ -776,8 +870,7 @@
     \sy{t}{mês} · \sy{k}{mês do ano} · \sy{f}{formato} · \sy{i}{balão} · \sy{\ell}{nível} · 
     \sy{Y_t}{demanda global} · \sy{Y_{ft}}{demanda do formato} · \sy{y_{it}}{demanda do balão} · 
     \sy{X_{kt}}{\textit{feature} sazonal} · \sy{\beta}{coeficiente sazonal} · 
-    \sy{\lambda}{penalização do desvio} · \sy{B_i}{demanda base} · \sy{\hat{d}}{previsão} · 
-    \sy{\alpha}{períodos de cobertura}}
+    \sy{\lambda}{penalização do desvio} · \sy{B_i}{demanda base} · \sy{\hat{d}}{previsão}}
 
   \note{Três estimações em cascata. A primeira é global, sem \textit{prior}: mínimos quadrados puro
   sobre o log da demanda total. As duas seguintes seguem a mesma forma, com o nível acima
@@ -805,7 +898,7 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
-\begin{frame}{As três demandas competem pela mesma capacidade}
+\begin{frame}{As duas demandas competem pela mesma capacidade}
 
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.24\textwidth}
@@ -1250,11 +1343,11 @@
         cn/.style={rectangle,rounded corners=2pt,draw=laranja,very thick,fill=laranja!12,inner sep=8pt}]
 
       \node[cx] (hoje) at (0,0)
-        {$\textstyle\sum_{i,t} m_i \bigl( \beta a_{it} + l_{it} + \rho g_{it} \bigr)$};
+        {$\textstyle\sum_{i,t} m_i \bigl( a_{it} + l_{it} \bigr)$};
       \node[font=\footnotesize,text=cinza,above=3pt of hoje] {hoje};
 
       \node[cn,right=1.0cm of hoje] (prop)
-        {$\textstyle\sum_{i,t} \alert{\omega_{ic}}\, m_i \bigl( \beta a_{it} + l_{it} + \rho g_{it} \bigr)$};
+        {$\textstyle\sum_{i,t} \alert{\omega_{ic}}\, m_i \bigl( a_{it} + l_{it} \bigr)$};
       \node[font=\footnotesize,text=laranjaEsc,above=3pt of prop] {proposto};
 
       \draw[-{Stealth[length=3mm]},thick,cinza] (hoje) -- (prop);
@@ -1266,7 +1359,7 @@
     \end{tikzpicture}
   \end{center}
 
-  \note{As três faltas do objetivo semanal — atraso de carteira, venda perdida e folga de cobertura
+  \note{As duas faltas do objetivo semanal — atraso de carteira e venda perdida
   — são hoje ponderadas por uma única grandeza, o $m$, calculado como preço de venda menos custo
   unitário sobre a planilha que a empresa forneceu. Nessa planilha o custo unitário é o mesmo para
   os dezessete balões, de modo que a diferenciação entre produtos vem só do preço. A prioridade
