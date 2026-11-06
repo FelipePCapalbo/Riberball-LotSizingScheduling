@@ -41,12 +41,26 @@ config/
 data/
     instance_*.xlsx           — instâncias sintéticas (ver abas abaixo)
     input_asis_ajustado.xlsx  — dado real da operação no contrato semanal
-    input_asis.xlsx           — dado real da operação, mensal, fora do contrato
+    brutos/input_asis.xlsx    — dado real da operação, mensal, fora do contrato
+    brutos/legado/            — extrações originais da operação
+    arquivo_mensal/           — instâncias da versão mensal, anterior ao contrato semanal
 tests/
     test_models.py — bateria de validação dos dois modelos
-instance_generator.py — gera as instâncias sintéticas
-input_adjuster.py     — converte input_asis.xlsx para input_asis_ajustado.xlsx
+scripts/
+    instance_generator.py — gera as instâncias sintéticas
+    input_adjuster.py     — converte brutos/input_asis.xlsx para input_asis_ajustado.xlsx
 run.py                — execução standalone das duas etapas
+dissertacao/
+    ModelagemAlgebrica.tex — texto da dissertação
+    apresentacao.tex       — slides (Beamer)
+    referencias.bib        — bibliografia dos dois documentos
+    figuras/               — imagens usadas nos documentos
+    guias/                 — guias de escrita e de slides, plano da dissertação
+referencias/
+    camargo2014.pdf — artigo de referência
+    ltp/            — formulações LTPlabs (semanal, diário, sequenciamento)
+docs/
+    reunioes/ — anotações de reuniões
 ```
 
 ## Arquivo de entrada (Excel)
@@ -146,7 +160,7 @@ A partir de `grande` o CBC não encontra solução inteira dentro do limite. Ver
 ### Gerar instâncias
 
 ```bash
-python instance_generator.py
+python scripts/instance_generator.py
 ```
 
 Cinco perfis (`micro`, `pequeno`, `medio`, `grande`, `real`). A fração da demanda já confirmada em
@@ -156,10 +170,10 @@ firme, no fim quase tudo é previsão. Isso é característica da **instância**
 ### Converter o dado real
 
 ```bash
-python input_adjuster.py
+python scripts/input_adjuster.py
 ```
 
-Lê `data/input_asis.xlsx` (extração mensal da operação) e grava `data/input_asis_ajustado.xlsx`
+Lê `data/brutos/input_asis.xlsx` (extração mensal da operação) e grava `data/input_asis_ajustado.xlsx`
 no contrato semanal. O dado real é preservado; o que a operação não coletou é sintetizado.
 
 | Aba | Origem |

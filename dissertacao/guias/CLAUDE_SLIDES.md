@@ -2,7 +2,7 @@
 
 Este documento fixa como os slides da dissertação devem ser construídos — estrutura, redação, identidade visual e implementação em Beamer. Vale para todo `.tex` de apresentação do projeto, em qualquer sessão, presente ou futura. Onde uma escolha divergir do que está aqui, o slide está errado, não o guia.
 
-O `CLAUDE_WRITTER.MD` continua valendo para a **dissertação**. Este guia é o seu par para a **apresentação**, e diverge dele deliberadamente em um ponto central: a dissertação é lida em silêncio e precisa ser autossuficiente em prosa; o slide é visto enquanto alguém fala e precisa ser autossuficiente em **evidência visual**. O que na dissertação é um parágrafo, no slide é uma figura — e a prosa correspondente vai para a nota do palestrante, nunca para a tela.
+O `CLAUDE_WRITER.md` continua valendo para a **dissertação**. Este guia é o seu par para a **apresentação**, e diverge dele deliberadamente em um ponto central: a dissertação é lida em silêncio e precisa ser autossuficiente em prosa; o slide é visto enquanto alguém fala e precisa ser autossuficiente em **evidência visual**. O que na dissertação é um parágrafo, no slide é uma figura — e a prosa correspondente vai para a nota do palestrante, nunca para a tela.
 
 ---
 
@@ -253,26 +253,27 @@ Nota que não existe é fala não preparada. Todo slide cujo corpo foi enxugado 
 
 ### 6.6 Compilação e verificação
 
-Pipeline obrigatório, do zero, apagando auxiliares antes. O diretório de trabalho é a **raiz do repositório**, não `ufscar/` — é de lá que o `referencias.bib` é encontrado, e é a mesma convenção do `ModelagemAlgebrica.tex`:
+Pipeline obrigatório, do zero, apagando auxiliares antes. O diretório de trabalho é `dissertacao/`, onde ficam os `.tex` e o `referencias.bib`, a mesma convenção do `ModelagemAlgebrica.tex`:
 
 ```bash
-rm -f ufscar/apresentacao.aux ufscar/apresentacao.bbl ufscar/apresentacao.blg \
-      ufscar/apresentacao.nav ufscar/apresentacao.out ufscar/apresentacao.snm \
-      ufscar/apresentacao.toc
-pdflatex -interaction=nonstopmode -output-directory=ufscar ufscar/apresentacao.tex
-bibtex ufscar/apresentacao
-pdflatex -interaction=nonstopmode -output-directory=ufscar ufscar/apresentacao.tex
-pdflatex -interaction=nonstopmode -output-directory=ufscar ufscar/apresentacao.tex
+cd dissertacao
+rm -f apresentacao.aux apresentacao.bbl apresentacao.blg \
+      apresentacao.nav apresentacao.out apresentacao.snm \
+      apresentacao.toc
+pdflatex -interaction=nonstopmode apresentacao.tex
+bibtex apresentacao
+pdflatex -interaction=nonstopmode apresentacao.tex
+pdflatex -interaction=nonstopmode apresentacao.tex
 ```
 
-O `.bib` é o da raiz do repositório, referenciado como `\bibliography{referencias}` — nome puro, sem caminho e sem extensão, o que faz o mesmo `.tex` compilar no Overleaf com o projeto plano. Nunca duplicar o arquivo dentro de `ufscar/`.
+O `.bib` é `dissertacao/referencias.bib`, ao lado dos `.tex`, referenciado como `\bibliography{referencias}` — nome puro, sem caminho e sem extensão, o que faz o mesmo `.tex` compilar no Overleaf com o projeto plano. Nunca duplicar o arquivo.
 
 `\bibliographystyle{abntex2-alf}` pode ser declarado ou omitido, desde que **depois** do `\usepackage[alf]{abntex2cite}`. O pacote redefine `\bibliographystyle` para escrever o `\bibstyle` uma única vez no `.aux` e já o chama por conta própria. Declará-lo **antes** do pacote usa o comando do kernel, que escreve na hora: saem dois `\bibstyle`, o BibTeX aborta com `Illegal, another \bibstyle command` e a lista de referências sai vazia.
 
 **Verificação de transbordamento**, que a compilação não acusa como erro:
 
 ```bash
-grep -a "Overfull \\\\vbox" ufscar/apresentacao.log
+grep -a "Overfull \\\\vbox" dissertacao/apresentacao.log
 ```
 
 Acima de 20 pt o corte é visível na projeção e precisa ser corrigido; abaixo disso, conferir visualmente antes de aceitar.
@@ -280,7 +281,7 @@ Acima de 20 pt o corte é visível na projeção e precisa ser corrigido; abaixo
 **Inspeção visual obrigatória** antes de considerar a apresentação pronta — o código-fonte de um slide transbordado parece perfeitamente correto:
 
 ```bash
-pdftoppm -png -r 55 ufscar/apresentacao.pdf pagina
+pdftoppm -png -r 55 dissertacao/apresentacao.pdf pagina
 ```
 
 E olhar as imagens, todas. Nenhum slide é dado como pronto por ter compilado.
@@ -323,7 +324,7 @@ O inverso também vale: dois slides que sustentam a mesma asserção com evidên
 
 ### 7.4 Notação
 
-Um símbolo aparece na tela **depois** de ter sido apresentado numa tabela de Conjuntos, Parâmetros e Variáveis, nesta ordem, exatamente como na dissertação (regra 6 do `CLAUDE_WRITTER.MD`, que continua valendo integralmente para notação). Slide de equação nunca introduz símbolo novo sem tabela anterior.
+Um símbolo aparece na tela **depois** de ter sido apresentado numa tabela de Conjuntos, Parâmetros e Variáveis, nesta ordem, exatamente como na dissertação (regra 6 do `CLAUDE_WRITER.md`, que continua valendo integralmente para notação). Slide de equação nunca introduz símbolo novo sem tabela anterior.
 
 Símbolo em equação é sempre letra — nunca nome descritivo. A tabela de notação é evidência visual legítima e conta como corpo do slide.
 

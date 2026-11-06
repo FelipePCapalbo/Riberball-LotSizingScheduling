@@ -25,7 +25,7 @@ Reportar no capitulo de Resultados o status e o gap de cada instancia, nao apena
 
 ## Dados
 
-- Feito: `input_adjuster.py` converte `data/input_asis.xlsx` para `data/input_asis_ajustado.xlsx`
+- Feito: `scripts/input_adjuster.py` converte `data/brutos/input_asis.xlsx` para `data/input_asis_ajustado.xlsx`
   no contrato semanal.
 - Levantar em campo as quatro dimensoes que a operacao nao registra e que hoje sao sinteticas no
   arquivo ajustado: mix de cores por balao, carteira de pedidos, matrizes de setup (cor e forma) e

@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT_DIR, 'data')
 
 COLOR_POOL = ['AZUL', 'VERMELHO', 'VERDE', 'BRANCO', 'AMARELO', 'PRETO']

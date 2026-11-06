@@ -2,9 +2,9 @@ import os
 import numpy as np
 import pandas as pd
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT_DIR, 'data')
-SOURCE_PATH = os.path.join(DATA_DIR, 'input_asis.xlsx')
+SOURCE_PATH = os.path.join(DATA_DIR, 'brutos', 'input_asis.xlsx')
 OUTPUT_PATH = os.path.join(DATA_DIR, 'input_asis_ajustado.xlsx')
 
 WORKING_DAYS_PER_WEEK = 6

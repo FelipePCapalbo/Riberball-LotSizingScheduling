@@ -220,7 +220,7 @@ Esqueleto alvo (espelha a tese de referência, adaptado a dissertação com mode
 | 6. Resultados | Instâncias do gerador (`instance_generator.ipynb`); As-Is vs. Otimizado (nº e horas de setup, atendimento da carteira, vendas perdidas, utilização), com 2–3 exemplos concretos de decisões do modelo explicadas (produtos específicos realocados de máquina e por quê, não só o agregado); resultados computacionais (dimensões, tempo, gap; estratégia em fases se houver) | Vazio | Média (depende do modelo estabilizar) |
 | 7. Conclusão | Síntese, limitações, trabalhos futuros | Vazio | Baixa |
 
-Para estilo de escrita (frase, parágrafo, notação, equações, tabelas, citações), ver `CLAUDE_WRITTER.MD` — guia único e vinculante, não repetido aqui.
+Para estilo de escrita (frase, parágrafo, notação, equações, tabelas, citações), ver `CLAUDE_WRITER.md` — guia único e vinculante, não repetido aqui.
 
 ---
 
