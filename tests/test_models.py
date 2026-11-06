@@ -171,7 +171,7 @@ dict_scenario = {
     'unit_cost': {str_product: 5.0}, 'margin': {str_product: 10.0},
     'setup_hourly_cost': {'1': 100.0}, 'positions': 2, 'shifts_per_week': 4,
 }
-dict_settings = {'annual_holding_rate': 0.25, 'daily_solver_name': 'CBC',
+dict_settings = {'annual_holding_rate': 0.25, 'daily_solver_name': 'ORTOOLS',
                  'daily_time_limit': 60, 'threads': None}
 dict_result = solve_daily_model(dict_scenario, dict_settings)
 list_rows = []

@@ -19,6 +19,7 @@ optimization/
     weekly_model.py  — MILP semanal (CLSP em máquinas paralelas não relacionadas)
     daily_model.py   — MILP por turno (GLSP: microperíodos = posições dentro do turno)
     planner.py       — orquestra as duas etapas
+    solver.py        — resolve o problema PuLP com Gurobi ou OR-Tools
 processing/
     data.py       — leitura do Excel para um dict de instância
     settings.py   — persistência das configurações em JSON
@@ -37,7 +38,7 @@ config/
     capacity.json — shifts_per_day, hours_per_shift, working_days_per_week
     machines.json — active_machines, setup_hourly_cost_default, setup_hourly_cost_by_machine
     costs.json    — annual_holding_rate
-    solver.json   — motores, tempos limite, positions_per_shift, daily_strategy
+    solver.json   — motores (GUROBI | ORTOOLS), tempos limite, positions_per_shift, threads
 data/
     instance_*.xlsx           — instâncias sintéticas (ver abas abaixo)
     input_asis_ajustado.xlsx  — dado real da operação no contrato semanal
@@ -139,21 +140,23 @@ trocas de forma e de cor, estado de cor — são contínuas em [0, 1] e assumem 
 consequência das restrições. O KPI `max_fractional_deviation` reporta o desvio máximo dessas
 variáveis frente ao inteiro mais próximo, e `tests/test_models.py` verifica que ele é nulo.
 
-`hit_time_limit` nos KPIs indica que o limite de tempo foi atingido — PuLP+CBC reportam `Optimal`
-mesmo quando a busca é truncada, então esse campo é o indicador confiável. Quando ele é verdadeiro,
-o resultado é a melhor solução encontrada, não o ótimo provado.
+## Solvers
 
-Escala medida com CBC, 3 posições/turno, 1 semana congelada (18 turnos), limite de 900 s:
+Os dois modelos são escritos em PuLP, usado só como camada de modelagem.
+`optimization/solver.py` exporta o problema em MPS e o resolve com um de dois motores, escolhido
+por etapa em `config/solver.json` (`weekly_solver_name`, `daily_solver_name`):
 
-| Instância | Binárias | Status | Tempo | Limite atingido |
-|---|---|---|---|---|
-| `micro` (P2 M3) | 540 | Optimal | 65 s | não |
-| `pequeno` (P4 M6) | 1.944 | Optimal | 900 s | sim |
-| `medio` (P8 M12) | 8.262 | Optimal | 902 s | sim |
-| `grande` (P12 M20) | 14.850 | Not Solved | 924 s | — |
-| `real` (P17 M28) | 28.728 | Not Solved | 145 s | — |
+| Valor | Motor | Observação |
+|---|---|---|
+| `ORTOOLS` | SCIP embutido no OR-Tools | padrão; gratuito, single-thread, ignora `threads` |
+| `GUROBI` | Gurobi via `gurobipy` | exige licença para modelos acima do limite da licença restrita do pacote; respeita `threads` |
 
-A partir de `grande` o CBC não encontra solução inteira dentro do limite. Ver `TODO.md`.
+O status vem do próprio motor: `Optimal` (ótimo provado), `Feasible` (solução inteira encontrada
+sem prova de otimalidade), `Infeasible` ou `Not Solved`. `hit_time_limit` nos KPIs indica que a
+busca foi interrompida pelo tempo limite; nesse caso o resultado é a melhor solução encontrada,
+não o ótimo provado.
+
+A escala por instância ainda precisa ser medida nos dois motores. Ver `TODO.md`.
 
 ## Como usar
 

@@ -2,24 +2,17 @@
 
 ## Tratabilidade do modelo por turno (prioridade)
 
-Modelo resolvido como formulado, sem heuristica de resolucao. CBC, 3 posicoes/turno,
-1 semana congelada (18 turnos), limite de 900 s no diario:
+Modelo resolvido como formulado, sem heuristica de resolucao. Medicoes anteriores, feitas com CBC
+(hoje removido), mostravam que a partir de `grande` nao havia solucao inteira em 900 s.
 
-| Instancia | Binarias | Status | Tempo | Limite atingido |
-|---|---|---|---|---|
-| micro (P2 M3)    |    540 | Optimal    |  65 s | nao — otimo comprovado |
-| pequeno (P4 M6)  |  1.944 | Optimal    | 900 s | sim — melhor encontrada |
-| medio (P8 M12)   |  8.262 | Optimal    | 902 s | sim — melhor encontrada |
-| grande (P12 M20) | 14.850 | Not Solved | 924 s | — |
-| real (P17 M28)   | 28.728 | Not Solved | 145 s | — |
+- Remedir a escala nas cinco instancias com Gurobi e OR-Tools (SCIP): binarias, status, tempo,
+  gap e `hit_time_limit`, 3 posicoes/turno, 1 semana congelada.
 
-A partir de `grande` o CBC nao encontra solucao inteira dentro do limite. O caminho e' de
-**formulacao**, nao de heuristica de resolucao:
+Se a escala continuar insuficiente, o caminho e' de **formulacao**, nao de heuristica de resolucao:
 
 - apertar os limitantes big-M da restricao de lote minimo por turno (hoje `p_ij * b_js`);
 - buscar desigualdades validas para a estrutura de posicoes contiguas;
-- avaliar se `positions_per_shift = 2` preserva as solucoes relevantes;
-- testar Gurobi, que trata modelos deste porte melhor que o CBC.
+- avaliar se `positions_per_shift = 2` preserva as solucoes relevantes.
 
 Reportar no capitulo de Resultados o status e o gap de cada instancia, nao apenas o custo.
 

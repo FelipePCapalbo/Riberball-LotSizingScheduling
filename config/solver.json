@@ -1,7 +1,7 @@
 {
-    "weekly_solver_name": "CBC",
+    "weekly_solver_name": "ORTOOLS",
     "weekly_time_limit": 300,
-    "daily_solver_name": "CBC",
+    "daily_solver_name": "ORTOOLS",
     "daily_time_limit": 600,
     "positions_per_shift": 3,
     "threads": null

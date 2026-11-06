@@ -1,6 +1,8 @@
 pandas
 openpyxl
-pulp
+pulp<4
+ortools
+gurobipy
 fastapi
 uvicorn
 httpx

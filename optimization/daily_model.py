@@ -3,6 +3,8 @@ import time
 import pulp
 import pandas as pd
 
+from optimization.solver import solve_problem
+
 
 def clean_name(str_raw):
     return str(str_raw).replace(' ', '_').replace(':', '_').replace('-', '_').replace('/', '_')
@@ -472,25 +474,12 @@ def solve_daily_model(dict_scenario, dict_settings):
         problem += (pulp.lpSum(list_final_stock_terms) + dict_target_slack[str_product]
                     >= dict_scenario['target'][str_product])
 
-    str_solver_name = str(dict_settings['daily_solver_name']).upper()
-    int_time_limit = int(dict_settings['daily_time_limit'])
-    if str_solver_name == 'GUROBI':
-        list_options = [('TimeLimit', int_time_limit)]
-        if dict_settings['threads']:
-            list_options.append(('Threads', dict_settings['threads']))
-        solver_instance = pulp.GUROBI_CMD(msg=0, options=list_options)
-    else:
-        dict_arguments = {'msg': 0, 'timeLimit': int_time_limit}
-        if dict_settings['threads']:
-            dict_arguments['threads'] = dict_settings['threads']
-        solver_instance = pulp.PULP_CBC_CMD(**dict_arguments)
-
     float_started_at = time.perf_counter()
-    problem.solve(solver_instance)
+    str_status, bool_hit_time_limit = solve_problem(problem, dict_settings['daily_solver_name'],
+                                                    int(dict_settings['daily_time_limit']),
+                                                    dict_settings['threads'])
     float_solve_seconds = time.perf_counter() - float_started_at
-    bool_hit_time_limit = float_solve_seconds >= 0.98 * int_time_limit
 
-    str_status = pulp.LpStatus[problem.status]
     if str_status not in ('Optimal', 'Feasible'):
         return {'status': str_status, 'kpis': {}}
 
