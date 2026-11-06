@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ENVIRONMENT } from '../../environment';
 import type { Settings } from '../../types';
 import AccordionSection from './AccordionSection';
 import MachineGrid from './MachineGrid';
@@ -226,17 +227,22 @@ export default function Sidebar({
 
           <AccordionSection title="Solver" open={openSections.solver} onToggle={() => toggleSection('solver')}>
             <p className="sb-label">Plano semanal</p>
-            <div className="sb-field">
-              <label>Motor</label>
-              <select
-                className="form-select form-select-sm"
-                value={settings.weekly_solver_name}
-                onChange={(e) => onFieldChange({ weekly_solver_name: e.target.value }, true)}
-              >
-                <option value="CBC">CBC</option>
-                <option value="GUROBI">Gurobi</option>
-              </select>
-            </div>
+            {ENVIRONMENT.solverOptions.length > 1 && (
+              <div className="sb-field">
+                <label>Motor</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={settings.weekly_solver_name}
+                  onChange={(e) => onFieldChange({ weekly_solver_name: e.target.value }, true)}
+                >
+                  {ENVIRONMENT.solverOptions.map((solverOption) => (
+                    <option key={solverOption.value} value={solverOption.value}>
+                      {solverOption.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="sb-field">
               <label>Tempo limite (s)</label>
               <input
@@ -252,17 +258,22 @@ export default function Sidebar({
 
             <div className="sb-divider" />
             <p className="sb-label">Programação por turno</p>
-            <div className="sb-field">
-              <label>Motor</label>
-              <select
-                className="form-select form-select-sm"
-                value={settings.daily_solver_name}
-                onChange={(e) => onFieldChange({ daily_solver_name: e.target.value }, true)}
-              >
-                <option value="CBC">CBC</option>
-                <option value="GUROBI">Gurobi</option>
-              </select>
-            </div>
+            {ENVIRONMENT.solverOptions.length > 1 && (
+              <div className="sb-field">
+                <label>Motor</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={settings.daily_solver_name}
+                  onChange={(e) => onFieldChange({ daily_solver_name: e.target.value }, true)}
+                >
+                  {ENVIRONMENT.solverOptions.map((solverOption) => (
+                    <option key={solverOption.value} value={solverOption.value}>
+                      {solverOption.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="sb-field">
               <label>Tempo limite (s)</label>
               <input

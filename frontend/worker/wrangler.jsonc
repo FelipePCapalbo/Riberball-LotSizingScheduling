@@ -4,7 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-01-01",
   "assets": {
-    "directory": "../app/dist",
+    "directory": "../app/dist/main",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*", "/internal/*"]
   },
@@ -15,5 +15,23 @@
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["BackendCoordinator"] }
-  ]
+  ],
+  "env": {
+    "dev": {
+      "name": "riberball-lotsizingscheduling-dev",
+      "assets": {
+        "directory": "../app/dist/dev",
+        "binding": "ASSETS",
+        "run_worker_first": ["/api/*", "/internal/*"]
+      },
+      "durable_objects": {
+        "bindings": [
+          { "name": "BACKEND_COORDINATOR", "class_name": "BackendCoordinator" }
+        ]
+      },
+      "migrations": [
+        { "tag": "v1", "new_sqlite_classes": ["BackendCoordinator"] }
+      ]
+    }
+  }
 }

@@ -12,6 +12,7 @@ import ComparisonTable from './components/tables/ComparisonTable';
 import OperationsTable from './components/tables/OperationsTable';
 import OrdersTable from './components/tables/OrdersTable';
 import WeeklyPlanTable from './components/tables/WeeklyPlanTable';
+import { ENVIRONMENT } from './environment';
 import { fmtN } from './format';
 import type { BackendState, DailyResult, HistoryRun, Settings, WeeklyResult } from './types';
 
@@ -28,9 +29,9 @@ const DEFAULT_SETTINGS: Settings = {
   setup_hourly_cost_default: 250,
   setup_hourly_cost_by_machine: {},
   annual_holding_rate: 0.25,
-  weekly_solver_name: 'CBC',
+  weekly_solver_name: 'ORTOOLS',
   weekly_time_limit: 300,
-  daily_solver_name: 'CBC',
+  daily_solver_name: 'ORTOOLS',
   daily_time_limit: 600,
   positions_per_shift: 3,
   threads: null,
@@ -66,6 +67,16 @@ export default function App() {
       }
       if (!merged.start_week && init.weeks.length > 0) {
         merged.start_week = init.weeks[0];
+      }
+      const allowedSolverNames: string[] = [];
+      for (const solverOption of ENVIRONMENT.solverOptions) {
+        allowedSolverNames.push(solverOption.value);
+      }
+      if (!allowedSolverNames.includes(merged.weekly_solver_name)) {
+        merged.weekly_solver_name = allowedSolverNames[0];
+      }
+      if (!allowedSolverNames.includes(merged.daily_solver_name)) {
+        merged.daily_solver_name = allowedSolverNames[0];
       }
       return merged;
     });

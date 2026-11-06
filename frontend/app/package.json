@@ -3,9 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "dev": "vite --mode dev",
+    "dev:main": "vite --mode main",
+    "build": "tsc -b && vite build --mode main",
+    "build:dev": "tsc -b && vite build --mode dev",
+    "preview": "vite preview --mode main",
+    "preview:dev": "vite preview --mode dev"
   },
   "dependencies": {
     "chart.js": "^4.5.1",

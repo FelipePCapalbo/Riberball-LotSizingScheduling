@@ -31,8 +31,8 @@ backend/
     registration_client.py — chamadas HTTP para /internal/backend/* no Worker
     tunnel.py            — sobe/derruba o Quick Tunnel e extrai a URL pública
 frontend/
-    app/    — dashboard React + Vite + TypeScript
-    worker/ — Cloudflare Worker (serve o app, proxy /api/*, lock de conexão única)
+    app/    — dashboard React + Vite + TypeScript; ambientes main e dev em src/environment.ts
+    worker/ — Cloudflare Worker (serve o app, proxy /api/*, lock de conexão única); env dev no wrangler.jsonc
 config/
     scenario.json — start_week, weeks_in_plan, frozen_weeks
     capacity.json — shifts_per_day, hours_per_shift, working_days_per_week
@@ -267,7 +267,54 @@ VITE_PROXY_TARGET=http://127.0.0.1:8000 VITE_SHARED_SECRET=<segredo> npm run dev
 ```
 
 `VITE_SHARED_SECRET` faz o proxy do Vite injetar o header de autorização que o Worker normalmente
-adiciona. Sem ele, aponte `VITE_PROXY_TARGET` para o Worker publicado.
+adiciona. Sem `VITE_PROXY_TARGET`, o proxy aponta para o Worker do ambiente (`npm run dev` → dev,
+`npm run dev:main` → main).
+
+### Ambientes da interface
+
+A interface é publicada em dois Workers independentes, cada um com seu próprio lock de conexão. O
+backend é o mesmo código nos dois; cada máquina de backend se registra em um só Worker, escolhido
+por `WORKER_BASE_URL` em `backend/.env`.
+
+| Ambiente | Worker | Quem acessa | Motor do solver |
+|---|---|---|---|
+| `main` | `riberball-lotsizingscheduling.felipecapalbo.workers.dev` | cliente | só OR-Tools, sem seletor |
+| `dev` | `riberball-lotsizingscheduling-dev.felipecapalbo.workers.dev` | desenvolvimento | OR-Tools ou Gurobi |
+
+As diferenças entre os ambientes ficam em `frontend/app/src/environment.ts`, selecionadas pelo
+`--mode` do Vite. Em `main`, se o `config/solver.json` do backend trouxer um motor fora da lista
+permitida, a interface o troca por OR-Tools antes de salvar e rodar.
+
+| Ação | `main` | `dev` |
+|---|---|---|
+| Build do app (`frontend/worker`) | `npm run build` | `npm run build:dev` |
+| Deploy do Worker (`frontend/worker`) | `npm run deploy` | `npm run deploy:dev` |
+| Saída do build | `frontend/app/dist/main` | `frontend/app/dist/dev` |
+
+O Worker `dev` precisa do próprio segredo, igual ao `SHARED_SECRET` do backend que se registra nele:
+
+```bash
+cd frontend/worker
+npx wrangler secret put SHARED_SECRET --env dev
+```
+
+### Fluxo de desenvolvimento
+
+| Branch | Publica em | Uso |
+|---|---|---|
+| `dev` | Worker `dev` | todo desenvolvimento; push publica automaticamente |
+| `main` | Worker `main` | o que o cliente acessa; recebe só por Pull Request de `dev` |
+
+Os dois Workers são publicados pelo Workers Builds (integração Git da Cloudflare), cada um ligado
+a uma branch, com diretório raiz `frontend/worker`:
+
+| Worker | Branch de produção | Build | Deploy |
+|---|---|---|---|
+| `riberball-lotsizingscheduling` | `main` | `npm run build` | `npx wrangler deploy` |
+| `riberball-lotsizingscheduling-dev` | `dev` | `npm run build:dev` | `npx wrangler deploy --env dev` |
+
+Builds de branches que não são de produção ficam desligados nos dois Workers, para que um push em
+`dev` não gere versões do Worker `main`.
 
 Para rodar o backend sem túnel, defina `TUNNEL_ENABLED=false` em `backend/.env`.
 
