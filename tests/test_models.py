@@ -246,7 +246,8 @@ for int_day in range(2):
             'week': pd.Timestamp('2024-01-01'),
         })
 dict_settings = {'annual_holding_rate': 0.25, 'daily_solver_name': 'ORTOOLS',
-                 'daily_time_limit': 60, 'threads': None, 'solver_seed': 0, 'solver_log_file': None}
+                 'daily_time_limit': 60, 'threads': None, 'solver_seed': 0, 'solver_log_file': None,
+                 'preprocessing': True}
 str_product = 'A-L'
 list_skus = [f'{str_product}-X', f'{str_product}-Y', f'{str_product}-Z']
 dict_color_setup = complete_setup_matrix({('X', 'Y'): 1.0, ('Y', 'X'): 2.0, ('Y', 'Z'): 1.0, ('Z', 'Y'): 1.0},
@@ -835,6 +836,76 @@ float_short_one = dict_result_one['kpis']['backlog_cost'] + dict_result_one['kpi
 float_short_two = dict_result_two['kpis']['backlog_cost'] + dict_result_two['kpis']['lost_sales_cost']
 check(float_short_two < float_short_one,
       f'com 1 h/turno, duas cores reduzem atraso + venda perdida de {float_short_one:,.0f} para {float_short_two:,.0f}')
+
+
+print('\n== pre-processamento: mesmos valores de estagio com e sem reducao (Gurobi, 2 threads) ==')
+for str_file in ['instance_micro_P2_M3_T8.xlsx', 'instance_pequeno_P4_M6_T13.xlsx']:
+    for str_variant in ['original', 'apertada']:
+        dict_instance_case = load_instance(os.path.join(DATA_DIR, str_file))
+        dict_settings_case = dict(dict_base)
+        dict_settings_case['weeks_in_plan'] = 6
+        dict_settings_case['weekly_solver_name'] = 'GUROBI'
+        dict_settings_case['daily_solver_name'] = 'GUROBI'
+        dict_settings_case['weekly_time_limit'] = 30
+        dict_settings_case['daily_time_limit'] = 30
+        dict_settings_case['threads'] = 2
+        if str_variant == 'apertada':
+            dict_settings_case['hours_per_shift'] = 3
+            for str_product in dict_instance_case['products']:
+                dict_instance_case['min_lot'][str_product] = 0.6 * dict_instance_case['min_lot'][str_product]
+            str_closed_machine = dict_instance_case['machines'][0]
+            for timestamp_week in dict_instance_case['weeks'][:2]:
+                dict_instance_case['availability'][str_closed_machine][timestamp_week] = 0.0
+            str_idle_product = dict_instance_case['products'][0]
+            str_idle_sku = f"{str_idle_product}-{dict_instance_case['colors_by_product'][str_idle_product][0]}"
+            for str_color in dict_instance_case['colors_by_product'][str_idle_product]:
+                dict_instance_case['sku_is_mts'][f'{str_idle_product}-{str_color}'] = False
+            dict_instance_case['initial_color'] = {}
+            for str_machine in dict_instance_case['machines']:
+                for int_side in range(1, dict_instance_case['color_sides'][str_machine] + 1):
+                    dict_instance_case['initial_color'][(str_machine, int_side)] = (
+                        dict_instance_case['colors_by_product'][str_idle_product][-1])
+            for dict_order in dict_instance_case['orders']:
+                list_kept_items = []
+                for dict_item in dict_order['items']:
+                    if dict_item['sku'] != str_idle_sku:
+                        if dict_item['product'] == str_idle_product:
+                            dict_item['quantity'] = 0.1 * dict_item['quantity']
+                        list_kept_items.append(dict_item)
+                dict_order['items'] = list_kept_items
+
+        dict_results_by_layer = {'semanal': {}, 'diario': {}}
+        for bool_preprocessing in [False, True]:
+            dict_settings_case['preprocessing'] = bool_preprocessing
+            dict_results_by_layer['semanal'][bool_preprocessing] = solve_weekly_model(
+                build_weekly_scenario(dict_instance_case, dict_settings_case), dict_settings_case)
+        for bool_preprocessing in [False, True]:
+            dict_settings_case['preprocessing'] = bool_preprocessing
+            dict_results_by_layer['diario'][bool_preprocessing] = solve_daily_model(
+                build_daily_scenario(dict_instance_case, dict_settings_case, dict_results_by_layer['semanal'][False]),
+                dict_settings_case)
+
+        for str_layer in dict_results_by_layer:
+            dict_without = dict_results_by_layer[str_layer][False]
+            dict_with = dict_results_by_layer[str_layer][True]
+            int_removed = dict_with['stage_reports'][0]['removed_variables']
+            if dict_without['status'] == 'Optimal' and dict_with['status'] == 'Optimal':
+                bool_equal = len(dict_without['stage_objectives']) == len(dict_with['stage_objectives'])
+                for int_stage in range(len(dict_without['stage_objectives'])):
+                    float_without = dict_without['stage_objectives'][int_stage]
+                    float_with = dict_with['stage_objectives'][int_stage]
+                    float_scale = max(1.0, abs(float_without), abs(float_with))
+                    if abs(float_without - float_with) > 1e-6 * float_scale:
+                        bool_equal = False
+                check(bool_equal, f'{str_file} {str_variant} {str_layer}: estagios iguais com e sem pre-processamento '
+                                  f'({int_removed} variaveis removidas)')
+            else:
+                print(f'  --   {str_file} {str_variant} {str_layer}: sem prova de otimalidade em 30 s '
+                      f'({dict_without["status"]} sem, {dict_with["status"]} com pre-processamento), comparacao omitida')
+        if str_variant == 'apertada':
+            check(dict_results_by_layer['semanal'][True]['stage_reports'][0]['removed_variables'] > 0
+                  and dict_results_by_layer['diario'][True]['stage_reports'][0]['removed_variables'] > 0,
+                  f'{str_file} apertada: maquina parada, turno curto e SKU ocioso removem variaveis nas duas camadas')
 
 
 print('\n' + '=' * 60)

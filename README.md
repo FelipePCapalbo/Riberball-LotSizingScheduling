@@ -167,9 +167,11 @@ Bucket = turno; dentro de cada turno há `positions_per_shift` posições, que d
   de troca e a sua capacidade de turno; uma troca de cor num lado não para o outro. A troca de forma interrompe a máquina
   inteira e consome os dois lados. No semanal a capacidade é contada em horas-lado: `Σ x/p + (n·τF + τC)·y ≤ n·H`.
 
-O modelo é resolvido como formulado, sem heurística de resolução: o solver recebe o MILP
-completo e um tempo limite. Não há relax-and-fix, fixação parcial nem redução do conjunto de
-SKUs candidatos — o que se reporta é o que o modelo entrega.
+Nesta branch (`exp/preprocessamento-numba`), um pré-processamento exato, calculado em numba, retira antes da
+montagem do MILP as variáveis cujo valor já é forçado ou dominado, sem tirar nenhum ótimo de estágio: preparação
+semanal e corrida de cor em que o lote mínimo não cabe na capacidade, SKU sem pedido de balão sem meta (exceto em
+lado de cor desconhecida) e um limitante superior apertado para a quantidade da corrida. Liga-se com
+`preprocessing` em `processing/settings.py`; esta branch usa uma `.venv` própria, com `numba`.
 
 Uma propriedade da formulação mantém o número de binárias baixo: apenas $\nu_{kjsn}$ (SKU na
 posição) é declarada binária. As variáveis de configuração — forma montada, máquina ativa,

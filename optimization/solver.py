@@ -7,7 +7,7 @@ import pulp
 from ortools.linear_solver.python import model_builder
 
 
-def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_time_limit, int_threads, int_seed,
+def solve_lexicographic(problem, list_stage_expressions, str_solver_name, float_time_limit, int_threads, int_seed,
                         str_log_file):
     list_stage_values = []
     list_stage_reports = []
@@ -18,7 +18,7 @@ def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_ti
     int_stage = 0
     while int_stage < len(list_stage_expressions) and bool_continue:
         float_stage_started_at = time.perf_counter()
-        float_remaining = int_time_limit - (float_stage_started_at - float_started_at)
+        float_remaining = float_time_limit - (float_stage_started_at - float_started_at)
         int_stage_time_limit = int(float_remaining / (len(list_stage_expressions) - int_stage))
         if int_stage_time_limit < 1:
             int_stage_time_limit = 1

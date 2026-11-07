@@ -18,6 +18,7 @@ DEFAULT_SETTINGS = {
     'threads': None,
     'solver_seed': 0,
     'solver_log_file': None,
+    'preprocessing': True,
 }
 
 

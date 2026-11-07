@@ -1,10 +1,60 @@
 import time
 
+import numpy as np
 import pulp
 import pandas as pd
+from numba import njit
 
 from optimization.solver import solve_lexicographic
 from optimization.weekly_model import complete_setup_matrix, build_color_reservation
+
+
+@njit(cache=True)
+def bound_color_runs(array_cell_sku, array_cell_machine, array_cell_rate, array_cell_min_lot, array_cell_reservation,
+                     array_cell_unknown_color, array_sku_product, array_orders, array_initial_stock, array_target,
+                     array_last_shift, array_capacity, array_keep, array_upper):
+    int_skus = array_orders.shape[0]
+    int_shifts = array_orders.shape[1]
+    array_order_total = np.zeros(int_skus)
+    array_open_orders = np.zeros(int_skus)
+    for int_sku in range(int_skus):
+        for int_shift in range(int_shifts):
+            array_order_total[int_sku] += array_orders[int_sku, int_shift]
+        if array_order_total[int_sku] > array_initial_stock[int_sku]:
+            array_open_orders[int_sku] = array_order_total[int_sku] - array_initial_stock[int_sku]
+
+    array_target_ahead = np.zeros((array_target.shape[0], int_shifts))
+    for int_product in range(array_target.shape[0]):
+        for int_shift in range(int_shifts):
+            for int_week in range(array_target.shape[1]):
+                if array_last_shift[int_week] >= int_shift:
+                    if array_target[int_product, int_week] > array_target_ahead[int_product, int_shift]:
+                        array_target_ahead[int_product, int_shift] = array_target[int_product, int_week]
+
+    for int_cell in range(array_keep.shape[0]):
+        int_sku = array_cell_sku[int_cell]
+        int_product = array_sku_product[int_sku]
+        float_min_lot = array_cell_min_lot[int_cell]
+        float_rate = array_cell_rate[int_cell]
+        bool_idle_sku = False
+        if array_order_total[int_sku] <= 0.0 and array_target_ahead[int_product, 0] <= 0.0:
+            if not array_cell_unknown_color[int_cell]:
+                bool_idle_sku = True
+        for int_shift in range(int_shifts):
+            float_capacity = array_capacity[array_cell_machine[int_cell], int_shift]
+            float_upper = float_rate * float_capacity
+            float_need = array_open_orders[int_sku] + array_target_ahead[int_product, int_shift]
+            if float_need < float_upper:
+                float_upper = float_need
+            if float_upper < float_min_lot:
+                float_upper = float_min_lot
+            array_upper[int_cell, int_shift] = float_upper
+            if bool_idle_sku:
+                array_keep[int_cell, int_shift] = False
+            elif float_min_lot / float_rate + array_cell_reservation[int_cell] > float_capacity + 1e-6:
+                array_keep[int_cell, int_shift] = False
+            else:
+                array_keep[int_cell, int_shift] = True
 
 
 def clean_name(str_raw):
@@ -178,6 +228,100 @@ def solve_daily_model(dict_scenario, dict_settings):
 
     problem = pulp.LpProblem('DailyScheduling', pulp.LpMinimize)
 
+    list_unknown_color_sides = []
+    for str_machine in list_machines:
+        for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
+            if (str_machine in dict_scenario['initial_form']
+                    and (str_machine, int_side) not in dict_scenario['initial_color']):
+                list_unknown_color_sides.append((str_machine, int_side))
+
+    list_cells = []
+    for str_machine in list_machines:
+        for str_product in dict_scenario['products_of_machine'][str_machine]:
+            for str_sku in dict_scenario['skus_of_product'][str_product]:
+                for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
+                    list_cells.append((str_sku, str_machine, int_side))
+
+    float_preprocessing_seconds = 0.0
+    float_numba_seconds = 0.0
+    float_numba_compile_seconds = 0.0
+    int_removed_variables = 0
+    int_removed_constraints = 0
+    dict_keep = {}
+    dict_upper = {}
+    if dict_settings['preprocessing']:
+        float_preprocessing_started_at = time.perf_counter()
+        list_skus = []
+        list_sku_products = []
+        for int_product in range(len(list_products)):
+            for str_sku in dict_scenario['skus_of_product'][list_products[int_product]]:
+                list_skus.append(str_sku)
+                list_sku_products.append(int_product)
+        array_sku_product = np.array(list_sku_products, dtype=np.int64)
+        array_orders = np.zeros((len(list_skus), len(list_shifts)))
+        array_initial_stock = np.zeros(len(list_skus))
+        for int_sku in range(len(list_skus)):
+            array_initial_stock[int_sku] = dict_scenario['initial_stock'][list_skus[int_sku]]
+            for int_shift in range(len(list_shifts)):
+                array_orders[int_sku, int_shift] = dict_scenario['orders'][(list_skus[int_sku], int_shift)]
+        array_target = np.zeros((len(list_products), len(list_weeks)))
+        array_last_shift = np.zeros(len(list_weeks), dtype=np.int64)
+        for int_week in range(len(list_weeks)):
+            array_last_shift[int_week] = dict_scenario['last_shift_of_week'][list_weeks[int_week]]
+            for int_product in range(len(list_products)):
+                array_target[int_product, int_week] = dict_scenario['target'][(list_products[int_product],
+                                                                               list_weeks[int_week])]
+        array_capacity = np.zeros((len(list_machines), len(list_shifts)))
+        for int_machine in range(len(list_machines)):
+            for int_shift in range(len(list_shifts)):
+                array_capacity[int_machine, int_shift] = dict_scenario['shift_capacity'][(list_machines[int_machine],
+                                                                                         int_shift)]
+        array_cell_sku = np.zeros(len(list_cells), dtype=np.int64)
+        array_cell_machine = np.zeros(len(list_cells), dtype=np.int64)
+        array_cell_rate = np.zeros(len(list_cells))
+        array_cell_min_lot = np.zeros(len(list_cells))
+        array_cell_reservation = np.zeros(len(list_cells))
+        array_cell_unknown_color = np.zeros(len(list_cells), dtype=np.bool_)
+        for int_cell in range(len(list_cells)):
+            str_sku, str_machine, int_side = list_cells[int_cell]
+            str_product = dict_scenario['product_of_sku'][str_sku]
+            array_cell_sku[int_cell] = list_skus.index(str_sku)
+            array_cell_machine[int_cell] = list_machines.index(str_machine)
+            array_cell_rate[int_cell] = dict_scenario['productivity'][str_product][str_machine]
+            array_cell_min_lot[int_cell] = dict_scenario['min_lot'][str_product]
+            array_cell_reservation[int_cell] = dict_scenario['color_reservation'][str_sku]
+            array_cell_unknown_color[int_cell] = (str_machine, int_side) in list_unknown_color_sides
+        array_keep = np.zeros((len(list_cells), len(list_shifts)), dtype=np.bool_)
+        array_upper = np.zeros((len(list_cells), len(list_shifts)))
+
+        float_compile_started_at = time.perf_counter()
+        if len(bound_color_runs.signatures) == 0:
+            bound_color_runs.compile('(int64[::1], int64[::1], float64[::1], float64[::1], float64[::1], '
+                                     'boolean[::1], int64[::1], float64[:, ::1], float64[::1], float64[:, ::1], '
+                                     'int64[::1], float64[:, ::1], boolean[:, ::1], float64[:, ::1])')
+        float_numba_compile_seconds = time.perf_counter() - float_compile_started_at
+        float_kernel_started_at = time.perf_counter()
+        bound_color_runs(array_cell_sku, array_cell_machine, array_cell_rate, array_cell_min_lot,
+                         array_cell_reservation, array_cell_unknown_color, array_sku_product, array_orders,
+                         array_initial_stock, array_target, array_last_shift, array_capacity, array_keep,
+                         array_upper)
+        float_numba_seconds = time.perf_counter() - float_kernel_started_at
+
+        for int_cell in range(len(list_cells)):
+            str_sku, str_machine, int_side = list_cells[int_cell]
+            for int_shift in range(len(list_shifts)):
+                dict_keep[(str_sku, str_machine, int_side, int_shift)] = bool(array_keep[int_cell, int_shift])
+                dict_upper[(str_sku, str_machine, int_side, int_shift)] = float(array_upper[int_cell, int_shift])
+        float_preprocessing_seconds = time.perf_counter() - float_preprocessing_started_at
+    else:
+        for tuple_cell in list_cells:
+            str_sku, str_machine, int_side = tuple_cell
+            float_rate = dict_scenario['productivity'][dict_scenario['product_of_sku'][str_sku]][str_machine]
+            for int_shift in range(len(list_shifts)):
+                dict_keep[(str_sku, str_machine, int_side, int_shift)] = True
+                dict_upper[(str_sku, str_machine, int_side, int_shift)] = (
+                    float_rate * dict_scenario['shift_capacity'][(str_machine, int_shift)])
+
     dict_form = {}
     dict_run = {}
     dict_quantity = {}
@@ -190,9 +334,15 @@ def solve_daily_model(dict_scenario, dict_settings):
                 for str_sku in dict_scenario['skus_of_product'][str_product]:
                     for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
                         tuple_key = (str_sku, str_machine, int_side, int_shift)
-                        str_label = f'{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}'
-                        dict_run[tuple_key] = pulp.LpVariable(f'yc_{str_label}', cat='Binary')
-                        dict_quantity[tuple_key] = pulp.LpVariable(f'x_{str_label}', lowBound=0)
+                        if dict_keep[tuple_key]:
+                            str_label = f'{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}'
+                            dict_run[tuple_key] = pulp.LpVariable(f'yc_{str_label}', cat='Binary')
+                            dict_quantity[tuple_key] = pulp.LpVariable(f'x_{str_label}', lowBound=0)
+                        else:
+                            int_removed_variables += 2
+                            int_removed_constraints += 4
+                            if (str_machine, int_side) in list_unknown_color_sides:
+                                int_removed_constraints += 1
 
     dict_previous_forms = {}
     dict_form_change = {}
@@ -225,12 +375,16 @@ def solve_daily_model(dict_scenario, dict_settings):
         if dict_scenario['color_setup'][tuple_pair] > float_longest_color_change:
             float_longest_color_change = dict_scenario['color_setup'][tuple_pair]
 
+    float_pending_bound = None
+    if dict_settings['preprocessing']:
+        float_pending_bound = float_longest_form_change
     dict_pending = {}
     dict_form_started = {}
     for str_machine in list_machines:
         for dict_shift in list_shifts:
             int_shift = dict_shift['index']
-            dict_pending[(str_machine, int_shift)] = pulp.LpVariable(f'w_{str_machine}_{int_shift}', lowBound=0)
+            dict_pending[(str_machine, int_shift)] = pulp.LpVariable(f'w_{str_machine}_{int_shift}', lowBound=0,
+                                                                     upBound=float_pending_bound)
             list_started_terms = []
             for str_from in dict_previous_forms[(str_machine, int_shift)]:
                 for str_to in dict_scenario['products_of_machine'][str_machine]:
@@ -241,16 +395,14 @@ def solve_daily_model(dict_scenario, dict_settings):
 
     dict_unknown_color = {}
     dict_entry_cleaning = {}
-    for str_machine in list_machines:
-        for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
-            if (str_machine in dict_scenario['initial_form']
-                    and (str_machine, int_side) not in dict_scenario['initial_color']):
-                for dict_shift in list_shifts:
-                    int_shift = dict_shift['index']
-                    dict_unknown_color[(str_machine, int_side, int_shift)] = pulp.LpVariable(
-                        f'u_{str_machine}_{int_side}_{int_shift}', lowBound=0, upBound=1)
-                    dict_entry_cleaning[(str_machine, int_side, int_shift)] = pulp.LpVariable(
-                        f'e_{str_machine}_{int_side}_{int_shift}', lowBound=0)
+    for tuple_side in list_unknown_color_sides:
+        str_machine, int_side = tuple_side
+        for dict_shift in list_shifts:
+            int_shift = dict_shift['index']
+            dict_unknown_color[(str_machine, int_side, int_shift)] = pulp.LpVariable(
+                f'u_{str_machine}_{int_side}_{int_shift}', lowBound=0, upBound=1)
+            dict_entry_cleaning[(str_machine, int_side, int_shift)] = pulp.LpVariable(
+                f'e_{str_machine}_{int_side}_{int_shift}', lowBound=0)
 
     dict_inventory = {}
     dict_backlog = {}
@@ -297,7 +449,8 @@ def solve_daily_model(dict_scenario, dict_settings):
                 list_production_terms = []
                 for str_machine in dict_scenario['machines_of_product'][str_product]:
                     for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
-                        list_production_terms.append(dict_quantity[(str_sku, str_machine, int_side, int_shift)])
+                        if (str_sku, str_machine, int_side, int_shift) in dict_quantity:
+                            list_production_terms.append(dict_quantity[(str_sku, str_machine, int_side, int_shift)])
                 if int_shift == 0:
                     expression_previous_stock = dict_scenario['initial_stock'][str_sku]
                     expression_previous_backlog = 0.0
@@ -339,8 +492,10 @@ def solve_daily_model(dict_scenario, dict_settings):
                     float_rate = dict_scenario['productivity'][str_product][str_machine]
                     for str_sku in dict_scenario['skus_of_product'][str_product]:
                         tuple_key = (str_sku, str_machine, int_side, int_shift)
-                        list_capacity_terms.append(dict_quantity[tuple_key] / float_rate)
-                        list_capacity_terms.append(dict_scenario['color_reservation'][str_sku] * dict_run[tuple_key])
+                        if tuple_key in dict_run:
+                            list_capacity_terms.append(dict_quantity[tuple_key] / float_rate)
+                            list_capacity_terms.append(dict_scenario['color_reservation'][str_sku]
+                                                       * dict_run[tuple_key])
                 if int_shift > 0:
                     list_capacity_terms.append(dict_pending[(str_machine, int_shift - 1)])
                 list_capacity_terms.append(-1.0 * dict_pending[(str_machine, int_shift)])
@@ -369,9 +524,10 @@ def solve_daily_model(dict_scenario, dict_settings):
                 for str_sku in dict_scenario['skus_of_product'][str_product]:
                     for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
                         tuple_key = (str_sku, str_machine, int_side, int_shift)
-                        problem += (dict_pending[(str_machine, int_shift)]
-                                    <= float_longest_form_change * (1 - dict_run[tuple_key]),
-                                    f'troca_concluida_{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}')
+                        if tuple_key in dict_run:
+                            problem += (dict_pending[(str_machine, int_shift)]
+                                        <= float_longest_form_change * (1 - dict_run[tuple_key]),
+                                        f'troca_concluida_{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}')
 
     for tuple_cell in dict_entry_cleaning:
         str_machine, int_side, int_shift = tuple_cell
@@ -380,7 +536,8 @@ def solve_daily_model(dict_scenario, dict_settings):
             expression_previous_unknown = dict_unknown_color[(str_machine, int_side, int_shift - 1)]
             for str_product in dict_scenario['products_of_machine'][str_machine]:
                 for str_sku in dict_scenario['skus_of_product'][str_product]:
-                    list_reset_terms.append(dict_run[(str_sku, str_machine, int_side, int_shift - 1)])
+                    if (str_sku, str_machine, int_side, int_shift - 1) in dict_run:
+                        list_reset_terms.append(dict_run[(str_sku, str_machine, int_side, int_shift - 1)])
         else:
             expression_previous_unknown = 1.0
         for str_from in dict_previous_forms[(str_machine, int_shift)]:
@@ -391,27 +548,27 @@ def solve_daily_model(dict_scenario, dict_settings):
                     f'cor_inicial_estado_{str_machine}_{int_side}_{int_shift}')
         for str_product in dict_scenario['products_of_machine'][str_machine]:
             for str_sku in dict_scenario['skus_of_product'][str_product]:
-                problem += (dict_entry_cleaning[tuple_cell]
-                            >= float_longest_color_change * (dict_unknown_color[tuple_cell]
-                                                             + dict_run[(str_sku, str_machine, int_side, int_shift)]
-                                                             - 1),
-                            f'cor_inicial_reserva_{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}')
+                if (str_sku, str_machine, int_side, int_shift) in dict_run:
+                    problem += (dict_entry_cleaning[tuple_cell]
+                                >= float_longest_color_change * (dict_unknown_color[tuple_cell]
+                                                                 + dict_run[(str_sku, str_machine, int_side, int_shift)]
+                                                                 - 1),
+                                f'cor_inicial_reserva_{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}')
 
     for str_machine in list_machines:
         for dict_shift in list_shifts:
             int_shift = dict_shift['index']
-            float_capacity = dict_scenario['shift_capacity'][(str_machine, int_shift)]
             for str_product in dict_scenario['products_of_machine'][str_machine]:
-                float_rate = dict_scenario['productivity'][str_product][str_machine]
                 float_min_lot = dict_scenario['min_lot'][str_product]
                 for str_sku in dict_scenario['skus_of_product'][str_product]:
                     for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
                         tuple_key = (str_sku, str_machine, int_side, int_shift)
-                        str_label = f'{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}'
-                        problem += (float_min_lot * dict_run[tuple_key] <= dict_quantity[tuple_key],
-                                    f'lote_minimo_turno_inferior_{str_label}')
-                        problem += (dict_quantity[tuple_key] <= float_rate * float_capacity * dict_run[tuple_key],
-                                    f'lote_minimo_turno_superior_{str_label}')
+                        if tuple_key in dict_run:
+                            str_label = f'{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}'
+                            problem += (float_min_lot * dict_run[tuple_key] <= dict_quantity[tuple_key],
+                                        f'lote_minimo_turno_inferior_{str_label}')
+                            problem += (dict_quantity[tuple_key] <= dict_upper[tuple_key] * dict_run[tuple_key],
+                                        f'lote_minimo_turno_superior_{str_label}')
 
     for str_machine in list_machines:
         for dict_shift in list_shifts:
@@ -443,17 +600,25 @@ def solve_daily_model(dict_scenario, dict_settings):
             for str_product in dict_scenario['products_of_machine'][str_machine]:
                 for str_sku in dict_scenario['skus_of_product'][str_product]:
                     for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
-                        problem += (dict_run[(str_sku, str_machine, int_side, int_shift)]
-                                    <= dict_form[(str_product, str_machine, int_shift)],
-                                    f'cor_da_forma_{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}')
+                        if (str_sku, str_machine, int_side, int_shift) in dict_run:
+                            problem += (dict_run[(str_sku, str_machine, int_side, int_shift)]
+                                        <= dict_form[(str_product, str_machine, int_shift)],
+                                        f'cor_da_forma_{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}')
 
     list_stage_expressions = [pulp.lpSum(list_backlog_terms), pulp.lpSum(list_target_terms),
                               pulp.lpSum(list_cost_terms)]
     float_started_at = time.perf_counter()
     str_status, bool_hit_time_limit, list_stage_values, list_stage_reports = solve_lexicographic(
-        problem, list_stage_expressions, dict_settings['daily_solver_name'], int(dict_settings['daily_time_limit']),
+        problem, list_stage_expressions, dict_settings['daily_solver_name'],
+        float(dict_settings['daily_time_limit']) - float_preprocessing_seconds,
         dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'])
     float_solve_seconds = time.perf_counter() - float_started_at
+    for dict_report in list_stage_reports:
+        dict_report['preprocessing_seconds'] = float_preprocessing_seconds
+        dict_report['numba_seconds'] = float_numba_seconds
+        dict_report['numba_compile_seconds'] = float_numba_compile_seconds
+        dict_report['removed_variables'] = int_removed_variables
+        dict_report['removed_constraints'] = int_removed_constraints
 
     if str_status not in ('Optimal', 'Feasible'):
         dict_result = {'status': str_status, 'stage_reports': list_stage_reports, 'kpis': {}}
@@ -475,7 +640,7 @@ def solve_daily_model(dict_scenario, dict_settings):
                     dict_plan['sequence'][(str_machine, int_side, int_shift)] = []
                     for str_sku in dict_scenario['skus_of_product'][str_mounted_form]:
                         tuple_key = (str_sku, str_machine, int_side, int_shift)
-                        if dict_run[tuple_key].varValue > 0.5:
+                        if tuple_key in dict_run and dict_run[tuple_key].varValue > 0.5:
                             dict_plan['quantity'][tuple_key] = dict_quantity[tuple_key].varValue
                             dict_plan['sequence'][(str_machine, int_side, int_shift)].append(str_sku)
                             dict_plan['color_hours'][tuple_key] = dict_scenario['color_reservation'][str_sku]

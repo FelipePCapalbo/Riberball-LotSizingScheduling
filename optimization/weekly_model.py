@@ -1,9 +1,24 @@
 import time
 
+import numpy as np
 import pulp
 import pandas as pd
+from numba import njit
 
 from optimization.solver import solve_lexicographic
+
+
+@njit(cache=True)
+def flag_feasible_setups(array_min_lot, array_rate, array_side_setup, array_capacity, array_big_m, array_keep):
+    for int_pair in range(array_keep.shape[0]):
+        float_min_lot_hours = array_min_lot[int_pair] / array_rate[int_pair] + array_side_setup[int_pair]
+        for int_week in range(array_keep.shape[1]):
+            if float_min_lot_hours > array_capacity[int_pair, int_week] + 1e-6:
+                array_keep[int_pair, int_week] = False
+            elif array_min_lot[int_pair] > array_big_m[int_pair, int_week] + 1e-6:
+                array_keep[int_pair, int_week] = False
+            else:
+                array_keep[int_pair, int_week] = True
 
 
 def clean_name(str_raw):
@@ -170,15 +185,82 @@ def solve_weekly_model(dict_scenario, dict_settings):
 
     problem = pulp.LpProblem('WeeklyPlanning', pulp.LpMinimize)
 
+    dict_big_m = {}
+    for str_product in list_products:
+        for int_index in range(len(list_weeks)):
+            timestamp_week = list_weeks[int_index]
+            float_remaining_demand = dict_scenario['stock_minimum'][str_product]
+            for int_other in range(len(list_weeks)):
+                timestamp_other = list_weeks[int_other]
+                float_remaining_demand += dict_scenario['orders'][str_product][timestamp_other]
+                if int_other >= int_index:
+                    float_remaining_demand += dict_scenario['forecast'][str_product][timestamp_other]
+            for str_machine in dict_scenario['machines_of_product'][str_product]:
+                float_rate = dict_scenario['productivity'][str_product][str_machine]
+                float_big_m = float_rate * dict_scenario['capacity'][str_machine][timestamp_week]
+                if float_remaining_demand < float_big_m:
+                    float_big_m = float_remaining_demand
+                dict_big_m[(str_product, str_machine, timestamp_week)] = float_big_m
+
+    float_preprocessing_seconds = 0.0
+    float_numba_seconds = 0.0
+    float_numba_compile_seconds = 0.0
+    int_removed_variables = 0
+    int_removed_constraints = 0
+    dict_keep = {}
+    if dict_settings['preprocessing']:
+        float_preprocessing_started_at = time.perf_counter()
+        list_pairs = []
+        for str_product in list_products:
+            for str_machine in dict_scenario['machines_of_product'][str_product]:
+                list_pairs.append((str_product, str_machine))
+        array_min_lot = np.zeros(len(list_pairs))
+        array_rate = np.zeros(len(list_pairs))
+        array_side_setup = np.zeros(len(list_pairs))
+        array_capacity = np.zeros((len(list_pairs), len(list_weeks)))
+        array_big_m = np.zeros((len(list_pairs), len(list_weeks)))
+        array_keep = np.zeros((len(list_pairs), len(list_weeks)), dtype=np.bool_)
+        for int_pair in range(len(list_pairs)):
+            str_product, str_machine = list_pairs[int_pair]
+            array_min_lot[int_pair] = dict_scenario['min_lot'][str_product]
+            array_rate[int_pair] = dict_scenario['productivity'][str_product][str_machine]
+            array_side_setup[int_pair] = dict_scenario['side_setup'][(str_product, str_machine)]
+            for int_week in range(len(list_weeks)):
+                timestamp_week = list_weeks[int_week]
+                array_capacity[int_pair, int_week] = dict_scenario['capacity'][str_machine][timestamp_week]
+                array_big_m[int_pair, int_week] = dict_big_m[(str_product, str_machine, timestamp_week)]
+
+        float_compile_started_at = time.perf_counter()
+        if len(flag_feasible_setups.signatures) == 0:
+            flag_feasible_setups.compile('(float64[::1], float64[::1], float64[::1], float64[:, ::1], '
+                                         'float64[:, ::1], boolean[:, ::1])')
+        float_numba_compile_seconds = time.perf_counter() - float_compile_started_at
+        float_kernel_started_at = time.perf_counter()
+        flag_feasible_setups(array_min_lot, array_rate, array_side_setup, array_capacity, array_big_m, array_keep)
+        float_numba_seconds = time.perf_counter() - float_kernel_started_at
+
+        for int_pair in range(len(list_pairs)):
+            str_product, str_machine = list_pairs[int_pair]
+            for int_week in range(len(list_weeks)):
+                dict_keep[(str_product, str_machine, list_weeks[int_week])] = bool(array_keep[int_pair, int_week])
+        float_preprocessing_seconds = time.perf_counter() - float_preprocessing_started_at
+    else:
+        for tuple_key in dict_big_m:
+            dict_keep[tuple_key] = True
+
     dict_production = {}
     dict_setup = {}
     for str_product in list_products:
         for str_machine in dict_scenario['machines_of_product'][str_product]:
             for timestamp_week in list_weeks:
                 tuple_key = (str_product, str_machine, timestamp_week)
-                str_label = f'{clean_name(str_product)}_{str_machine}_{clean_name(timestamp_week.date())}'
-                dict_production[tuple_key] = pulp.LpVariable(f'x_{str_label}', lowBound=0)
-                dict_setup[tuple_key] = pulp.LpVariable(f'y_{str_label}', cat='Binary')
+                if dict_keep[tuple_key]:
+                    str_label = f'{clean_name(str_product)}_{str_machine}_{clean_name(timestamp_week.date())}'
+                    dict_production[tuple_key] = pulp.LpVariable(f'x_{str_label}', lowBound=0)
+                    dict_setup[tuple_key] = pulp.LpVariable(f'y_{str_label}', cat='Binary')
+                else:
+                    int_removed_variables += 2
+                    int_removed_constraints += 2
 
     dict_inventory = {}
     dict_backlog = {}
@@ -212,8 +294,9 @@ def solve_weekly_model(dict_scenario, dict_settings):
         for str_machine in dict_scenario['machines_of_product'][str_product]:
             float_hourly_cost = dict_scenario['setup_hourly_cost'][str_machine]
             for timestamp_week in list_weeks:
-                list_cost_terms.append(
-                    float_hourly_cost * float_setup_time * dict_setup[(str_product, str_machine, timestamp_week)])
+                if (str_product, str_machine, timestamp_week) in dict_setup:
+                    list_cost_terms.append(
+                        float_hourly_cost * float_setup_time * dict_setup[(str_product, str_machine, timestamp_week)])
 
     for str_product in list_products:
         for int_index in range(len(list_weeks)):
@@ -223,7 +306,8 @@ def solve_weekly_model(dict_scenario, dict_settings):
 
             list_production_terms = []
             for str_machine in dict_scenario['machines_of_product'][str_product]:
-                list_production_terms.append(dict_production[(str_product, str_machine, timestamp_week)])
+                if (str_product, str_machine, timestamp_week) in dict_production:
+                    list_production_terms.append(dict_production[(str_product, str_machine, timestamp_week)])
 
             if int_index == 0:
                 expression_previous_inventory = dict_scenario['initial_inventory'][str_product]
@@ -266,7 +350,7 @@ def solve_weekly_model(dict_scenario, dict_settings):
         for timestamp_week in list_weeks:
             list_capacity_terms = []
             for str_product in list_products:
-                if str_machine in dict_scenario['machines_of_product'][str_product]:
+                if (str_product, str_machine, timestamp_week) in dict_production:
                     tuple_key = (str_product, str_machine, timestamp_week)
                     float_rate = dict_scenario['productivity'][str_product][str_machine]
                     list_capacity_terms.append(dict_production[tuple_key] / float_rate)
@@ -277,33 +361,30 @@ def solve_weekly_model(dict_scenario, dict_settings):
 
     for str_product in list_products:
         float_min_lot = dict_scenario['min_lot'][str_product]
-        for int_index in range(len(list_weeks)):
-            timestamp_week = list_weeks[int_index]
-            float_remaining_demand = dict_scenario['stock_minimum'][str_product]
-            for int_other in range(len(list_weeks)):
-                timestamp_other = list_weeks[int_other]
-                float_remaining_demand += dict_scenario['orders'][str_product][timestamp_other]
-                if int_other >= int_index:
-                    float_remaining_demand += dict_scenario['forecast'][str_product][timestamp_other]
+        for timestamp_week in list_weeks:
             for str_machine in dict_scenario['machines_of_product'][str_product]:
                 tuple_key = (str_product, str_machine, timestamp_week)
-                str_label = f'{clean_name(str_product)}_{str_machine}_{clean_name(timestamp_week.date())}'
-                float_rate = dict_scenario['productivity'][str_product][str_machine]
-                float_big_m = float_rate * dict_scenario['capacity'][str_machine][timestamp_week]
-                if float_remaining_demand < float_big_m:
-                    float_big_m = float_remaining_demand
-                problem += (float_min_lot * dict_setup[tuple_key] <= dict_production[tuple_key],
-                            f'lote_minimo_inferior_{str_label}')
-                problem += (dict_production[tuple_key] <= float_big_m * dict_setup[tuple_key],
-                            f'lote_minimo_superior_{str_label}')
+                if tuple_key in dict_production:
+                    str_label = f'{clean_name(str_product)}_{str_machine}_{clean_name(timestamp_week.date())}'
+                    problem += (float_min_lot * dict_setup[tuple_key] <= dict_production[tuple_key],
+                                f'lote_minimo_inferior_{str_label}')
+                    problem += (dict_production[tuple_key] <= dict_big_m[tuple_key] * dict_setup[tuple_key],
+                                f'lote_minimo_superior_{str_label}')
 
     list_stage_expressions = [pulp.lpSum(list_backlog_terms), pulp.lpSum(list_lost_terms),
                               pulp.lpSum(list_floor_terms), pulp.lpSum(list_cost_terms)]
     float_started_at = time.perf_counter()
     str_status, bool_hit_time_limit, list_stage_values, list_stage_reports = solve_lexicographic(
-        problem, list_stage_expressions, dict_settings['weekly_solver_name'], int(dict_settings['weekly_time_limit']),
+        problem, list_stage_expressions, dict_settings['weekly_solver_name'],
+        float(dict_settings['weekly_time_limit']) - float_preprocessing_seconds,
         dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'])
     float_solve_seconds = time.perf_counter() - float_started_at
+    for dict_report in list_stage_reports:
+        dict_report['preprocessing_seconds'] = float_preprocessing_seconds
+        dict_report['numba_seconds'] = float_numba_seconds
+        dict_report['numba_compile_seconds'] = float_numba_compile_seconds
+        dict_report['removed_variables'] = int_removed_variables
+        dict_report['removed_constraints'] = int_removed_constraints
 
     if str_status not in ('Optimal', 'Feasible'):
         dict_result = {'status': str_status, 'stage_reports': list_stage_reports, 'kpis': {}}
@@ -373,20 +454,21 @@ def solve_weekly_model(dict_scenario, dict_settings):
 
                 for str_machine in dict_scenario['machines_of_product'][str_product]:
                     tuple_production = (str_product, str_machine, timestamp_week)
-                    float_quantity = resolve(dict_production[tuple_production])
-                    float_active = resolve(dict_setup[tuple_production])
-                    if float_quantity > 1e-6:
-                        float_rate = dict_scenario['productivity'][str_product][str_machine]
-                        list_production_rows.append({
-                            'week': str_week, 'machine': str_machine, 'product': str_product,
-                            'kg': float_quantity,
-                            'hours': float_quantity / float_rate,
-                            'setup_hours': dict_scenario['side_setup'][(str_product, str_machine)] * float_active,
-                        })
-                    if float_active > 0.5:
-                        float_hours = dict_scenario['average_setup'][str_product]
-                        float_setup_hours += float_hours
-                        float_setup_cost += dict_scenario['setup_hourly_cost'][str_machine] * float_hours
+                    if tuple_production in dict_production:
+                        float_quantity = resolve(dict_production[tuple_production])
+                        float_active = resolve(dict_setup[tuple_production])
+                        if float_quantity > 1e-6:
+                            float_rate = dict_scenario['productivity'][str_product][str_machine]
+                            list_production_rows.append({
+                                'week': str_week, 'machine': str_machine, 'product': str_product,
+                                'kg': float_quantity,
+                                'hours': float_quantity / float_rate,
+                                'setup_hours': dict_scenario['side_setup'][(str_product, str_machine)] * float_active,
+                            })
+                        if float_active > 0.5:
+                            float_hours = dict_scenario['average_setup'][str_product]
+                            float_setup_hours += float_hours
+                            float_setup_cost += dict_scenario['setup_hourly_cost'][str_machine] * float_hours
 
         float_total_orders = 0.0
         float_total_forecast = 0.0

@@ -3,6 +3,7 @@ openpyxl
 pulp<4
 ortools
 gurobipy
+numba
 fastapi
 uvicorn
 httpx
