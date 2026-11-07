@@ -1,7 +1,10 @@
+import argparse
 import copy
 import csv
+import importlib.metadata
 import json
 import os
+import platform
 import subprocess
 import sys
 import time
@@ -114,15 +117,26 @@ def summarize_level(dict_result):
     return dict_summary
 
 
-str_variant = sys.argv[1]
-str_output_root = DEFAULT_OUTPUT_ROOT
-if len(sys.argv) > 2:
-    str_output_root = os.path.abspath(sys.argv[2])
-bool_quick = len(sys.argv) > 3 and sys.argv[3] == 'rapido'
+parser = argparse.ArgumentParser()
+parser.add_argument('--variante', required=True)
+parser.add_argument('--saida', default=DEFAULT_OUTPUT_ROOT)
+parser.add_argument('--pasta', default=None)
+parser.add_argument('--rapido', action='store_true')
+parser.add_argument('--threads', type=int, default=SETTINGS_OVERRIDES['threads'])
+dict_arguments = vars(parser.parse_args())
 
-str_variant_directory = os.path.join(str_output_root, str_variant)
-if bool_quick:
-    str_variant_directory = os.path.join(str_output_root, f'rapido_{str_variant}')
+str_variant = dict_arguments['variante']
+str_output_root = os.path.abspath(dict_arguments['saida'])
+bool_quick = dict_arguments['rapido']
+str_machine_label = os.environ.get('EXPERIMENT_MACHINE_LABEL', platform.node()).lower().replace(' ', '-')
+str_started_at = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+if dict_arguments['pasta'] is not None:
+    str_variant_directory = os.path.abspath(dict_arguments['pasta'])
+else:
+    str_folder_name = f'{str_started_at}_{str_machine_label}_{str_variant}'
+    if bool_quick:
+        str_folder_name = f'{str_folder_name}_rapido'
+    str_variant_directory = os.path.join(str_output_root, 'rodadas', str_folder_name)
 str_runs_directory = os.path.join(str_variant_directory, 'execucoes')
 str_logs_directory = os.path.join(str_variant_directory, 'logs')
 os.makedirs(str_runs_directory, exist_ok=True)
@@ -131,15 +145,18 @@ os.makedirs(str_logs_directory, exist_ok=True)
 dict_base_settings = dict(DEFAULT_SETTINGS)
 for str_key in SETTINGS_OVERRIDES:
     dict_base_settings[str_key] = SETTINGS_OVERRIDES[str_key]
+dict_base_settings['threads'] = dict_arguments['threads']
 if bool_quick:
     dict_base_settings['weekly_time_limit'] = QUICK_TIME_LIMIT
     dict_base_settings['daily_time_limit'] = QUICK_TIME_LIMIT
 
+dict_plan = {'instancia_base': os.path.relpath(BASELINE_FILE, ROOT_DIR), 'parametros': SETTINGS_OVERRIDES,
+             'fatores': FACTORS, 'niveis_sem_sorteio': DRAW_FREE_LEVELS, 'sorteios': DRAW_SEEDS,
+             'sementes_solver_base': BASELINE_SOLVER_SEEDS, 'sorteio_grades': GRID_DRAW, 'grades': GRIDS}
 with open(os.path.join(str_output_root, 'plano.json'), 'w', encoding='utf-8') as file_plan:
-    json.dump({'instancia_base': os.path.relpath(BASELINE_FILE, ROOT_DIR), 'parametros': SETTINGS_OVERRIDES,
-               'fatores': FACTORS, 'niveis_sem_sorteio': DRAW_FREE_LEVELS, 'sorteios': DRAW_SEEDS,
-               'sementes_solver_base': BASELINE_SOLVER_SEEDS, 'sorteio_grades': GRID_DRAW, 'grades': GRIDS},
-              file_plan, indent=2, ensure_ascii=False)
+    json.dump(dict_plan, file_plan, indent=2, ensure_ascii=False)
+with open(os.path.join(str_variant_directory, 'plano.json'), 'w', encoding='utf-8') as file_plan:
+    json.dump(dict_plan, file_plan, indent=2, ensure_ascii=False)
 
 str_commit = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT_DIR, capture_output=True,
                             text=True).stdout.strip()
@@ -147,10 +164,57 @@ str_branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], cwd=RO
                             text=True).stdout.strip()
 str_dirty = subprocess.run(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=ROOT_DIR,
                            capture_output=True, text=True).stdout.strip()
-with open(os.path.join(str_variant_directory, 'commit.txt'), 'w', encoding='utf-8') as file_commit:
-    file_commit.write(f'variante: {str_variant}\nbranch: {str_branch}\ncommit: {str_commit}\n')
-    if str_dirty:
-        file_commit.write(f'alteracoes nao commitadas:\n{str_dirty}\n')
+str_cpu = platform.processor()
+if os.path.exists('/proc/cpuinfo'):
+    with open('/proc/cpuinfo', encoding='utf-8') as file_cpu:
+        for str_line in file_cpu:
+            if str_line.startswith('model name'):
+                str_cpu = str_line.split(':', 1)[1].strip()
+float_memory_gb = None
+if os.path.exists('/proc/meminfo'):
+    with open('/proc/meminfo', encoding='utf-8') as file_memory:
+        for str_line in file_memory:
+            if str_line.startswith('MemTotal'):
+                float_memory_gb = round(float(str_line.split()[1]) / 1024.0 / 1024.0, 1)
+dict_packages = {}
+for str_package in ['numpy', 'pandas', 'pulp', 'ortools', 'gurobipy', 'numba']:
+    dict_packages[str_package] = None
+    for distribution in importlib.metadata.distributions():
+        if distribution.metadata['Name'] is not None and distribution.metadata['Name'].lower() == str_package:
+            dict_packages[str_package] = distribution.version
+
+str_environment_path = os.path.join(str_variant_directory, 'ambiente.json')
+dict_environment = {}
+if os.path.exists(str_environment_path):
+    with open(str_environment_path, encoding='utf-8') as file_environment:
+        dict_environment = json.load(file_environment)
+if 'inicio' not in dict_environment:
+    dict_environment = {
+        'variante': str_variant,
+        'rapido': bool_quick,
+        'maquina': str_machine_label,
+        'hostname': platform.node(),
+        'cpu': str_cpu,
+        'nucleos': os.cpu_count(),
+        'memoria_gb': float_memory_gb,
+        'sistema': platform.platform(),
+        'python': platform.python_version(),
+        'pacotes': dict_packages,
+        'pasta_codigo': ROOT_DIR,
+        'branch': str_branch,
+        'commit': str_commit,
+        'alteracoes_nao_commitadas': str_dirty,
+        'threads': dict_base_settings['threads'],
+        'limite_semanal': dict_base_settings['weekly_time_limit'],
+        'limite_diario': dict_base_settings['daily_time_limit'],
+        'inicio': datetime.now().isoformat(timespec='seconds'),
+        'retomadas': [],
+    }
+else:
+    dict_environment['retomadas'].append({'inicio': datetime.now().isoformat(timespec='seconds'),
+                                          'commit': str_commit, 'alteracoes_nao_commitadas': str_dirty})
+dict_environment['pid'] = os.getpid()
+dict_environment['situacao'] = 'em_execucao'
 
 list_runs = []
 for int_solver_seed in BASELINE_SOLVER_SEEDS:
@@ -188,6 +252,10 @@ if bool_quick:
             list_seen_factors.append(dict_run['changes'][0][0])
             list_quick_runs.append(dict_run)
     list_runs = list_quick_runs
+
+dict_environment['execucoes_planejadas'] = len(list_runs)
+with open(str_environment_path, 'w', encoding='utf-8') as file_environment:
+    json.dump(dict_environment, file_environment, indent=2, ensure_ascii=False)
 
 dict_baseline_instance = load_instance(BASELINE_FILE)
 str_battery_log = os.path.join(str_variant_directory, 'bateria.log')
@@ -506,4 +574,8 @@ for dict_run in list_runs:
 
 with open(str_battery_log, 'a', encoding='utf-8') as file_battery:
     file_battery.write(f'{datetime.now().isoformat(timespec="seconds")} fim variante={str_variant}\n')
+dict_environment['situacao'] = 'concluida'
+dict_environment['fim'] = datetime.now().isoformat(timespec='seconds')
+with open(str_environment_path, 'w', encoding='utf-8') as file_environment:
+    json.dump(dict_environment, file_environment, indent=2, ensure_ascii=False)
 print(f'resultados em {str_variant_directory}')

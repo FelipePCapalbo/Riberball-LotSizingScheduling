@@ -1,0 +1,17 @@
+{
+  "maquina": "fpcltp",
+  "inicio": "2026-11-07_200518",
+  "paralelo": 3,
+  "ondas": [
+    [
+      {
+        "variante": "formulacao",
+        "pasta": "/home/felipecapalbo/Development/Pessoal/Riberball-LotSizingScheduling/experimentos/esforco_computacional/rodadas/2026-11-07_200518_fpcltp_formulacao_rapido",
+        "rapido": true,
+        "threads": 2,
+        "codigo": "/home/felipecapalbo/Development/Pessoal/Riberball-LotSizingScheduling",
+        "python": "/home/felipecapalbo/Development/Pessoal/Riberball-LotSizingScheduling/.venv/bin/python"
+      }
+    ]
+  ]
+}

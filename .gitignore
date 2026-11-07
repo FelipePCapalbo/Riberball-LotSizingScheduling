@@ -85,4 +85,6 @@ frontend/app/tsconfig.tsbuildinfo
 
 # Banco SQLite local (cadastro mestre, fotografias e historico de execucoes)
 /database/
-experimentos/esforco_computacional/rapido_*/
+experimentos/esforco_computacional/rodadas/*_rapido/
+experimentos/esforco_computacional/rodadas/*/saida.out
+experimentos/esforco_computacional/disparos/*.log

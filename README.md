@@ -262,18 +262,53 @@ carryover através de turnos ociosos, capacidade do turno).
 
 ### Experimentos de esforço computacional
 
+Tudo é disparado por um único script, que roda em segundo plano (sobrevive ao fechamento do terminal):
+
 ```bash
-python scripts/computational_experiments.py <variante> [pasta_saida] [rapido]
-python scripts/computational_experiments_analysis.py
+python scripts/launch_experiments.py formulacao              # uma variante
+python scripts/launch_experiments.py todas                   # todas as variantes, em ondas
+python scripts/launch_experiments.py rf_tempo rf_maquina --paralelo 2 --rapido
+python scripts/launch_experiments.py --situacao              # progresso de todas as rodadas
+python scripts/launch_experiments.py --retomar experimentos/esforco_computacional/rodadas/<pasta>
+python scripts/computational_experiments_analysis.py [--maquina <rotulo>]
 ```
 
-Parte de `data/input_asis_ajustado.xlsx` e varia um fator por vez (máquinas, balões, cores por balão,
-flexibilidade, demanda, estoque inicial, capacidade, tempos de setup, máquinas de duas cores, horizonte e
-semanas congeladas), mais três grades 4×4 de pares de fatores. Usa Gurobi com 2 threads e os limites da operação
-(300 s no semanal, 600 s no diário). Cada execução grava `execucoes/<id>.json` e o log do Gurobi em
-`logs/<id>.log`, e `resultados.csv` é refeito ao fim de cada execução. Uma execução que já tem JSON é pulada, então
-a bateria pode ser interrompida e retomada. `rapido` roda a baseline e um nível de cada fator, com 30 s por nível.
-A análise escreve os CSVs dos gráficos em `dissertacao/dados/esforco/`.
+| Variante | Código |
+|---|---|
+| `formulacao` | o repositório principal, modelo resolvido como formulado |
+| `rf_tempo`, `rf_maquina`, `rf_produto` | worktrees `../Riberball-wt-rf-*`: relax-and-fix e fix-and-optimize por tempo, máquina e produto |
+| `preprocessamento` | `../Riberball-wt-numba`: pré-processamento exato em numba (com `.venv` própria) |
+| `warm_start` | `../Riberball-wt-warm-start`: heurística construtiva de solução inicial |
+| `cascata` | `../Riberball-wt-cascata`: warm start sequencial por segmento de negócio |
+
+O worktree que faltar é criado a partir da sua branch `exp/*`. As variantes de uma onda rodam em paralelo
+(`--paralelo`, padrão 3), cada uma com `--threads` do Gurobi (padrão 2). A comparação de tempo só vale entre rodadas
+da mesma máquina; as unidades de trabalho do Gurobi (`work`) são determinísticas e são a resposta principal.
+
+Cada disparo cria uma pasta por variante:
+
+```
+experimentos/esforco_computacional/
+    plano.json                                  fatores, níveis, sementes e grades
+    disparos/<data>_<maquina>.json              ondas e pastas de um disparo (e o .log do supervisor)
+    rodadas/<data>_<maquina>_<variante>/
+        ambiente.json                           máquina, CPU, memória, sistema, pacotes, branch, commit, limites
+        plano.json                              cópia do plano usado
+        execucoes/<id>.json                     registro completo de cada execução
+        logs/<id>.log                           log do Gurobi
+        resultados.csv                          uma linha por execução, refeito a cada execução
+        bateria.log                             progresso
+        saida.out                               saída do processo
+    comparativo/                                tabelas entre variantes
+```
+
+O rótulo da máquina é o hostname, ou `EXPERIMENT_MACHINE_LABEL` se definido. `--rapido` roda a baseline e um nível
+de cada fator com 30 s por nível, numa pasta com sufixo `_rapido` que fica fora do git. A bateria parte de
+`data/input_asis_ajustado.xlsx` e varia um fator por vez (máquinas, balões, cores por balão, flexibilidade, demanda,
+estoque inicial, capacidade, tempos de setup, máquinas de duas cores, horizonte e semanas congeladas), mais três
+grades 4×4 de pares de fatores, com os limites da operação (300 s no semanal, 600 s no diário). Uma execução que já
+tem JSON é pulada na retomada. A análise usa, por variante, a rodada mais recente e escreve os CSVs dos gráficos em
+`dissertacao/dados/esforco/`.
 
 ### Interface web
 

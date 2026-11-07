@@ -1,8 +1,8 @@
+import argparse
 import csv
 import json
 import math
 import os
-import sys
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_RESULTS_ROOT = os.path.join(ROOT_DIR, 'experimentos', 'esforco_computacional')
@@ -56,26 +56,42 @@ def write_table(str_path, list_columns, list_rows):
             writer.writerow(list_formatted)
 
 
-str_results_root = DEFAULT_RESULTS_ROOT
-if len(sys.argv) > 1:
-    str_results_root = os.path.abspath(sys.argv[1])
-str_reference_variant = REFERENCE_VARIANT
-if len(sys.argv) > 2:
-    str_reference_variant = sys.argv[2]
+parser = argparse.ArgumentParser()
+parser.add_argument('--saida', default=DEFAULT_RESULTS_ROOT)
+parser.add_argument('--referencia', default=REFERENCE_VARIANT)
+parser.add_argument('--maquina', default=None)
+parser.add_argument('--incluir-rapidas', action='store_true')
+dict_arguments = vars(parser.parse_args())
+str_results_root = os.path.abspath(dict_arguments['saida'])
+str_reference_variant = dict_arguments['referencia']
 os.makedirs(CHART_DIRECTORY, exist_ok=True)
 
 with open(os.path.join(str_results_root, 'plano.json'), encoding='utf-8') as file_plan:
     dict_plan = json.load(file_plan)
 
+str_runs_root = os.path.join(str_results_root, 'rodadas')
 dict_variant_rows = {}
-for str_name in sorted(os.listdir(str_results_root)):
-    str_csv_path = os.path.join(str_results_root, str_name, 'resultados.csv')
-    if os.path.exists(str_csv_path):
-        list_rows = []
-        with open(str_csv_path, encoding='utf-8') as file_csv:
-            for dict_row in csv.DictReader(file_csv, delimiter=';'):
-                list_rows.append(dict_row)
-        dict_variant_rows[str_name] = list_rows
+dict_variant_folder = {}
+for str_name in sorted(os.listdir(str_runs_root)):
+    str_environment_path = os.path.join(str_runs_root, str_name, 'ambiente.json')
+    str_csv_path = os.path.join(str_runs_root, str_name, 'resultados.csv')
+    if os.path.exists(str_environment_path) and os.path.exists(str_csv_path):
+        with open(str_environment_path, encoding='utf-8') as file_environment:
+            dict_environment = json.load(file_environment)
+        bool_selected = True
+        if dict_environment['rapido'] and not dict_arguments['incluir_rapidas']:
+            bool_selected = False
+        if dict_arguments['maquina'] is not None and dict_environment['maquina'] != dict_arguments['maquina']:
+            bool_selected = False
+        if bool_selected:
+            list_rows = []
+            with open(str_csv_path, encoding='utf-8') as file_csv:
+                for dict_row in csv.DictReader(file_csv, delimiter=';'):
+                    list_rows.append(dict_row)
+            dict_variant_rows[dict_environment['variante']] = list_rows
+            dict_variant_folder[dict_environment['variante']] = str_name
+for str_variant in dict_variant_folder:
+    print(f'{str_variant}: rodadas/{dict_variant_folder[str_variant]}')
 
 list_reference_rows = dict_variant_rows[str_reference_variant]
 
@@ -255,7 +271,7 @@ write_table(os.path.join(CHART_DIRECTORY, 'tamanho.csv'),
 
 list_variants = []
 for str_name in dict_variant_rows:
-    if str_name != str_reference_variant and not str_name.startswith('rapido_'):
+    if str_name != str_reference_variant:
         list_variants.append(str_name)
 if len(list_variants) > 0:
     str_comparison_directory = os.path.join(str_results_root, 'comparativo')
