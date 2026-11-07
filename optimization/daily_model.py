@@ -4,7 +4,7 @@ import pulp
 import pandas as pd
 
 from optimization.solver import solve_lexicographic
-from optimization.weekly_model import complete_setup_matrix, build_color_reservation
+from optimization.weekly_model import complete_setup_matrix, build_color_reservation, classify_abc
 
 
 def clean_name(str_raw):
@@ -268,18 +268,36 @@ def solve_daily_model(dict_scenario, dict_settings):
             dict_target_slack[(str_product, str_week)] = pulp.LpVariable(
                 f'g_{clean_name(str_product)}_{clean_name(str_week)}', lowBound=0)
 
+    dict_target_volume = {}
+    for str_product in list_products:
+        dict_target_volume[str_product] = 0.0
+        for str_week in list_weeks:
+            dict_target_volume[str_product] += dict_scenario['target'][(str_product, str_week)]
+    dict_abc_class = classify_abc(dict_target_volume)
+
     list_backlog_terms = []
     list_target_terms = []
     list_cost_terms = []
+    list_backlog_segments = [[], [], []]
+    dict_target_segments = {'A': [], 'B': [], 'C': []}
     for str_product in list_products:
         float_margin = dict_scenario['margin'][str_product]
         float_holding_per_shift = float_holding_rate * float_holding_fraction * dict_scenario['unit_cost'][str_product]
         for str_week in list_weeks:
             list_target_terms.append(float_margin * dict_target_slack[(str_product, str_week)])
+            if dict_target_volume[str_product] > 0.0:
+                dict_target_segments[dict_abc_class[str_product]].append(
+                    float_margin * dict_target_slack[(str_product, str_week)])
         for str_sku in dict_scenario['skus_of_product'][str_product]:
             for int_shift in range(len(list_shifts)):
                 list_backlog_terms.append(float_margin * dict_backlog[(str_sku, int_shift)])
                 list_cost_terms.append(float_holding_per_shift * dict_inventory[(str_sku, int_shift)])
+                if list_shifts[int_shift]['day_index'] < 1:
+                    list_backlog_segments[0].append(float_margin * dict_backlog[(str_sku, int_shift)])
+                elif list_shifts[int_shift]['day_index'] < 3:
+                    list_backlog_segments[1].append(float_margin * dict_backlog[(str_sku, int_shift)])
+                else:
+                    list_backlog_segments[2].append(float_margin * dict_backlog[(str_sku, int_shift)])
 
     for tuple_key in dict_form_change:
         if dict_form_hours[tuple_key] > 0.0:
@@ -449,10 +467,20 @@ def solve_daily_model(dict_scenario, dict_settings):
 
     list_stage_expressions = [pulp.lpSum(list_backlog_terms), pulp.lpSum(list_target_terms),
                               pulp.lpSum(list_cost_terms)]
+    list_stage_segments = [[], [], []]
+    if dict_settings['business_cascade']:
+        for list_segment_terms in list_backlog_segments:
+            if len(list_segment_terms) > 0:
+                list_stage_segments[0].append(pulp.lpSum(list_segment_terms))
+        for str_class in ['A', 'B', 'C']:
+            if len(dict_target_segments[str_class]) > 0:
+                list_stage_segments[1].append(pulp.lpSum(dict_target_segments[str_class]))
     float_started_at = time.perf_counter()
     str_status, bool_hit_time_limit, list_stage_values, list_stage_reports = solve_lexicographic(
-        problem, list_stage_expressions, dict_settings['daily_solver_name'], int(dict_settings['daily_time_limit']),
-        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'])
+        problem, list_stage_expressions, list_stage_segments, dict_settings['daily_solver_name'],
+        int(dict_settings['daily_time_limit']), dict_settings['threads'], int(dict_settings['solver_seed']),
+        dict_settings['solver_log_file'], float(dict_settings['business_cascade_time_share']),
+        float(dict_settings['business_cascade_tie_breaker']))
     float_solve_seconds = time.perf_counter() - float_started_at
 
     if str_status not in ('Optimal', 'Feasible'):

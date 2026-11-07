@@ -246,7 +246,8 @@ for int_day in range(2):
             'week': pd.Timestamp('2024-01-01'),
         })
 dict_settings = {'annual_holding_rate': 0.25, 'daily_solver_name': 'ORTOOLS',
-                 'daily_time_limit': 60, 'threads': None, 'solver_seed': 0, 'solver_log_file': None}
+                 'daily_time_limit': 60, 'threads': None, 'solver_seed': 0, 'solver_log_file': None,
+                 'business_cascade': True, 'business_cascade_time_share': 0.5, 'business_cascade_tie_breaker': 0.0001}
 str_product = 'A-L'
 list_skus = [f'{str_product}-X', f'{str_product}-Y', f'{str_product}-Z']
 dict_color_setup = complete_setup_matrix({('X', 'Y'): 1.0, ('Y', 'X'): 2.0, ('Y', 'Z'): 1.0, ('Z', 'Y'): 1.0},
@@ -835,6 +836,62 @@ float_short_one = dict_result_one['kpis']['backlog_cost'] + dict_result_one['kpi
 float_short_two = dict_result_two['kpis']['backlog_cost'] + dict_result_two['kpis']['lost_sales_cost']
 check(float_short_two < float_short_one,
       f'com 1 h/turno, duas cores reduzem atraso + venda perdida de {float_short_one:,.0f} para {float_short_two:,.0f}')
+
+
+print('\n== cascata de segmentos: mesmos valores de estagio com e sem a cascata (Gurobi) ==')
+dict_cascade_base = load_settings()
+dict_cascade_base['start_week'] = '2024-01-01'
+dict_cascade_base['weeks_in_plan'] = 8
+dict_cascade_base['weekly_solver_name'] = 'GUROBI'
+dict_cascade_base['daily_solver_name'] = 'GUROBI'
+dict_cascade_base['weekly_time_limit'] = 60
+dict_cascade_base['daily_time_limit'] = 20
+dict_cascade_base['threads'] = 2
+for str_file in ['instance_micro_P2_M3_T8.xlsx', 'instance_pequeno_P4_M6_T13.xlsx']:
+    dict_instance = load_instance(os.path.join(DATA_DIR, str_file))
+    for float_hours in [8.0, 1.0]:
+        dict_results = {}
+        dict_weekly_pure = None
+        for bool_cascade in [False, True]:
+            dict_settings = dict(dict_cascade_base)
+            dict_settings['hours_per_shift'] = float_hours
+            dict_settings['business_cascade'] = bool_cascade
+            dict_weekly = solve_weekly_model(build_weekly_scenario(dict_instance, dict_settings), dict_settings)
+            if not bool_cascade:
+                dict_weekly_pure = dict_weekly
+            dict_results[('semanal', bool_cascade)] = dict_weekly
+            dict_daily_scenario = build_daily_scenario(dict_instance, dict_settings, dict_weekly_pure)
+            dict_results[('diario', bool_cascade)] = solve_daily_model(dict_daily_scenario, dict_settings)
+        for str_model in ['semanal', 'diario']:
+            dict_pure = dict_results[(str_model, False)]
+            dict_cascade = dict_results[(str_model, True)]
+            int_segments_pure = 0
+            int_segments_cascade = 0
+            bool_same_size = len(dict_pure['stage_reports']) == len(dict_cascade['stage_reports'])
+            if bool_same_size:
+                for int_stage in range(len(dict_pure['stage_reports'])):
+                    dict_report_pure = dict_pure['stage_reports'][int_stage]
+                    dict_report_cascade = dict_cascade['stage_reports'][int_stage]
+                    int_segments_pure += len(dict_report_pure['segments'])
+                    int_segments_cascade += len(dict_report_cascade['segments'])
+                    if dict_report_pure['constraints'] != dict_report_cascade['constraints']:
+                        bool_same_size = False
+            check(bool_same_size and int_segments_pure == 0 and int_segments_cascade > 0,
+                  f'{str_file} {float_hours:g} h/turno {str_model}: a cascata roda {int_segments_cascade} '
+                  f'subetapas e o solve exato de cada estagio tem o mesmo numero de restricoes')
+            if dict_pure['status'] == 'Optimal' and dict_cascade['status'] == 'Optimal':
+                bool_agree = len(dict_pure['stage_objectives']) == len(dict_cascade['stage_objectives'])
+                if bool_agree:
+                    for int_stage in range(len(dict_pure['stage_objectives'])):
+                        float_pure = dict_pure['stage_objectives'][int_stage]
+                        float_cascade = dict_cascade['stage_objectives'][int_stage]
+                        if abs(float_pure - float_cascade) > 1e-3 * max(1.0, abs(float_pure)):
+                            bool_agree = False
+                check(bool_agree, f'{str_file} {float_hours:g} h/turno {str_model}: valores de estagio '
+                                  f'{dict_pure["stage_objectives"]} sem e {dict_cascade["stage_objectives"]} com a cascata')
+            else:
+                print(f'  --   {str_file} {float_hours:g} h/turno {str_model}: sem prova de otimalidade '
+                      f'({dict_pure["status"]}, {dict_cascade["status"]}), comparacao omitida')
 
 
 print('\n' + '=' * 60)

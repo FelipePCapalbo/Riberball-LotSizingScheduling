@@ -28,6 +28,24 @@ def complete_setup_matrix(dict_registered, list_items):
     return dict_complete
 
 
+def classify_abc(dict_volume):
+    list_ranked = sorted(dict_volume, key=dict_volume.get, reverse=True)
+    float_total = 0.0
+    for str_product in dict_volume:
+        float_total += dict_volume[str_product]
+    dict_class = {}
+    float_cumulative = 0.0
+    for str_product in list_ranked:
+        if float_cumulative < 0.8 * float_total:
+            dict_class[str_product] = 'A'
+        elif float_cumulative < 0.95 * float_total:
+            dict_class[str_product] = 'B'
+        else:
+            dict_class[str_product] = 'C'
+        float_cumulative += dict_volume[str_product]
+    return dict_class
+
+
 def build_color_reservation(dict_instance):
     list_colors = []
     for str_product in dict_instance['products']:
@@ -193,19 +211,39 @@ def solve_weekly_model(dict_scenario, dict_settings):
             dict_lost[tuple_key] = pulp.LpVariable(f'l_{str_label}', lowBound=0)
             dict_floor_slack[tuple_key] = pulp.LpVariable(f'g_{str_label}', lowBound=0)
 
+    dict_forecast_volume = {}
+    for str_product in list_products:
+        dict_forecast_volume[str_product] = 0.0
+        for timestamp_week in list_weeks:
+            dict_forecast_volume[str_product] += dict_scenario['forecast'][str_product][timestamp_week]
+    dict_abc_class = classify_abc(dict_forecast_volume)
+
     list_backlog_terms = []
     list_lost_terms = []
     list_floor_terms = []
     list_cost_terms = []
+    list_backlog_segments = [[], [], []]
+    dict_lost_segments = {'A': [], 'B': [], 'C': []}
+    dict_floor_segments = {'A': [], 'B': [], 'C': []}
     for str_product in list_products:
         float_margin = dict_scenario['margin'][str_product]
         float_holding_per_week = (float_holding_rate / 52.0) * dict_scenario['unit_cost'][str_product]
+        str_class = dict_abc_class[str_product]
         for int_index in range(len(list_weeks)):
             tuple_key = (str_product, list_weeks[int_index])
             list_backlog_terms.append(float_margin * dict_backlog[tuple_key])
             list_lost_terms.append(float_margin * dict_lost[tuple_key])
             list_floor_terms.append(float_margin * dict_floor_slack[tuple_key])
             list_cost_terms.append(float_holding_per_week * dict_inventory[tuple_key])
+            if int_index < 2:
+                list_backlog_segments[0].append(float_margin * dict_backlog[tuple_key])
+            elif int_index < 6:
+                list_backlog_segments[1].append(float_margin * dict_backlog[tuple_key])
+            else:
+                list_backlog_segments[2].append(float_margin * dict_backlog[tuple_key])
+            dict_lost_segments[str_class].append(float_margin * dict_lost[tuple_key])
+            if dict_scenario['stock_minimum'][str_product] > 0.0:
+                dict_floor_segments[str_class].append(float_margin * dict_floor_slack[tuple_key])
 
     for str_product in list_products:
         float_setup_time = dict_scenario['average_setup'][str_product]
@@ -299,10 +337,22 @@ def solve_weekly_model(dict_scenario, dict_settings):
 
     list_stage_expressions = [pulp.lpSum(list_backlog_terms), pulp.lpSum(list_lost_terms),
                               pulp.lpSum(list_floor_terms), pulp.lpSum(list_cost_terms)]
+    list_stage_segments = [[], [], [], []]
+    if dict_settings['business_cascade']:
+        for list_segment_terms in list_backlog_segments:
+            if len(list_segment_terms) > 0:
+                list_stage_segments[0].append(pulp.lpSum(list_segment_terms))
+        for str_class in ['A', 'B', 'C']:
+            if len(dict_lost_segments[str_class]) > 0:
+                list_stage_segments[1].append(pulp.lpSum(dict_lost_segments[str_class]))
+            if len(dict_floor_segments[str_class]) > 0:
+                list_stage_segments[2].append(pulp.lpSum(dict_floor_segments[str_class]))
     float_started_at = time.perf_counter()
     str_status, bool_hit_time_limit, list_stage_values, list_stage_reports = solve_lexicographic(
-        problem, list_stage_expressions, dict_settings['weekly_solver_name'], int(dict_settings['weekly_time_limit']),
-        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'])
+        problem, list_stage_expressions, list_stage_segments, dict_settings['weekly_solver_name'],
+        int(dict_settings['weekly_time_limit']), dict_settings['threads'], int(dict_settings['solver_seed']),
+        dict_settings['solver_log_file'], float(dict_settings['business_cascade_time_share']),
+        float(dict_settings['business_cascade_tie_breaker']))
     float_solve_seconds = time.perf_counter() - float_started_at
 
     if str_status not in ('Optimal', 'Feasible'):

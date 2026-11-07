@@ -18,6 +18,9 @@ DEFAULT_SETTINGS = {
     'threads': None,
     'solver_seed': 0,
     'solver_log_file': None,
+    'business_cascade': True,
+    'business_cascade_time_share': 0.5,
+    'business_cascade_tie_breaker': 0.0001,
 }
 
 

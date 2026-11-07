@@ -167,9 +167,13 @@ Bucket = turno; dentro de cada turno há `positions_per_shift` posições, que d
   de troca e a sua capacidade de turno; uma troca de cor num lado não para o outro. A troca de forma interrompe a máquina
   inteira e consome os dois lados. No semanal a capacidade é contada em horas-lado: `Σ x/p + (n·τF + τC)·y ≤ n·H`.
 
-O modelo é resolvido como formulado, sem heurística de resolução: o solver recebe o MILP
-completo e um tempo limite. Não há relax-and-fix, fixação parcial nem redução do conjunto de
-SKUs candidatos — o que se reporta é o que o modelo entrega.
+Nesta branch (`exp/cascata-negocio`), cada estágio lexicográfico é precedido por uma cascata de subestágios por
+segmento de negócio, usada só como solução inicial: no atraso, a carteira das semanas (ou dias) mais próximas antes
+da distante; na venda perdida, no piso e na meta, os balões por classe ABC. Cada subestágio minimiza o seu segmento
+com um desempate de custo e trava os anteriores; depois as travas de segmento saem e o estágio original é resolvido
+a partir dessa solução, com as mesmas travas da formulação pura. O problema final é o mesmo do `dev`. Parâmetros em
+`processing/settings.py`: `business_cascade`, `business_cascade_time_share` (0,5) e `business_cascade_tie_breaker`
+(1e-4).
 
 Uma propriedade da formulação mantém o número de binárias baixo: apenas $\nu_{kjsn}$ (SKU na
 posição) é declarada binária. As variáveis de configuração — forma montada, máquina ativa,
