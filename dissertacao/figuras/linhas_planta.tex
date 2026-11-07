@@ -1,0 +1,25 @@
+\begin{tikzpicture}[projecao,scale=0.645,line cap=round]
+  \fill[piso] (-1.0,-1.7,0) -- (17.8,-1.7,0) -- (17.8,11.6,0) -- (-1.0,11.6,0) -- cycle;
+  \desPistaParametros{10.4}{0.085}{0.14}{segundacor}{1}{1}{0}
+  \desMaquinaUmaCor
+  \desDiscoHorizontal{0}{4.8}{1.0}
+  \desPistaParametros{5.8}{0.115}{0.19}{segundacor}{-1}{1}{0}
+  \desPistaTrecho{1}
+  \desPistaParametros{4.8}{0.115}{0.19}{bitcoin}{1}{1}{0}
+  \desPistaTrecho{1}
+  \desPistaParametros{5.8}{0.115}{0.19}{segundacor}{-1}{1}{0}
+  \desPistaTrecho{2}
+  \desPistaParametros{4.8}{0.115}{0.19}{bitcoin}{1}{1}{0}
+  \desPistaTrecho{2}
+  \desEstufaOpaca{4.3}{6.3}
+  \desPistaParametros{5.8}{0.115}{0.19}{segundacor}{-1}{1}{0}
+  \desPistaTrecho{3}
+  \desPistaParametros{4.8}{0.115}{0.19}{bitcoin}{1}{1}{0}
+  \desPistaTrecho{3}
+  \desDiscoHorizontal{17}{4.8}{1.0}
+  \desPistaParametros{0}{0.15}{0.25}{bitcoin}{1}{1}{0}
+  \desMaquinaUmaCor
+  \node[rotulo,anchor=east] at (-0.5,0,\desH+0.3) {Máquina 1\\uma cor};
+  \node[rotulo,anchor=east] at (-0.65,5.3,\desH) {Máquina 2\\duas cores};
+  \node[rotulo,anchor=east] at (-0.5,10.4,\desH+0.3) {Máquina 3\\uma cor};
+\end{tikzpicture}%

@@ -43,7 +43,7 @@ export default function ComparisonTable({ runs, onRefresh, onSelectRun }: Compar
               <tr key={run.id} onClick={() => onSelectRun(run.id)} className="clickable">
                 <td>{run.label}</td>
                 <td>{run.timestamp.replace('T', ' ').slice(0, 16)}</td>
-                <td className="small">{run.data_file}</td>
+                <td className="small">{run.source}</td>
                 <td className="text-end">{fmtN(run.weekly_kpis.total_cost, 0)}</td>
                 <td className="text-end">{fmtN(run.weekly_kpis.order_service_level, 2)}%</td>
                 <td className="text-end">{fmtN(run.weekly_kpis.forecast_service_level, 2)}%</td>

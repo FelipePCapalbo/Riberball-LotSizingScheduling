@@ -1,0 +1,42 @@
+\begin{tikzpicture}[line cap=round,
+    operacao/.style={rectangle,draw=contorno,line width=0.5pt,fill=white,minimum width=2.05cm,minimum height=1.15cm,inner sep=1pt,align=center,font=\footnotesize},
+    gargalo/.style={operacao,draw=bitcoin,line width=1.1pt,fill=bitcoin!12},
+    fluxo/.style={-{Stealth[length=2mm]},draw=contorno,line width=0.6pt}]
+  \def\desLarg{2.05}
+  \def\desVao{0.43}
+  \def\desTri{0.9}
+  \pgfmathsetmacro\desTriAlt{0.866*\desTri}
+  \pgfmathsetmacro\desEntrada{0.25*\desTri}
+  \pgfmathsetmacro\desTa{0.85+0.5*\desTri}
+  \pgfmathsetmacro\desPrimeira{0.85+\desTri+\desVao+0.5*\desLarg}
+  \pgfmathsetmacro\desPasso{\desLarg+\desVao}
+  \foreach \desI/\desNome/\desTexto/\desEstilo in {
+      0/preparo/{Pré-\\vulcanização}/operacao,
+      1/pigmento/{Mistura e\\pigmentação}/operacao,
+      2/moldagem/{Moldagem}/gargalo,
+      3/talco/{Remoção\\de talco}/operacao,
+      4/embalagem/{Embalagem}/operacao} {
+    \node[\desEstilo] (\desNome) at (\desPrimeira+\desI*\desPasso,0) {\desTexto};
+  }
+  \pgfmathsetmacro\desTb{\desPrimeira+4*\desPasso+0.5*\desLarg+\desVao+0.5*\desTri}
+  \foreach \desNome/\desX/\desTexto in {latex/\desTa/{estoque\\de látex},acabado/\desTb/{estoque\\de produto\\acabado}} {
+    \fill[estrutura!45!white,draw=contorno,line width=0.5pt,line join=round] (\desX-0.5*\desTri,0.5*\desTriAlt) -- (\desX+0.5*\desTri,0.5*\desTriAlt) -- (\desX,-0.5*\desTriAlt) -- cycle;
+    \coordinate (\desNome-e) at (\desX-\desEntrada,0);
+    \coordinate (\desNome-s) at (\desX+\desEntrada,0);
+    \node[rotulo,anchor=north] at (\desX,-0.5*\desTriAlt-0.08) {\desTexto};
+  }
+  \draw[fluxo] (0,0) -- (latex-e);
+  \node[rotulo,anchor=south] at (0.38,0.06) {látex};
+  \draw[fluxo] (latex-s) -- (preparo.west);
+  \draw[fluxo] (preparo) -- (pigmento);
+  \draw[fluxo] (pigmento) -- (moldagem);
+  \draw[fluxo] (moldagem) -- (talco);
+  \draw[fluxo] (talco) -- (embalagem);
+  \draw[fluxo] (embalagem.east) -- (acabado-e);
+  \path (pigmento.east) -- (moldagem.west) coordinate[midway] (diferenciacao);
+  \draw[draw=bitcoin,line width=0.8pt,dash pattern=on 3pt off 2pt] ([yshift=-0.575cm]diferenciacao) -- ([yshift=1.2cm]diferenciacao);
+  \node[rotulo,anchor=south,text=bitcoin!85!black] at ([yshift=1.22cm]diferenciacao) {ponto de diferenciação};
+  \node[rotulo,anchor=east,text=contorno] at ([xshift=-4pt,yshift=0.86cm]diferenciacao) {composto genérico};
+  \node[rotulo,anchor=west,text=contorno] at ([xshift=4pt,yshift=0.86cm]diferenciacao) {composto pigmentado};
+  \node[rotulo,anchor=north,text=bitcoin!85!black] at ([yshift=-4pt]moldagem.south) {gargalo: trocas\\de forma e de cor};
+\end{tikzpicture}%

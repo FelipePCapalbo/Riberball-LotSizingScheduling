@@ -1,4 +1,16 @@
-import type { BackendStatus, DailyResult, DataFiles, HistoryRecord, HistoryRun, InitData, Settings, WeeklyResult } from './types';
+import type {
+  BackendStatus,
+  ChangeDecision,
+  DailyResult,
+  HistoryRecord,
+  HistoryRun,
+  InitData,
+  Settings,
+  Snapshots,
+  UploadOutcome,
+  UploadReview,
+  WeeklyResult,
+} from './types';
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -28,15 +40,47 @@ export function getBackendStatus(): Promise<BackendStatus> {
   return requestJson('/api/backend-status');
 }
 
-export function getDataFiles(): Promise<DataFiles> {
-  return requestJson('/api/data-files');
+export function getSnapshots(): Promise<Snapshots> {
+  return requestJson('/api/snapshots');
 }
 
-export function setDataFile(file: string): Promise<{ status: string; file: string }> {
-  return requestJson('/api/set-data-file', {
+export function setActiveSnapshot(snapshotId: number): Promise<{ status: string; active: number }> {
+  return requestJson('/api/snapshots/active', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ file }),
+    body: JSON.stringify({ snapshot_id: snapshotId }),
+  });
+}
+
+export function uploadWorkbook(file: File): Promise<UploadReview> {
+  return requestJson(`/api/uploads?filename=${encodeURIComponent(file.name)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream' },
+    body: file,
+  });
+}
+
+export function applyUpload(uploadId: number, decisions: Record<string, ChangeDecision>): Promise<UploadOutcome> {
+  return requestJson(`/api/uploads/${uploadId}/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decisions }),
+  });
+}
+
+export function discardUpload(uploadId: number): Promise<{ status: string }> {
+  return requestJson(`/api/uploads/${uploadId}/discard`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+}
+
+export function setMachineActive(machine: string, isActive: boolean): Promise<{ status: string }> {
+  return requestJson('/api/machines/active', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ machine, is_active: isActive }),
   });
 }
 
@@ -65,11 +109,11 @@ export function runWeekly(settings: Settings, label: string): Promise<WeeklyResu
   });
 }
 
-export function runDaily(): Promise<DailyResult> {
+export function runDaily(runId: string | undefined): Promise<DailyResult> {
   return requestJson(`/api/run-daily?t=${Date.now()}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ run_id: runId }),
     signal: AbortSignal.timeout(3_600_000),
   });
 }

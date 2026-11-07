@@ -36,7 +36,7 @@ export default function OrdersTable({ data }: OrdersTableProps) {
           onClick={() =>
             downloadCSV(
               rows,
-              ['Data', 'Turno', 'SKU', 'Carteira vencendo', 'Entregue', 'Em atraso', 'Previsao', 'Venda perdida', 'Estoque'],
+              ['Data', 'Turno', 'SKU', 'Carteira vencendo', 'Entregue', 'Em atraso', 'Estoque'],
               (row) => [
                 formatDate(row.date),
                 row.shift,
@@ -44,8 +44,6 @@ export default function OrdersTable({ data }: OrdersTableProps) {
                 fmtCSV(row.orders),
                 fmtCSV(row.delivered_orders),
                 fmtCSV(row.backlog),
-                fmtCSV(row.forecast),
-                fmtCSV(row.lost),
                 fmtCSV(row.inventory),
               ],
               'carteira_por_turno.csv',
@@ -65,8 +63,6 @@ export default function OrdersTable({ data }: OrdersTableProps) {
               <th className="text-end">Vencendo</th>
               <th className="text-end">Entregue</th>
               <th className="text-end">Em atraso</th>
-              <th className="text-end">Previsão</th>
-              <th className="text-end">Perdida</th>
               <th className="text-end">Estoque</th>
               <th>Situação</th>
             </tr>
@@ -80,8 +76,6 @@ export default function OrdersTable({ data }: OrdersTableProps) {
                 <td className="text-end">{fmtN(row.orders, 0)}</td>
                 <td className="text-end">{fmtN(row.delivered_orders, 0)}</td>
                 <td className={row.backlog > 0.5 ? 'text-end cell-bad' : 'text-end'}>{fmtN(row.backlog, 0)}</td>
-                <td className="text-end">{fmtN(row.forecast, 0)}</td>
-                <td className={row.lost > 0.5 ? 'text-end cell-warn' : 'text-end'}>{fmtN(row.lost, 0)}</td>
                 <td className="text-end">{fmtN(row.inventory, 0)}</td>
                 <td>{row.backlog > 0.5 ? 'Em atraso' : 'No prazo'}</td>
               </tr>

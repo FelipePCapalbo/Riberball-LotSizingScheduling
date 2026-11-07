@@ -1,0 +1,330 @@
+\definecolor{segundacor}{HTML}{3B6EA5}
+\definecolor{formanua}{HTML}{CBD0D6}
+\definecolor{coagulante}{HTML}{E2E5E8}
+\definecolor{agua}{HTML}{CFE4F2}
+\definecolor{talco}{HTML}{FAFAFA}
+\definecolor{estrutura}{HTML}{C4C8CC}
+\definecolor{estufacor}{HTML}{B9BEC4}
+\definecolor{piso}{HTML}{F1F2F3}
+\definecolor{contorno}{HTML}{5F656B}
+
+\tikzset{
+  projecao/.style={x={(0.9397cm,-0.1710cm)},y={(0.3420cm,0.4698cm)},z={(0cm,0.8660cm)}},
+  aresta/.style={draw=contorno,line width=0.3pt,line join=round},
+  corrente/.style={draw=black!60,line width=0.7pt,line join=round},
+  haste/.style={draw=black!50,line width=0.35pt},
+  chamada/.style={draw=contorno!70,line width=0.3pt,dash pattern=on 1.2pt off 1.2pt},
+  numero/.style={circle,draw=bitcoin,line width=0.6pt,fill=white,inner sep=0pt,minimum size=3.6mm,font=\scriptsize},
+  rotulo/.style={font=\footnotesize,align=center,inner sep=1pt},
+  sentido/.style={-{Stealth[length=2mm]},draw=bitcoin,line width=0.8pt},
+}
+
+\def\desH{2.3}
+\def\desHb{1.25}
+\def\desD{0.6}
+\def\desBorda{1.0}
+\def\desNivel{0.93}
+\def\desPendente{0.37}
+
+\newcommand{\desNumTexto}[1]{\tikz[baseline=(n.base)]\node[numero](n){#1};}
+
+\newcommand{\desLegenda}{%
+  \node[rotulo,anchor=north,text width=15.2cm,align=center] at ([yshift=-4pt]current bounding box.south) {%
+    \desNumTexto{1}~banho de coagulante\quad
+    \desNumTexto{2}~tanque de composto\quad
+    \desNumTexto{3}~banho de talco\quad
+    \desNumTexto{4}~estufa de vulcanização\\[2pt]
+    \desNumTexto{5}~lavagem em água quente\quad
+    \desNumTexto{6}~enrolamento da boca\quad
+    \desNumTexto{7}~extração por ar e contêiner};
+}
+
+\newcommand{\desCaixa}[7]{%
+  \fill[#7,aresta] (#1,#2,#3) -- (#1+#4,#2,#3) -- (#1+#4,#2,#3+#6) -- (#1,#2,#3+#6) -- cycle;
+  \fill[#7!78!black,aresta] (#1+#4,#2,#3) -- (#1+#4,#2+#5,#3) -- (#1+#4,#2+#5,#3+#6) -- (#1+#4,#2,#3+#6) -- cycle;
+  \fill[#7!45!white,aresta] (#1,#2,#3+#6) -- (#1+#4,#2,#3+#6) -- (#1+#4,#2+#5,#3+#6) -- (#1,#2+#5,#3+#6) -- cycle;
+}
+
+\newcommand{\desForma}[6]{%
+  \pgfmathsetmacro\desFv{sqrt(0.75*(#5)*(#5)+0.25*(#4)*(#4))}%
+  \pgfmathsetmacro\desFr{0.34*(#4)}%
+  \pgfmathsetmacro\desFg{0.866*((#5)*0.8)}%
+  \pgfmathsetmacro\desFt{0.866*((#5)+0.12)}%
+  \pgfmathsetmacro\desFs{0.866*((#5)+\desPendente)}%
+  \begin{scope}[shift={(#1,#2,#3)},x={(1cm,0cm)},y={(0cm,1cm)}]
+    \draw[haste] (0,\desFt) -- (0,\desFs);
+    \fill[#6,draw=#6!55!black,line width=0.3pt] (-\desFr,\desFg) rectangle (\desFr,\desFt);
+    \fill[#6!65!white,draw=#6!55!black,line width=0.25pt] (0,\desFt) ellipse[x radius=\desFr,y radius=0.5*\desFr];
+    \fill[#6,draw=#6!55!black,line width=0.3pt] (0,0) ellipse[x radius=#4,y radius=\desFv];
+    \fill[white,opacity=0.35] (-0.38*#4,0.36*\desFv) ellipse[x radius=0.26*#4,y radius=0.2*\desFv];
+  \end{scope}%
+}
+
+\newcommand{\desAnel}[5]{%
+  \pgfmathsetmacro\desFr{0.34*(#4)}%
+  \pgfmathsetmacro\desFg{0.866*((#5)*0.8)}%
+  \begin{scope}[shift={(#1,#2,#3)},x={(1cm,0cm)},y={(0cm,1cm)}]
+    \fill[\pCor!45!black] (0,\desFg+0.015) ellipse[x radius=1.7*\desFr,y radius=0.75*\desFr];
+  \end{scope}%
+}
+
+\newcommand{\desFormaInvertida}[6]{%
+  \pgfmathsetmacro\desFv{sqrt(0.75*(#5)*(#5)+0.25*(#4)*(#4))}%
+  \pgfmathsetmacro\desFr{0.34*(#4)}%
+  \pgfmathsetmacro\desFg{0.866*((#5)*0.8)}%
+  \pgfmathsetmacro\desFt{0.866*((#5)+0.12)}%
+  \pgfmathsetmacro\desFs{0.866*((#5)+\desPendente)}%
+  \begin{scope}[shift={(#1,#2,#3+\desPendente+#5)},x={(1cm,0cm)},y={(0cm,1cm)}]
+    \draw[haste] (0,-\desFt) -- (0,-\desFs);
+    \fill[#6,draw=#6!55!black,line width=0.3pt] (-\desFr,-\desFt) rectangle (\desFr,-\desFg);
+    \fill[#6,draw=#6!55!black,line width=0.3pt] (0,0) ellipse[x radius=#4,y radius=\desFv];
+    \fill[white,opacity=0.35] (-0.38*#4,0.36*\desFv) ellipse[x radius=0.26*#4,y radius=0.2*\desFv];
+  \end{scope}%
+}
+
+\newcommand{\desBalaoSolto}[5]{%
+  \begin{scope}[shift={(#1,#2,#3)},x={(1cm,0cm)},y={(0cm,1cm)},rotate=#4]
+    \fill[#5,draw=#5!55!black,line width=0.25pt] (-0.05,0) .. controls (-0.05,0.075) and (0.13,0.07) .. (0.2,0.018) -- (0.25,0.016) -- (0.25,-0.016) -- (0.2,-0.018) .. controls (0.13,-0.07) and (-0.05,-0.075) .. (-0.05,0) -- cycle;
+    \fill[#5!55!black] (0.262,0) ellipse[x radius=0.018,y radius=0.03];
+    \fill[white,opacity=0.35] (0.03,0.025) ellipse[x radius=0.05,y radius=0.015];
+  \end{scope}%
+}
+
+\newcommand{\desPistaParametros}[7]{%
+  \def\pY{#1}\def\pA{#2}\def\pC{#3}\def\pCor{#4}\def\pDir{#5}\def\pContainer{#6}\def\pCorte{#7}%
+  \pgfmathsetmacro\pYa{#1-#2-0.1}%
+  \pgfmathsetmacro\pYb{#1+#2+0.1}%
+  \pgfmathsetmacro\pFundo{\desHb-\desPendente-2*(#3)-0.12}%
+}
+
+\newcommand{\desTanqueFundo}[2]{%
+  \fill[estrutura,aresta] (#1+0.1,\pYa+0.06,0) -- (#2-0.1,\pYa+0.06,0) -- (#2-0.1,\pYa+0.06,\pFundo) -- (#1+0.1,\pYa+0.06,\pFundo) -- cycle;
+  \fill[estrutura!78!black,aresta] (#2-0.1,\pYa+0.06,0) -- (#2-0.1,\pYb-0.06,0) -- (#2-0.1,\pYb-0.06,\pFundo) -- (#2-0.1,\pYa+0.06,\pFundo) -- cycle;
+  \fill[estrutura!62!black,aresta] (#1,\pYb,\pFundo) -- (#2,\pYb,\pFundo) -- (#2,\pYb,\desBorda) -- (#1,\pYb,\desBorda) -- cycle;
+  \fill[estrutura!70!black,aresta] (#1,\pYa,\pFundo) -- (#1,\pYb,\pFundo) -- (#1,\pYb,\desBorda) -- (#1,\pYa,\desBorda) -- cycle;
+}
+
+\newcommand{\desTanqueSuperficie}[5]{%
+  \fill[#3,draw=#3!65!black,line width=0.3pt] (#1,\pYa,\desNivel) -- (#2,\pYa,\desNivel) -- (#2,\pYb,\desNivel) -- (#1,\pYb,\desNivel) -- cycle;
+  \foreach \desM in {#4,...,#5} {
+    \draw[haste] (0.5*\desM,\pY,\desNivel) -- (0.5*\desM,\pY,\desHb);
+  }
+}
+
+\newcommand{\desTanqueFrente}[2]{%
+  \fill[estrutura,aresta] (#1,\pYa,\pFundo) -- (#2,\pYa,\pFundo) -- (#2,\pYa,\desBorda) -- (#1,\pYa,\desBorda) -- cycle;
+  \fill[estrutura!78!black,aresta] (#2,\pYa,\pFundo) -- (#2,\pYb,\pFundo) -- (#2,\pYb,\desBorda) -- (#2,\pYa,\desBorda) -- cycle;
+  \draw[contorno,line width=0.55pt,line join=round] (#1,\pYa,\desBorda) -- (#2,\pYa,\desBorda) -- (#2,\pYb,\desBorda);
+}
+
+\newcommand{\desTanque}[5]{%
+  \desTanqueFundo{#1}{#2}
+  \desFormasPista{#4}{#5}
+  \desTanqueSuperficie{#1}{#2}{#3}{#4}{#5}
+}
+
+\newcommand{\desProcesso}[1]{%
+  \pgfmathtruncatemacro\desK{\pDir==1 ? #1 : 34-#1}%
+}
+
+\newcommand{\desMergulho}[1]{%
+  \desProcesso{#1}%
+  \pgfmathtruncatemacro\desMerg{(\desK>2.5)*(\desK<4.5)+(\desK>5.5)*(\desK<9.5)+(\desK>10.5)*(\desK<12.5)+(\desK>21.5)*(\desK<23.5)}%
+}
+
+\newcommand{\desFormasPista}[2]{%
+  \foreach \desM in {#1,...,#2} {
+    \desMergulho{\desM}
+    \pgfmathtruncatemacro\desVest{(\desK>5.5)*(\desK<31.5)}
+    \pgfmathtruncatemacro\desComAnel{(\desK>27.5)*(\desK<31.5)}
+    \pgfmathsetmacro\desZc{(\desMerg==1 ? \desHb : \desH)-\desPendente-\pC}
+    \ifnum\desVest=1
+      \desForma{0.5*\desM}{\pY}{\desZc}{\pA}{\pC}{\pCor}
+      \ifnum\desComAnel=1
+        \desAnel{0.5*\desM}{\pY}{\desZc}{\pA}{\pC}
+      \fi
+    \else
+      \desForma{0.5*\desM}{\pY}{\desZc}{\pA}{\pC}{formanua}
+    \fi
+  }
+}
+
+\newcommand{\desCorrente}[2]{%
+  \foreach \desM in {#1,...,#2} {
+    \pgfmathtruncatemacro\desMm{\desM+1}
+    \desMergulho{\desM}
+    \pgfmathsetmacro\desZa{\desMerg==1 ? \desHb : \desH}
+    \desMergulho{\desMm}
+    \pgfmathsetmacro\desZb{\desMerg==1 ? \desHb : \desH}
+    \draw[corrente] (0.5*\desM,\pY,\desZa) -- (0.5*\desM+0.05,\pY,\desZa) -- (0.5*\desM+0.45,\pY,\desZb) -- (0.5*\desM+0.5,\pY,\desZb);
+  }
+}
+
+\newcommand{\desRolo}[5]{%
+  \pgfmathsetmacro\desRy{0.524*(#5)}%
+  \pgfmathsetmacro\desRz{0.852*(#5)}%
+  \fill[estrutura!85!black,aresta] (#1,#3+\desRy,#4+\desRz) -- (#2,#3+\desRy,#4+\desRz) -- (#2,#3-\desRy,#4-\desRz) -- (#1,#3-\desRy,#4-\desRz) -- cycle;
+  \begin{scope}[canvas is yz plane at x=#2]
+    \fill[estrutura!60!white,aresta] (#3,#4) circle (#5);
+    \fill[contorno] (#3,#4) circle (0.025);
+    \draw[-{Stealth[length=1.3mm]},draw=bitcoin,line width=0.5pt] (#3,#4) ++(80:1.7*#5) arc[start angle=80,end angle=-190,radius=1.7*#5];
+  \end{scope}
+}
+
+\newcommand{\desExtracao}[1]{%
+  \desCaixa{#1-0.1}{\pY-0.12}{0}{0.2}{0.24}{0.8}{estrutura}
+  \desCaixa{#1-0.25}{\pY-0.14}{0.8}{0.5}{0.28}{0.14}{estrutura}
+  \foreach \desX in {-0.13,0,0.13} {
+    \draw[-{Stealth[length=1.2mm]},draw=contorno,line width=0.4pt] (#1+\desX,\pY,0.96) -- (#1+\desX,\pY,1.22);
+  }
+}
+
+\newcommand{\desContainer}[3]{%
+  \fill[estrutura!62!black,aresta] (#1,#3,0) -- (#2,#3,0) -- (#2,#3,0.5) -- (#1,#3,0.5) -- cycle;
+  \fill[estrutura!70!black,aresta] (#1,#3-0.7,0) -- (#1,#3,0) -- (#1,#3,0.5) -- (#1,#3-0.7,0.5) -- cycle;
+  \fill[\pCor!40!white,draw=\pCor!60!black,line width=0.3pt] (#1,#3-0.7,0.36) -- (#2,#3-0.7,0.36) -- (#2,#3,0.36) -- (#1,#3,0.36) -- cycle;
+  \foreach \desBx/\desBy/\desBa in {0.3/0.5/20,0.65/0.3/-35,1.0/0.52/160,0.5/0.12/-150,0.95/0.15/10} {
+    \desBalaoSolto{#1+\desBx}{#3-0.7+\desBy}{0.38}{\desBa}{\pCor}
+  }
+  \fill[estrutura,aresta] (#1,#3-0.7,0) -- (#2,#3-0.7,0) -- (#2,#3-0.7,0.5) -- (#1,#3-0.7,0.5) -- cycle;
+  \fill[estrutura!78!black,aresta] (#2,#3-0.7,0) -- (#2,#3,0) -- (#2,#3,0.5) -- (#2,#3-0.7,0.5) -- cycle;
+  \draw[contorno,line width=0.55pt,line join=round] (#1,#3-0.7,0.5) -- (#2,#3-0.7,0.5) -- (#2,#3,0.5);
+}
+
+\newcommand{\desPistaTrecho}[1]{%
+  \ifnum\pDir=1
+    \ifcase#1
+    \or
+      \desTanque{1.25}{2.25}{coagulante}{3}{4}
+      \desTanque{2.75}{4.75}{\pCor}{6}{9}
+      \desTanque{5.25}{6.25}{talco}{11}{12}
+      \desFormasPista{1}{2}
+      \desFormasPista{5}{5}
+      \desFormasPista{10}{10}
+      \desFormasPista{13}{13}
+      \draw[corrente] (0,\pY,\desH) -- (0.5,\pY,\desH);
+      \desCorrente{1}{12}
+      \draw[corrente] (6.5,\pY,\desH) -- (6.8,\pY,\desH);
+      \desTanqueFrente{1.25}{2.25}
+      \desTanqueFrente{2.75}{4.75}
+      \desTanqueFrente{5.25}{6.25}
+    \or
+      \desFormasPista{14}{20}
+      \draw[corrente] (6.75,\pY,\desH) -- (10.25,\pY,\desH);
+    \or
+      \desExtracao{15.75}
+      \desTanque{10.75}{11.75}{agua}{22}{23}
+      \desFormasPista{21}{21}
+      \desFormasPista{24}{33}
+      \draw[corrente] (10.2,\pY,\desH) -- (10.5,\pY,\desH);
+      \desCorrente{21}{32}
+      \draw[corrente] (16.5,\pY,\desH) -- (17,\pY,\desH);
+      \desTanqueFrente{10.75}{11.75}
+      \pgfmathsetmacro\desYrolo{\pY-\pA-0.13}
+      \desRolo{13.0}{14.0}{\desYrolo}{\desH-0.31}{0.09}
+      \ifnum\pContainer=1
+        \desContainer{15.1}{16.4}{\pY-0.65}
+      \fi
+    \fi
+  \else
+    \ifcase#1
+    \or
+      \ifnum\pContainer=1
+        \desContainer{0.6}{1.9}{\pY+1.35}
+      \fi
+      \pgfmathsetmacro\desYrolo{\pY+\pA+0.13}
+      \desRolo{3.0}{4.0}{\desYrolo}{\desH-0.31}{0.09}
+      \desExtracao{1.25}
+      \desTanque{5.25}{6.25}{agua}{11}{12}
+      \desFormasPista{1}{10}
+      \desFormasPista{13}{13}
+      \draw[corrente] (0,\pY,\desH) -- (0.5,\pY,\desH);
+      \desCorrente{1}{12}
+      \draw[corrente] (6.5,\pY,\desH) -- (6.8,\pY,\desH);
+      \desTanqueFrente{5.25}{6.25}
+    \or
+      \desFormasPista{14}{20}
+      \draw[corrente] (6.75,\pY,\desH) -- (10.25,\pY,\desH);
+    \or
+      \desTanque{10.75}{11.75}{talco}{22}{23}
+      \desTanque{12.25}{14.25}{\pCor}{25}{28}
+      \desTanque{14.75}{15.75}{coagulante}{30}{31}
+      \desFormasPista{21}{21}
+      \desFormasPista{24}{24}
+      \desFormasPista{29}{29}
+      \desFormasPista{32}{33}
+      \draw[corrente] (10.2,\pY,\desH) -- (10.5,\pY,\desH);
+      \desCorrente{21}{32}
+      \draw[corrente] (16.5,\pY,\desH) -- (17,\pY,\desH);
+      \desTanqueFrente{10.75}{11.75}
+      \desTanqueFrente{12.25}{14.25}
+      \desTanqueFrente{14.75}{15.75}
+    \fi
+  \fi
+}
+
+\newcommand{\desPoste}[2]{%
+  \fill[estrutura,aresta] (#1-0.05,#2-0.05,0) -- (#1+0.05,#2-0.05,0) -- (#1+0.05,#2-0.05,\desH) -- (#1-0.05,#2-0.05,\desH) -- cycle;
+  \fill[estrutura!78!black,aresta] (#1+0.05,#2-0.05,0) -- (#1+0.05,#2+0.05,0) -- (#1+0.05,#2+0.05,\desH) -- (#1+0.05,#2-0.05,\desH) -- cycle;
+}
+
+\newcommand{\desRodaVertical}[1]{%
+  \desPoste{#1}{\pY}
+  \begin{scope}[canvas is xz plane at y=\pY]
+    \fill[estrutura!60!white,draw=black!60,line width=0.7pt] (#1,\desH+0.5*\desD) circle (0.5*\desD);
+    \foreach \desAng in {0,60,120} {
+      \draw[contorno,line width=0.4pt] (#1,\desH+0.5*\desD) ++(\desAng:0.42*\desD) -- ++(\desAng+180:0.84*\desD);
+    }
+    \fill[contorno] (#1,\desH+0.5*\desD) circle (0.05);
+  \end{scope}
+}
+
+\newcommand{\desRetornoVertical}{%
+  \draw[corrente] (0,\pY,\desH+\desD) -- (17,\pY,\desH+\desD);
+  \foreach \desM in {1,...,33} {
+    \desFormaInvertida{0.5*\desM}{\pY}{\desH+\desD}{\pA}{\pC}{formanua}
+  }
+}
+
+\newcommand{\desDiscoHorizontal}[3]{%
+  \desPoste{#1}{#2+0.5*#3}
+  \begin{scope}[canvas is xy plane at z=\desH]
+    \fill[estrutura!60!white,draw=black!60,line width=0.7pt] (#1,#2+0.5*#3) circle (0.5*#3);
+    \fill[contorno] (#1,#2+0.5*#3) circle (0.05);
+  \end{scope}
+}
+
+\newcommand{\desEstufaOpaca}[2]{%
+  \pgfmathsetmacro\desEy{(#2)-(#1)}%
+  \desCaixa{6.75}{#1}{0}{3.5}{\desEy}{2.75}{estufacor}
+}
+
+\newcommand{\desEstufaFundo}[2]{%
+  \fill[estufacor!70!black,aresta] (6.75,#2,0) -- (10.25,#2,0) -- (10.25,#2,2.75) -- (6.75,#2,2.75) -- cycle;
+  \fill[estufacor!80!black,aresta] (6.75,#1,0) -- (6.75,#2,0) -- (6.75,#2,2.75) -- (6.75,#1,2.75) -- cycle;
+  \fill[estufacor!60!black] (6.75,#1,0) -- (10.25,#1,0) -- (10.25,#2,0) -- (6.75,#2,0) -- cycle;
+}
+
+\newcommand{\desEstufaFrente}[2]{%
+  \fill[estufacor,opacity=0.22] (6.75,#1,0) -- (10.25,#1,0) -- (10.25,#1,2.75) -- (6.75,#1,2.75) -- cycle;
+  \fill[estufacor!78!black,opacity=0.55] (10.25,#1,0) -- (10.25,#2,0) -- (10.25,#2,2.75) -- (10.25,#1,2.75) -- cycle;
+  \fill[estufacor!45!white,aresta] (6.75,#1,2.75) -- (10.25,#1,2.75) -- (10.25,#2,2.75) -- (6.75,#2,2.75) -- cycle;
+  \draw[contorno,line width=0.4pt,dash pattern=on 2pt off 1.5pt] (6.75,#1,0) -- (10.25,#1,0) -- (10.25,#1,2.75) (6.75,#1,0) -- (6.75,#1,2.75);
+  \draw[aresta] (10.25,#1,0) -- (10.25,#2,0) -- (10.25,#2,2.75);
+}
+
+\newcommand{\desMaquinaUmaCor}{%
+  \desRodaVertical{0}
+  \desPistaTrecho{1}
+  \ifnum\pCorte=1
+    \desEstufaFundo{\pY-0.5}{\pY+0.5}
+    \desPistaTrecho{2}
+    \desEstufaFrente{\pY-0.5}{\pY+0.5}
+  \else
+    \desPistaTrecho{2}
+    \desEstufaOpaca{\pY-0.5}{\pY+0.5}
+  \fi
+  \desPistaTrecho{3}
+  \desRetornoVertical
+  \desRodaVertical{17}
+}

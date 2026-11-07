@@ -139,6 +139,14 @@ export default function GanttChart({ data, hoursPerShift, shiftsPerDay }: GanttC
                   let cursor = 0;
                   return cell.flatMap((row) => {
                     const segments: ReactElement[] = [];
+                    let previousForm = row.previous_form;
+                    if (previousForm === '0') {
+                      previousForm = 'forma inicial desconhecida';
+                    }
+                    let previousColor = row.previous_color;
+                    if (previousColor === '0') {
+                      previousColor = 'cor inicial desconhecida';
+                    }
                     const push = (hours: number, fill: string, kind: string) => {
                       if (hours <= 0) {
                         return;
@@ -163,10 +171,10 @@ export default function GanttChart({ data, hoursPerShift, shiftsPerDay }: GanttC
                                 `${row.product} — ${row.color}`,
                                 `${fmtN(row.kg, 0)} kg em ${fmtN(row.production_hours, 2)} h`,
                                 row.form_setup_hours > 0
-                                  ? `Setup de forma ${fmtN(row.form_setup_hours, 2)} h (de ${row.previous_form})`
+                                  ? `Setup de forma ${fmtN(row.form_setup_hours, 2)} h (de ${previousForm})`
                                   : '',
                                 row.color_setup_hours > 0
-                                  ? `Setup de cor ${fmtN(row.color_setup_hours, 2)} h (de ${row.previous_color})`
+                                  ? `Setup de cor ${fmtN(row.color_setup_hours, 2)} h (de ${previousColor})`
                                   : '',
                               ].filter((line) => line !== ''),
                             })

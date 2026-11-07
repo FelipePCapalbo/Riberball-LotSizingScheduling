@@ -4,6 +4,7 @@ import BackendStatusBadge from './components/BackendStatusBadge';
 import KpiBar from './components/KpiBar';
 import Sidebar from './components/Sidebar/Sidebar';
 import Tabs from './components/Tabs';
+import UploadReviewPanel from './components/UploadReviewPanel';
 import GanttChart from './components/charts/GanttChart';
 import InventoryTargetChart from './components/charts/InventoryTargetChart';
 import MachineSetupChart from './components/charts/MachineSetupChart';
@@ -14,9 +15,28 @@ import OrdersTable from './components/tables/OrdersTable';
 import WeeklyPlanTable from './components/tables/WeeklyPlanTable';
 import { ENVIRONMENT } from './environment';
 import { fmtN } from './format';
-import type { BackendState, DailyResult, HistoryRun, Settings, WeeklyResult } from './types';
+import type {
+  BackendState,
+  ChangeDecision,
+  DailyResult,
+  HistoryRun,
+  Settings,
+  SequencingViolations,
+  SnapshotRow,
+  StageReport,
+  UploadReview,
+  WeeklyResult,
+} from './types';
 
 const BACKEND_POLL_INTERVAL_MS = 3000;
+
+const SEQUENCING_CONSTRAINTS: { key: keyof SequencingViolations; label: string; unit: string; decimals: number }[] = [
+  { key: 'seq_capacidade', label: 'Capacidade do turno', unit: 'h acima', decimals: 2 },
+  { key: 'seq_forma', label: 'Produção sem a forma montada', unit: 'kg', decimals: 0 },
+  { key: 'seq_lote', label: 'Lote mínimo', unit: 'kg abaixo', decimals: 0 },
+  { key: 'seq_antecipacao', label: 'Produção acumulada abaixo do plano (total igual no último turno)', unit: 'kg·turno', decimals: 0 },
+  { key: 'seq_armazem', label: 'Capacidade do armazém', unit: 'kg·turno acima', decimals: 0 },
+];
 
 const DEFAULT_SETTINGS: Settings = {
   start_week: null,
@@ -25,23 +45,37 @@ const DEFAULT_SETTINGS: Settings = {
   shifts_per_day: 3,
   hours_per_shift: 8,
   working_days_per_week: 6,
-  active_machines: [],
-  setup_hourly_cost_default: 250,
-  setup_hourly_cost_by_machine: {},
+  warehouse_capacity_kg: null,
   annual_holding_rate: 0.25,
   weekly_solver_name: 'ORTOOLS',
   weekly_time_limit: 300,
   daily_solver_name: 'ORTOOLS',
   daily_time_limit: 600,
-  positions_per_shift: 3,
   threads: null,
 };
 
+function failedStageText(stageReports: StageReport[] | undefined): string {
+  let text = '';
+  if (stageReports) {
+    for (const report of stageReports) {
+      if (text === '' && report.status !== 'Optimal' && report.status !== 'Feasible') {
+        text = ` (estágio ${report.stage}: ${report.status})`;
+      }
+    }
+  }
+  return text;
+}
+
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [dataFiles, setDataFiles] = useState<string[]>([]);
-  const [activeDataFile, setActiveDataFile] = useState<string | null>(null);
+  const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
+  const [activeSnapshotId, setActiveSnapshotId] = useState<number | null>(null);
+  const [dataSource, setDataSource] = useState<string | null>(null);
   const [machines, setMachines] = useState<string[]>([]);
+  const [activeMachines, setActiveMachines] = useState<string[]>([]);
+  const [uploadReview, setUploadReview] = useState<UploadReview | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [applyingUpload, setApplyingUpload] = useState(false);
   const [weeks, setWeeks] = useState<string[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [scenarioLabel, setScenarioLabel] = useState('');
@@ -56,14 +90,19 @@ export default function App() {
   const [backendMachine, setBackendMachine] = useState<string | undefined>(undefined);
 
   const reloadInitData = async () => {
+    const snapshotList = await api.getSnapshots();
     const init = await api.getInitData();
     const loaded = await api.getSettings();
+    setSnapshots(snapshotList.snapshots);
+    setActiveSnapshotId(snapshotList.active);
+    setDataSource(init.source);
     setMachines(init.machines);
+    setActiveMachines(init.active_machines);
     setWeeks(init.weeks);
     setSettings((prev) => {
       const merged = { ...prev, ...loaded };
-      if (!merged.active_machines || merged.active_machines.length === 0) {
-        merged.active_machines = init.machines.slice();
+      if (init.weeks.length > 0 && (!merged.start_week || !init.weeks.includes(merged.start_week))) {
+        merged.start_week = init.weeks[0];
       }
       if (!merged.start_week && init.weeks.length > 0) {
         merged.start_week = init.weeks[0];
@@ -118,10 +157,7 @@ export default function App() {
       if (backendIsReady && !loaded && !loadInFlight && !cancelled) {
         loadInFlight = true;
         try {
-          const files = await api.getDataFiles();
           if (!cancelled) {
-            setDataFiles(files.files);
-            setActiveDataFile(files.active);
             await reloadInitData();
           }
           loaded = true;
@@ -148,16 +184,83 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDataFileChange = async (file: string) => {
-    setStatusText('Carregando arquivo...');
+  const handleSnapshotChange = async (snapshotId: number) => {
+    setStatusText('Carregando fotografia...');
     setStatusTone('neutral');
     try {
-      await api.setDataFile(file);
-      setActiveDataFile(file);
+      await api.setActiveSnapshot(snapshotId);
       await reloadInitData();
       setStatusText('');
     } catch (err) {
-      setStatusText(`Erro ao carregar arquivo: ${(err as Error).message}`);
+      setStatusText(`Erro ao carregar fotografia: ${(err as Error).message}`);
+      setStatusTone('bad');
+    }
+  };
+
+  const handleUploadFile = async (file: File) => {
+    setUploading(true);
+    setStatusText(`Lendo ${file.name}...`);
+    setStatusTone('neutral');
+    try {
+      setUploadReview(await api.uploadWorkbook(file));
+      setStatusText('');
+    } catch (err) {
+      setStatusText(`Erro ao ler o Excel: ${(err as Error).message}`);
+      setStatusTone('bad');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleApplyUpload = async (decisions: Record<string, ChangeDecision>) => {
+    if (uploadReview) {
+      setApplyingUpload(true);
+      try {
+        const outcome = await api.applyUpload(uploadReview.upload_id, decisions);
+        setUploadReview(null);
+        await reloadInitData();
+        setStatusText(`Upload aplicado: ${outcome.applied} mudanças gravadas, ${outcome.rejected} rejeitadas.`);
+        setStatusTone('good');
+      } catch (err) {
+        setStatusText(`Erro ao aplicar o upload: ${(err as Error).message}`);
+        setStatusTone('bad');
+      } finally {
+        setApplyingUpload(false);
+      }
+    }
+  };
+
+  const handleDiscardUpload = async () => {
+    if (uploadReview) {
+      try {
+        await api.discardUpload(uploadReview.upload_id);
+        setStatusText('Upload descartado; o cadastro não mudou.');
+        setStatusTone('neutral');
+      } catch (err) {
+        setStatusText(`Erro ao descartar o upload: ${(err as Error).message}`);
+        setStatusTone('bad');
+      }
+      setUploadReview(null);
+    }
+  };
+
+  const handleMachineToggle = async (machine: string) => {
+    const isActive = !activeMachines.includes(machine);
+    const next: string[] = [];
+    for (const candidate of machines) {
+      if (candidate === machine) {
+        if (isActive) {
+          next.push(candidate);
+        }
+      } else if (activeMachines.includes(candidate)) {
+        next.push(candidate);
+      }
+    }
+    setActiveMachines(next);
+    try {
+      await api.setMachineActive(machine, isActive);
+    } catch (err) {
+      setStatusText(`Erro ao gravar a máquina: ${(err as Error).message}`);
       setStatusTone('bad');
     }
   };
@@ -171,7 +274,12 @@ export default function App() {
   };
 
   const handleRun = async () => {
-    if (settings.active_machines.length === 0) {
+    if (activeSnapshotId === null) {
+      setStatusText('Suba um Excel com os dados antes de executar.');
+      setStatusTone('bad');
+      return;
+    }
+    if (activeMachines.length === 0) {
       setStatusText('Selecione ao menos uma máquina.');
       setStatusTone('bad');
       return;
@@ -183,17 +291,17 @@ export default function App() {
     try {
       const weeklyResult = await api.runWeekly(settings, scenarioLabel.trim());
       if (weeklyResult.status !== 'Optimal' && weeklyResult.status !== 'Feasible') {
-        setStatusText(`Plano semanal: ${weeklyResult.status} — ${weeklyResult.message ?? ''}`);
+        setStatusText(`Plano semanal: ${weeklyResult.status}${failedStageText(weeklyResult.stage_reports)} — ${weeklyResult.message ?? ''}`);
         setStatusTone('bad');
         return;
       }
       setWeekly(weeklyResult);
       setMainTab('weekly');
       setStatusText('Etapa 2 de 2 — programando os turnos...');
-      const dailyResult = await api.runDaily();
+      const dailyResult = await api.runDaily(weeklyResult.run_id);
       if (dailyResult.status !== 'Optimal' && dailyResult.status !== 'Feasible') {
         setDaily(null);
-        setStatusText(`Semanal OK; programação por turno: ${dailyResult.status}`);
+        setStatusText(`Semanal OK; programação por turno: ${dailyResult.status}${failedStageText(dailyResult.stage_reports)}`);
         setStatusTone('warn');
         return;
       }
@@ -227,8 +335,8 @@ export default function App() {
   const handleSelectHistoryRun = async (runId: string) => {
     try {
       const record = await api.getHistoryRun(runId);
-      setWeekly({ ...record.weekly, data_file: record.data_file, duration_seconds: record.weekly.duration_seconds });
-      setDaily(record.daily ? { ...record.daily, data_file: record.data_file } : null);
+      setWeekly({ ...record.weekly, source: record.source, run_id: record.id, duration_seconds: record.weekly.duration_seconds });
+      setDaily(record.daily ? { ...record.daily, source: record.source, run_id: record.id } : null);
       setStatusText(`Cenário carregado: ${record.label}`);
       setStatusTone('neutral');
       setMainTab('weekly');
@@ -250,13 +358,14 @@ export default function App() {
     { label: 'Estoque médio', value: wk ? `${fmtN(wk.avg_inventory, 0)} kg` : null },
     { label: 'Giro', value: wk ? fmtN(wk.inventory_turnover, 2) : null },
     { label: 'Horas de setup (plano)', value: wk ? `${fmtN(wk.setup_hours, 1)} h` : null },
-    { label: 'Input', value: weekly?.data_file ?? activeDataFile, small: true },
+    { label: 'Input', value: weekly?.source ?? dataSource, small: true },
   ];
 
   const costBreakdown = wk
     ? [
         { label: 'Atraso de carteira', value: wk.backlog_cost },
         { label: 'Venda perdida', value: wk.lost_sales_cost },
+        { label: 'Violação do estoque mínimo', value: wk.floor_slack_cost },
         { label: 'Setup', value: wk.setup_cost },
         { label: 'Estoque', value: wk.holding_cost },
       ]
@@ -268,8 +377,11 @@ export default function App() {
         { label: 'Serviço — carteira', value: `${fmtN(dk.order_service_level, 2)}%` },
         { label: 'Setup de forma', value: `${fmtN(dk.form_setup_hours, 2)} h` },
         { label: 'Setup de cor', value: `${fmtN(dk.color_setup_hours, 2)} h` },
+        { label: 'Reserva de cor do MIP', value: `${fmtN(daily?.mip_kpis?.color_setup_hours, 2)} h` },
+        { label: 'Antecipado', value: `${fmtN(dk.anticipated_kg, 0)} kg` },
         { label: 'Operações', value: `${dk.total_setups}` },
-        { label: 'Tempo de solução', value: `${fmtN(dk.solve_seconds, 1)} s`, small: true },
+        { label: 'Tempo do MIP', value: `${fmtN(dk.solve_seconds, 1)} s`, small: true },
+        { label: 'Tempo do sequenciamento', value: `${fmtN(dk.sequencing_seconds, 2)} s`, small: true },
       ]
     : [];
 
@@ -278,10 +390,14 @@ export default function App() {
       <Sidebar
         sidebarOpen={sidebarOpen}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        dataFiles={dataFiles}
-        activeDataFile={activeDataFile}
-        onDataFileChange={handleDataFileChange}
+        snapshots={snapshots}
+        activeSnapshotId={activeSnapshotId}
+        onSnapshotChange={handleSnapshotChange}
+        onUploadFile={handleUploadFile}
+        uploading={uploading}
         machines={machines}
+        activeMachines={activeMachines}
+        onMachineToggle={handleMachineToggle}
         weeks={weeks}
         settings={settings}
         onFieldChange={handleFieldChange}
@@ -292,6 +408,16 @@ export default function App() {
         runStatusText={statusText}
         runStatusTone={statusTone}
       />
+
+      {uploadReview && (
+        <UploadReviewPanel
+          key={uploadReview.upload_id}
+          review={uploadReview}
+          busy={applyingUpload}
+          onApply={handleApplyUpload}
+          onDiscard={handleDiscardUpload}
+        />
+      )}
 
       <main className="main-content">
         <div className="main-header">
@@ -313,7 +439,7 @@ export default function App() {
                 <>
                   <div className="charts-grid">
                     <div className="chart-card">
-                      <div className="chart-title">Estoque projetado x meta de cobertura</div>
+                      <div className="chart-title">Estoque projetado x estoque mínimo</div>
                       <div className="chart-box">
                         <InventoryTargetChart data={weekly.inventory ?? []} />
                       </div>
@@ -362,6 +488,23 @@ export default function App() {
                       shiftsPerDay={settings.shifts_per_day}
                     />
                   </div>
+                  {daily.sequencing_violations && (
+                    <div className="chart-card mt-2">
+                      <div className="chart-title">Restrições do sequenciamento (0 = respeitada)</div>
+                      <div className="cost-breakdown">
+                        {SEQUENCING_CONSTRAINTS.map((constraint) => (
+                          <div className="cost-item" key={constraint.key}>
+                            <span className="cost-label">
+                              {constraint.label} ({constraint.key})
+                            </span>
+                            <span className="cost-value">
+                              {fmtN(daily.sequencing_violations?.[constraint.key], constraint.decimals)} {constraint.unit}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="chart-card mt-2">
                     <div className="chart-title">Horas por máquina</div>
                     <div className="chart-box">

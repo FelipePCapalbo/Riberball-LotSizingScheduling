@@ -1,0 +1,51 @@
+\input{dados/previsao/literatura/arvore_valores.tex}%
+\pgfplotstableread{dados/previsao/literatura/arvore.csv}\tabelaliteraturaarvore%
+\pgfplotsset{painel arvore/.style={
+    scale only axis, width=3.85cm, height=1.75cm,
+    xmin=11.5, xmax=35.5, xtick={12,24}, xticklabels={},
+    yticklabel style={/pgf/number format/fixed},
+    title style={align=center},
+  },
+  painel arvore com datas/.style={xticklabels={mai/14,mai/15}},
+}%
+\begin{tikzpicture}[
+  ligacao/.style={-{Stealth[length=1.6mm]}, black!45, line width=0.5pt},
+  rotulonivel/.style={font=\footnotesize, text=black!75, align=center},
+]
+\newcommand{\painelarvore}[5]{%
+  \begin{axis}[painel arvore, #5, name=#1, at={(#2cm,#3cm)}, anchor=north west,
+      title={#4\\[-0.4ex]{\scriptsize MAPE \csname literaturaMape#1\endcsname\,\% · viés \csname literaturaVies#1\endcsname\,\%}}]
+    \janelaavaliacao{23.5}{35.5}
+    \addplot[serie real] table[x=month, y=#1_actual]{\tabelaliteraturaarvore};
+    \addplot[serie proposta] table[x=month, y=#1_forecast]{\tabelaliteraturaarvore};
+  \end{axis}%
+}
+\painelarvore{total}{0.95}{-9.500}{\literaturaNometotal}{painel arvore com datas}
+\painelarvore{pa}{6.35}{-2.850}{\literaturaNomepa}{}
+\painelarvore{pb}{6.35}{-9.975}{\literaturaNomepb}{}
+\painelarvore{pc}{6.35}{-15.675}{\literaturaNomepc}{painel arvore com datas}
+\painelarvore{caa}{11.75}{0.000}{\literaturaNomecaa}{}
+\painelarvore{cab}{11.75}{-2.850}{\literaturaNomecab}{}
+\painelarvore{cac}{11.75}{-5.700}{\literaturaNomecac}{}
+\painelarvore{cba}{11.75}{-8.550}{\literaturaNomecba}{}
+\painelarvore{cbb}{11.75}{-11.400}{\literaturaNomecbb}{}
+\painelarvore{cca}{11.75}{-14.250}{\literaturaNomecca}{}
+\painelarvore{ccb}{11.75}{-17.100}{\literaturaNomeccb}{painel arvore com datas}
+\foreach \filho in {pa,pb,pc} {
+  \draw[ligacao] (total.east) -- (\filho.outer west);
+}
+\foreach \filho in {caa,cab,cac} {
+  \draw[ligacao] (pa.east) -- (\filho.outer west);
+}
+\foreach \filho in {cba,cbb} {
+  \draw[ligacao] (pb.east) -- (\filho.outer west);
+}
+\foreach \filho in {cca,ccb} {
+  \draw[ligacao] (pc.east) -- (\filho.outer west);
+}
+\node[rotulonivel] (nivelum) at (2.875, 1.62) {Nível global\\$Y_t$};
+\node[rotulonivel] (niveldois) at (8.275, 1.62) {Nível de categoria\\$Y_{ft}$};
+\node[rotulonivel] (niveltres) at (13.675, 1.62) {Nível de departamento\\$y_{it}$};
+\draw[ligacao] (nivelum.east) -- node[rotulonivel, font=\scriptsize, above=1pt] {$\hat{\beta}^{(0)}$\\como \textit{prior}} (niveldois.west);
+\draw[ligacao] (niveldois.east) -- node[rotulonivel, font=\scriptsize, above=1pt] {$\hat{\beta}^{(1)}_{f}$\\como \textit{prior}} (niveltres.west);
+\end{tikzpicture}

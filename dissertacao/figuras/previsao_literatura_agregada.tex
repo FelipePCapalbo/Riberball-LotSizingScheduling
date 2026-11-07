@@ -1,0 +1,43 @@
+\pgfplotstableread{dados/previsao/literatura/serie_agregada.csv}\tabelaliteraturaagregada
+\begin{tikzpicture}
+\begin{groupplot}[
+  group style={group size=2 by 2, horizontal sep=0.8cm, vertical sep=3.3cm, yticklabels at=edge left},
+  width=0.5\textwidth, height=4.3cm,
+  xmin=11.5, xmax=35.5,
+  xtick={12,18,24,30}, xticklabels={mai/14,nov/14,mai/15,nov/15},
+  ymin=950, ymax=1450,
+  legend style={at={(0.5,-0.17)}, anchor=north, legend columns=1},
+]
+\nextgroupplot[title={Referências e regressão}, ylabel={mil unidades}]
+\janelaavaliacao{23.5}{35.5}
+\addplot[serie real] table[x=month, y=actual]{\tabelaliteraturaagregada};
+\addplot[serie proposta] table[x=month, y=rls]{\tabelaliteraturaagregada};
+\addplot[serie fria a] table[x=month, y=naive]{\tabelaliteraturaagregada};
+\addplot[serie fria b] table[x=month, y=seasonal_naive]{\tabelaliteraturaagregada};
+\addplot[serie fria c] table[x=month, y=linear_regression]{\tabelaliteraturaagregada};
+\legend{Real, RLS hierárquico, Ingênuo, Ingênuo sazonal, Regressão linear}
+\nextgroupplot[title={Médias móveis}]
+\janelaavaliacao{23.5}{35.5}
+\addplot[serie real] table[x=month, y=actual]{\tabelaliteraturaagregada};
+\addplot[serie proposta] table[x=month, y=rls]{\tabelaliteraturaagregada};
+\addplot[serie fria a] table[x=month, y=moving_average]{\tabelaliteraturaagregada};
+\addplot[serie fria b] table[x=month, y=weighted_moving_average]{\tabelaliteraturaagregada};
+\legend{Real, RLS hierárquico, Média móvel simples (3), Média móvel ponderada (3)}
+\nextgroupplot[title={Suavização exponencial}, ylabel={mil unidades}]
+\janelaavaliacao{23.5}{35.5}
+\addplot[serie real] table[x=month, y=actual]{\tabelaliteraturaagregada};
+\addplot[serie proposta] table[x=month, y=rls]{\tabelaliteraturaagregada};
+\addplot[serie fria a] table[x=month, y=ses]{\tabelaliteraturaagregada};
+\addplot[serie fria b] table[x=month, y=holt]{\tabelaliteraturaagregada};
+\addplot[serie fria c] table[x=month, y=holt_winters]{\tabelaliteraturaagregada};
+\legend{Real, RLS hierárquico, Suavização exponencial simples, Holt, Holt-Winters}
+\nextgroupplot[title={ARIMA e rede neural}]
+\janelaavaliacao{23.5}{35.5}
+\addplot[serie real] table[x=month, y=actual]{\tabelaliteraturaagregada};
+\addplot[serie proposta] table[x=month, y=rls]{\tabelaliteraturaagregada};
+\addplot[serie fria a] table[x=month, y=arima]{\tabelaliteraturaagregada};
+\addplot[serie fria b] table[x=month, y=sarima]{\tabelaliteraturaagregada};
+\addplot[serie fria c] table[x=month, y=neural_network]{\tabelaliteraturaagregada};
+\legend{Real, RLS hierárquico, ARIMA, SARIMA, Rede neural (MLP)}
+\end{groupplot}
+\end{tikzpicture}

@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { ENVIRONMENT } from '../../environment';
-import type { Settings } from '../../types';
+import type { Settings, SnapshotRow } from '../../types';
 import AccordionSection from './AccordionSection';
 import MachineGrid from './MachineGrid';
 
 interface SidebarProps {
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
-  dataFiles: string[];
-  activeDataFile: string | null;
-  onDataFileChange: (file: string) => void;
+  snapshots: SnapshotRow[];
+  activeSnapshotId: number | null;
+  onSnapshotChange: (snapshotId: number) => void;
+  onUploadFile: (file: File) => void;
+  uploading: boolean;
   machines: string[];
+  activeMachines: string[];
+  onMachineToggle: (machine: string) => void;
   weeks: string[];
   settings: Settings;
   onFieldChange: (patch: Partial<Settings>, save: boolean) => void;
@@ -25,10 +29,14 @@ interface SidebarProps {
 export default function Sidebar({
   sidebarOpen,
   onToggleSidebar,
-  dataFiles,
-  activeDataFile,
-  onDataFileChange,
+  snapshots,
+  activeSnapshotId,
+  onSnapshotChange,
+  onUploadFile,
+  uploading,
   machines,
+  activeMachines,
+  onMachineToggle,
   weeks,
   settings,
   onFieldChange,
@@ -52,7 +60,7 @@ export default function Sidebar({
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const activeMachines = new Set(settings.active_machines);
+  const activeMachineSet = new Set(activeMachines);
   const shiftsPerWeek = settings.shifts_per_day * settings.working_days_per_week;
   const hoursPerWeek = (shiftsPerWeek * settings.hours_per_shift).toFixed(1);
 
@@ -72,19 +80,42 @@ export default function Sidebar({
       {sidebarOpen ? (
         <div className="sidebar-body">
           <AccordionSection title="Dados" open={openSections.data} onToggle={() => toggleSection('data')}>
+            <div className="sb-field sb-upload">
+              <label className="btn btn-sm btn-outline-secondary w-100 mb-0">
+                {uploading && 'Lendo o Excel...'}
+                {!uploading && 'Subir Excel'}
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  disabled={uploading}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      onUploadFile(file);
+                    }
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
             <div className="sb-field">
-              <label>Arquivo de input</label>
+              <label>Fotografia de planejamento</label>
               <select
                 className="form-select form-select-sm"
-                value={activeDataFile ?? ''}
-                onChange={(e) => onDataFileChange(e.target.value)}
+                value={activeSnapshotId ?? ''}
+                onChange={(e) => onSnapshotChange(parseInt(e.target.value, 10))}
               >
-                {dataFiles.map((file) => (
-                  <option key={file} value={file}>
-                    {file}
+                {activeSnapshotId === null && <option value="">Nenhuma — suba um Excel</option>}
+                {snapshots.map((snapshot) => (
+                  <option key={snapshot.snapshot_id} value={snapshot.snapshot_id}>
+                    #{snapshot.snapshot_id} {snapshot.source_file} ({snapshot.created_at.replace('T', ' ').slice(0, 16)})
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="sb-hint">
+              Cadastro (máquinas, produtividade, setups, custos, MTS/MTO) e fotografia (demanda, carteira, estoque) vêm do
+              Excel; mudanças no cadastro passam por aprovação.
             </div>
           </AccordionSection>
 
@@ -117,7 +148,7 @@ export default function Sidebar({
             </div>
             <div className="sb-field">
               <label>
-                Semanas congeladas <span className="text-muted fw-normal">(programação por turno)</span>
+                Semanas detalhadas em turnos <span className="text-muted fw-normal">(operacional)</span>
               </label>
               <input
                 type="number"
@@ -174,36 +205,38 @@ export default function Sidebar({
             <div className="sb-hint">
               {shiftsPerWeek} turnos/semana · {hoursPerWeek} h/semana por máquina
             </div>
+            <div className="sb-field">
+              <label>
+                Capacidade do armazém (kg) <span className="text-muted fw-normal">(vazio = sem limite)</span>
+              </label>
+              <input
+                type="number"
+                className="form-control form-control-sm"
+                min={0}
+                value={settings.warehouse_capacity_kg ?? ''}
+                onChange={(e) => {
+                  let warehouseCapacity: number | null = null;
+                  if (e.target.value !== '') {
+                    warehouseCapacity = parseFloat(e.target.value);
+                  }
+                  onFieldChange({ warehouse_capacity_kg: warehouseCapacity }, false);
+                }}
+                onBlur={() => onFieldChange({}, true)}
+              />
+            </div>
           </AccordionSection>
 
           <AccordionSection title="Máquinas" open={openSections.machines} onToggle={() => toggleSection('machines')}>
             <MachineGrid
               machines={machines}
-              selected={activeMachines}
-              onToggle={(machine) => {
-                const next = new Set(activeMachines);
-                if (next.has(machine)) {
-                  next.delete(machine);
-                } else {
-                  next.add(machine);
-                }
-                onFieldChange({ active_machines: Array.from(next) }, true);
-              }}
+              selected={activeMachineSet}
+              onToggle={onMachineToggle}
               toggledClassName="active"
             />
-            <div className="sb-field mt-3">
-              <label>Custo horário de setup (R$/h)</label>
-              <input
-                type="number"
-                className="form-control form-control-sm"
-                min={0}
-                step={10}
-                value={settings.setup_hourly_cost_default}
-                onChange={(e) => onFieldChange({ setup_hourly_cost_default: parseFloat(e.target.value) || 0 }, false)}
-                onBlur={() => onFieldChange({}, true)}
-              />
+            <div className="sb-hint">
+              Ativar ou desativar uma máquina grava no cadastro. O custo horário de setup de cada máquina vem da aba
+              Maquinas do Excel.
             </div>
-            <div className="sb-hint">Mão de obra, energia e composto descartado na limpeza.</div>
           </AccordionSection>
 
           <AccordionSection title="Custos e prioridades" open={openSections.costs} onToggle={() => toggleSection('costs')}>
@@ -283,18 +316,6 @@ export default function Sidebar({
                 step={30}
                 value={settings.daily_time_limit}
                 onChange={(e) => onFieldChange({ daily_time_limit: parseInt(e.target.value, 10) || 10 }, false)}
-                onBlur={() => onFieldChange({}, true)}
-              />
-            </div>
-            <div className="sb-field">
-              <label>Posições por turno</label>
-              <input
-                type="number"
-                className="form-control form-control-sm"
-                min={1}
-                max={6}
-                value={settings.positions_per_shift}
-                onChange={(e) => onFieldChange({ positions_per_shift: parseInt(e.target.value, 10) || 1 }, false)}
                 onBlur={() => onFieldChange({}, true)}
               />
             </div>

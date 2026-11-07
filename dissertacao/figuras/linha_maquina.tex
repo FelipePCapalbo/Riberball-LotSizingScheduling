@@ -1,0 +1,20 @@
+\begin{tikzpicture}[projecao,scale=0.84,line cap=round]
+  \def\desD{0.9}
+  \desPistaParametros{0}{0.15}{0.25}{bitcoin}{1}{1}{1}
+  \fill[piso] (-0.8,-1.75,0) -- (17.8,-1.75,0) -- (17.8,0.9,0) -- (-0.8,0.9,0) -- cycle;
+  \desMaquinaUmaCor
+  \desBalaoSolto{15.95}{-0.42}{1.02}{-35}{bitcoin}
+  \draw[-{Stealth[length=1.5mm]},draw=bitcoin,line width=0.5pt] (15.85,-0.05,1.28) to[bend left=30] (15.95,-0.95,0.62);
+  \node[rotulo,rotate=-10.31,text=bitcoin!85!black] at (3.9,0,2.75) {sentido da cadeia};
+  \draw[sentido] (5.65,0,2.75) -- (6.4,0,2.75);
+  \node[rotulo,rotate=-10.31,text=bitcoin!85!black] at (14.75,0,2.75) {balão moldado};
+  \draw[sentido,draw=contorno] (6.2,0,4.4) -- (3.4,0,4.4);
+  \node[rotulo,rotate=-10.31,anchor=south,text=contorno] at (4.8,0,4.55) {retorno das formas vazias};
+  \node[rotulo,anchor=north west,text=bitcoin!85!black] at ([xshift=4pt,yshift=-2pt]16.25,-1.75,0) {balão\\desmoldado};
+  \foreach \desN/\desX/\desYf in {1/1.75/-0.25,2/3.75/-0.25,3/5.75/-0.25,4/8.5/-0.5,5/11.25/-0.25,6/13.5/-0.37,7/15.75/-1.35} {
+    \draw[chamada] (\desX,\desYf,0) -- (\desX,-1.75,0);
+    \node[numero,anchor=north] at ([yshift=-2pt]\desX,-1.75,0) {\desN};
+  }
+  \draw[chamada] (13.5,-0.37,\desH-0.42) -- (13.5,-0.37,0);
+  \desLegenda
+\end{tikzpicture}%

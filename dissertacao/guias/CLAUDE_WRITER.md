@@ -32,7 +32,7 @@ Cada parágrafo retoma o fio que o parágrafo anterior deixou, pelo mesmo termo,
 
 Parágrafos são curtos, de duas a cinco frases. Um parágrafo que precisa de uma sexta frase para fechar a ideia deve ser quebrado na junta natural, com a segunda metade abrindo no conectivo que nomeia a relação com a primeira.
 
-**O texto corrido não usa listas de tópicos.** Nada de `itemize`, `enumerate` ou `description` no corpo da dissertação: uma sequência de itens vira prosa, com os itens encadeados na frase ou distribuídos em parágrafos curtos, um por item ou um por grupo de itens que compartilham o mesmo mecanismo. Quando a asserção que abre cada item precisar de destaque, ela entra em `\textbf{}` no início do parágrafo. Tabelas e blocos `align` continuam permitidos; a proibição é de lista de tópicos como recurso de prosa.
+**O texto corrido não usa listas de tópicos.** Nada de `itemize`, `enumerate` ou `description` no corpo da dissertação: uma sequência de itens vira prosa, com os itens encadeados na frase ou distribuídos em parágrafos curtos, um por item ou um por grupo de itens que compartilham o mesmo mecanismo. A asserção que abre cada item é a primeira frase do parágrafo, sem destaque tipográfico. Tabelas e blocos `align` continuam permitidos; a proibição é de lista de tópicos como recurso de prosa.
 
 ## 4. Fluxo linear, sem loops
 
@@ -52,13 +52,17 @@ Termos técnicos em outro idioma (*setup*, *forecast*, *features*, *backorder*, 
 
 Siglas são escritas por extenso no primeiro uso, com a sigla entre parênteses logo em seguida; depois disso, só a sigla.
 
+## 5.1 O modelo é genérico, a implementação fica fora
+
+A formulação descreve o problema para quaisquer dados consistentes, não a forma como o código trata os dados de uma instância. Não entra no texto: tratamento de dado ausente (célula vazia de matriz, estado inicial não informado, valor de preenchimento), estados ou índices fictícios criados só para cobrir lacunas, guardas de viabilidade sobre os dados (como tomar o maior entre um parâmetro e o estoque inicial), pré-processamento de dados (como deslocar a carteira vencida para o primeiro período), solução inicial e outros recursos do \textit{solver}, tolerâncias numéricas, nomes de variáveis ou funções do código, relatórios e saídas publicadas. Condições iniciais entram como dados do período 0 ($I_{i0}$, $b_{i0}$, $y_{ij0}$), e o modelo supõe que os dados são completos e coerentes. Lacunas e convenções de implementação são registradas no `TODO.md` ou na documentação do código, nunca como premissa do modelo.
+
 ## 6. Notação algébrica
 
 Todo conjunto, parâmetro e variável é uma letra, possivelmente acentuada, grega, ou com um acento diacrítico (chapéu, til, sobrescrito), nunca um nome descritivo. Esta é a convenção da literatura de *lot sizing*/*scheduling* citada na dissertação, e é a única forma aceita aqui.
 
-**Índices**: letra minúscula itálica, uma só: $i$ (balão), $j$ (máquina), $t$ (período), $d$ (dia), $f$ (formato), $k$ (*feature*/mês). Reutilizar exatamente este conjunto em todo capítulo novo; não introduzir uma segunda letra para o mesmo papel.
+**Índices**: letra minúscula itálica, uma só: $i$ (balão), $j$ (máquina), $t$ (semana ou período), $s$ (turno), $k$ (SKU), $f$ (formato), $a$ (*feature* do modelo de demanda), $n$ (posição na sequência do turno). Reutilizar exatamente este conjunto em todo capítulo novo; não introduzir uma segunda letra para o mesmo papel.
 
-**Conjuntos**: letra maiúscula correspondente ao índice ($I$, $J$, $T$, $D$, $F$, $K$), com notação de subconjunto quando necessário ($I_f \subseteq I$).
+**Conjuntos**: letra maiúscula correspondente ao índice ($I$, $J$, $T$, $S$, $K$, $F$, $A$), com notação de subconjunto quando necessário ($I_f \subseteq I$).
 
 **Parâmetros**: letra minúscula, subscrita pelos índices dos quais depende ($d_{it}$, $c_i$, $p_{ij}$, $h_{jd}$, $t^s_j$); letra grega para escalar sem índice ($\alpha$, $\lambda$).
 
@@ -75,6 +79,8 @@ Antes de introduzir uma letra nova, checar que ela não está presa a outro sign
 Todo símbolo aparece numa tabela, nesta ordem: Conjuntos, Parâmetros, Variáveis, antes do primeiro uso, uma linha por símbolo, descrição terminada em ponto final, unidade entre parênteses quando o símbolo tiver uma.
 
 ## 7. Equações e restrições
+
+O documento usa a classe `abntex2` (NBR 14724:2024): `\chapter` é a seção primária, `\section` a secundária e `\subsection` a terciária; não existe "capítulo" no texto, só "Seção". Títulos sem indicativo numérico só nos elementos que a ABNT prevê (resumo, listas, sumário, referências, apêndices); dentro do texto, rótulos como "Conjuntos", "Parâmetros", "Variáveis", "Minimizar" e "Sujeito a" são `\noindent\textbf{...}`, nunca `\subsection*`. Toda ilustração e todo quadro têm `\caption` acima e `\fonte{...}` abaixo; quadro (`quadro`) é informação textual, tabela (`table`) é dado numérico, aberta nas laterais.
 
 Uma frase curta de entrada, terminada em dois-pontos, nomeia o que a equação computa imediatamente antes do display, nunca uma equação nua, sem introdução. Isso vale para toda equação derivada, intermediária ou de apoio dentro de um argumento em prosa (as etapas de uma cascata de estimação, por exemplo).
 
@@ -98,13 +104,13 @@ Uma tabela que precisa de legenda para ser lida (cabeçalhos abreviados, símbol
 
 ## 9. Citações
 
-`\citeonline{}` quando o autor é o sujeito gramatical da frase; `\cite{}` para referência parentética ao final de uma afirmação.
+`\citeonline{}` quando o autor é o sujeito gramatical da frase; `\cite{}` para referência parentética ao final de uma afirmação. Pela NBR 10520:2023, o sobrenome entre parênteses sai em caixa alta e baixa, "(Jans; Degraeve, 2008)"; isso é feito pela entrada `@ABNT-options{abnt-caixa-mista}` no topo do `referencias.bib`, ativada por `\citeoption{abnt-caixa-mista}` no documento, e não deve ser removido. Na lista de Referências o SOBRENOME continua em caixa alta (NBR 6023).
 
 **Erro recorrente a nunca repetir**: `\citeonline{}` já renderiza "Nome do Autor (Ano)" sozinho, e o comando não precisa (nem pode) ser precedido do nome do autor digitado manualmente. Escrever "Hax e Meal \citeonline{haxmeal1975}" compila sem erro mas renderiza "Hax e Meal Hax e Meal (1975)", duplicando o nome; esse bug já aconteceu neste documento, em toda a Revisão de Literatura, e só foi pego numa auditoria visual do PDF compilado, não pela compilação em si, que não acusa erro nenhum. A forma correta é `\citeonline{haxmeal1975} formalizam...`, deixando o comando sozinho no lugar onde o nome do autor entraria na frase. `\citeonline{}` aceita múltiplas chaves separadas por vírgula quando dois ou mais trabalhos dos mesmos autores são citados juntos como sujeito (`\citeonline{ferreira2009,ferreira2010}` renderiza "Ferreira, Morabito e Rangel (2009, 2010)").
 
 Uma citação nunca aparece sem a frase explicar, na mesma respiração, o que o trabalho citado contribui para o argumento em construção, nunca um amontoado de citações sem diferenciação (`\cite{a,b,c,d}` sem dizer o que cada uma traz).
 
-**Verificação obrigatória antes de considerar uma seção com citações pronta**: compilar do zero (apagar `.aux`/`.bbl`/`.blg` antes de rodar `pdflatex`, `bibtex`, `pdflatex` duas vezes, nunca compilar incremental em cima de auxiliares antigos) e **ler o PDF renderizado**, não só o `.tex` fonte, porque o código-fonte de uma citação quebrada parece perfeitamente correto e o defeito só aparece no texto renderizado. Sobrenomes compostos sem hífen (como "Fatemi Ghomi") precisam de chaves protetoras no `.bib` (`{Fatemi Ghomi}, S. M. T.`) para não serem truncados ao primeiro nome; o efeito colateral é que esse sobrenome específico deixa de ficar em caixa alta na lista de Referências, porque `abntex2-alf` aplica maiúsculas via um mecanismo que as chaves protetoras bloqueiam, e essa é uma imperfeição cosmética conhecida e aceitável, não um novo bug a perseguir.
+**Verificação obrigatória antes de considerar uma seção com citações pronta**: compilar do zero (apagar `.aux`/`.bbl`/`.blg` antes de rodar `pdflatex`, `bibtex`, `pdflatex` duas vezes, nunca compilar incremental em cima de auxiliares antigos) e **ler o PDF renderizado**, não só o `.tex` fonte, porque o código-fonte de uma citação quebrada parece perfeitamente correto e o defeito só aparece no texto renderizado. Sobrenomes com hífen ("Almada-Lobo") vão sem chaves no `.bib`. Sobrenomes compostos sem hífen ("Fatemi Ghomi", "La Londe") vão como `{\relax Fatemi Ghomi}, S. M. T.`: as chaves impedem que o sobrenome seja truncado, e o `\relax` faz o BibTeX tratá-lo como caractere especial, que ele ainda converte para caixa alta na lista de Referências. Chaves sem `\relax` deixam o sobrenome em caixa baixa nas Referências, o que viola a NBR 6023.
 
 ## 10. Descrição do problema, técnicas adicionais
 
@@ -125,6 +131,8 @@ Restrições que, juntas, implementam um único mecanismo (por exemplo, uma cade
 ## 11. Lista negativa, o que nunca aparece no texto
 
 - Travessão (`---`) em qualquer função, decorativa ou de aparte.
+- Detalhe de implementação ou de dados na formulação: dado ausente, estado fictício, valor de preenchimento, guarda de viabilidade, pré-processamento, *warm start*, tolerância, nome de código, relatório (Seção 5.1).
+- Negrito como destaque no corpo do texto, inclusive em abertura de parágrafo ou de premissa. O único negrito admitido são os rótulos estruturais do modelo (`Conjuntos`, `Parâmetros`, `Variáveis`, `Minimizar`, `Sujeito a`).
 - Lista de tópicos (`itemize`, `enumerate`, `description`) no corpo do texto, inclusive para premissas, contribuições ou objetivos.
 - Transições de preenchimento sem conteúdo: "é importante notar que", "vale ressaltar que", "cabe destacar que", "além disso" usado como muleta de abertura de parágrafo.
 - Perguntas retóricas e endereçamento direto ao leitor.
@@ -140,6 +148,7 @@ Restrições que, juntas, implementam um único mecanismo (por exemplo, uma cade
 
 ## 12. Checklist antes de considerar uma seção pronta
 
+- A formulação descreve só o problema genérico, sem tratamento de dados, recurso computacional ou referência ao código (Seção 5.1)?
 - `grep -- '---'` no `.tex` não retorna nada, e não há ambiente de lista no corpo do texto?
 - Todo símbolo usado já apareceu antes numa tabela de Conjuntos/Parâmetros/Variáveis?
 - As variáveis de decisão são todas latinas minúsculas, e um mesmo papel usa a mesma letra nos dois modelos (Seção 6)?

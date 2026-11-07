@@ -679,3 +679,48 @@ body {
   max-width: 280px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-panel {
+  background: #fff;
+  width: min(960px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  border-radius: 8px;
+  padding: 20px 24px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+.modal-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+.modal-section {
+  margin-bottom: 14px;
+}
+.modal-table {
+  max-height: 46vh;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.modal-actions .btn-run {
+  width: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+.sb-upload input[type='file'] {
+  display: none;
+}

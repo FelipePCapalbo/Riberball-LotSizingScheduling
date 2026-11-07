@@ -5,35 +5,73 @@ export interface Settings {
   shifts_per_day: number;
   hours_per_shift: number;
   working_days_per_week: number;
-  active_machines: string[];
-  setup_hourly_cost_default: number;
-  setup_hourly_cost_by_machine: Record<string, number>;
+  warehouse_capacity_kg: number | null;
   annual_holding_rate: number;
   weekly_solver_name: string;
   weekly_time_limit: number;
   daily_solver_name: string;
   daily_time_limit: number;
-  positions_per_shift: number;
   threads: number | null;
 }
 
 export interface InitData {
   weeks: string[];
   machines: string[];
+  active_machines: string[];
   products: string[];
   orders: number;
+  source: string | null;
+  snapshot_id: number | null;
 }
 
-export interface DataFiles {
-  files: string[];
-  active: string | null;
+export interface SnapshotRow {
+  snapshot_id: number;
+  created_at: string;
+  source_file: string;
+  sheets: string[];
+}
+
+export interface Snapshots {
+  snapshots: SnapshotRow[];
+  active: number | null;
+}
+
+export type ChangeType = 'update' | 'delete';
+export type ChangeDecision = 'pending' | 'approved' | 'rejected';
+
+export interface MasterConflict {
+  change_id: number;
+  table_name: string;
+  record_key: Record<string, string>;
+  change_type: ChangeType;
+  old_values: Record<string, unknown> | null;
+  new_values: Record<string, unknown> | null;
+  decision: ChangeDecision;
+}
+
+export interface UploadReview {
+  upload_id: number;
+  created_at: string;
+  source_file: string;
+  status: 'pending' | 'applied' | 'discarded';
+  snapshot_id: number | null;
+  snapshot_sheets: string[];
+  insert_counts: Record<string, number>;
+  conflicts: MasterConflict[];
+}
+
+export interface UploadOutcome {
+  status: string;
+  applied: number;
+  rejected: number;
+  snapshot_id: number | null;
 }
 
 export interface WeeklyKpis {
   total_cost: number;
-  solver_objective: number;
   backlog_cost: number;
   lost_sales_cost: number;
+  floor_slack_cost: number;
   setup_cost: number;
   holding_cost: number;
   order_service_level: number;
@@ -58,6 +96,8 @@ export interface WeeklyInventoryRow {
   week: string;
   product: string;
   inventory: number;
+  stock_minimum: number;
+  floor_slack: number;
 }
 
 export interface WeeklyDemandRow {
@@ -71,6 +111,16 @@ export interface WeeklyDemandRow {
   lost: number;
 }
 
+export interface StageReport {
+  stage: number;
+  status: 'Optimal' | 'Feasible' | 'Infeasible' | 'Not Solved';
+  objective: number | null;
+  bound: number | null;
+  gap: number | null;
+  hit_time_limit: boolean;
+  seconds: number;
+}
+
 export interface WeeklyResult {
   status: string;
   message?: string;
@@ -79,27 +129,54 @@ export interface WeeklyResult {
   inventory?: WeeklyInventoryRow[];
   demand?: WeeklyDemandRow[];
   targets?: Record<string, Record<string, number>>;
+  stage_objectives?: number[];
+  stage_reports?: StageReport[];
+  warehouse_capacity?: number | null;
+  stock_minimum?: Record<string, number>;
   kpis?: WeeklyKpis;
   run_id?: string;
   duration_seconds?: number;
-  data_file?: string | null;
+  source?: string | null;
 }
 
 export interface DailyKpis {
   total_cost: number;
   backlog_cost: number;
-  lost_sales_cost: number;
   target_slack_cost: number;
   setup_cost: number;
   holding_cost: number;
   order_service_level: number;
-  forecast_service_level: number;
   form_setup_hours: number;
   color_setup_hours: number;
   total_setups: number;
   solve_seconds: number;
   hit_time_limit: boolean;
-  max_fractional_deviation: number;
+  anticipated_kg?: number;
+  sequencing_seconds?: number;
+}
+
+export interface SequencingReportRow {
+  machine: string;
+  shift_index: number;
+  date: string;
+  shift: number;
+  form: string;
+  production_hours: number;
+  color_setup_hours: number;
+  form_setup_hours: number;
+  available_hours: number;
+  idle_hours: number;
+  seq_capacidade: number;
+  seq_forma: number;
+  seq_lote: number;
+}
+
+export interface SequencingViolations {
+  seq_capacidade: number;
+  seq_forma: number;
+  seq_lote: number;
+  seq_antecipacao: number;
+  seq_armazem: number;
 }
 
 export interface ScheduleRow {
@@ -127,16 +204,14 @@ export interface DailyOrderRow {
   date: string;
   shift: number;
   orders: number;
-  forecast: number;
   delivered_orders: number;
-  delivered_forecast: number;
   backlog: number;
-  lost: number;
   inventory: number;
 }
 
 export interface DailyTargetRow {
   product: string;
+  week: string;
   target: number;
   final_stock: number;
   slack: number;
@@ -148,18 +223,23 @@ export interface DailyResult {
   schedule?: ScheduleRow[];
   orders?: DailyOrderRow[];
   targets?: DailyTargetRow[];
+  stage_objectives?: number[];
+  stage_reports?: StageReport[];
   shifts?: number;
   kpis?: DailyKpis;
+  mip_kpis?: DailyKpis;
+  sequencing_report?: SequencingReportRow[];
+  sequencing_violations?: SequencingViolations;
   run_id?: string | null;
   duration_seconds?: number;
-  data_file?: string | null;
+  source?: string | null;
 }
 
 export interface HistoryRun {
   id: string;
   timestamp: string;
   label: string;
-  data_file: string;
+  source: string;
   start_week: string;
   weeks_in_plan: number;
   machines: number;
@@ -173,8 +253,9 @@ export interface HistoryRecord {
   id: string;
   timestamp: string;
   label: string;
-  data_file: string;
-  inputs: Settings;
+  snapshot_id: number | null;
+  source: string;
+  inputs: Settings & { machines: string[] };
   weekly: {
     status: string;
     duration_seconds: number;

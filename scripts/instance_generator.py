@@ -342,6 +342,22 @@ def generate_instance(str_name, dict_profile, int_seed):
     df_color_inventory = pd.DataFrame(list_color_inventory)
     df_min_lot = pd.DataFrame(list_min_lot)
 
+    rng_initial_form = np.random.default_rng(int_seed + 1)
+    list_initial_form = []
+    for int_j in range(int_machines):
+        list_compatible = []
+        for int_i in range(int_products):
+            if matrix_compatible[int_i, int_j]:
+                list_compatible.append(int_i)
+        if len(list_compatible) > 0:
+            int_mounted = list_compatible[int(rng_initial_form.integers(0, len(list_compatible)))]
+            list_initial_form.append({
+                'MAQUINA': int(list_machines[int_j]),
+                'MODELO': list_models[int_mounted],
+                'TIPO': list_types[int_mounted],
+            })
+    df_initial_form = pd.DataFrame(list_initial_form)
+
     dict_color_rows = {}
     for str_from in list_used_colors:
         dict_row = {}
@@ -379,6 +395,7 @@ def generate_instance(str_name, dict_profile, int_seed):
         df_color_setup.to_excel(writer, sheet_name='De_Para_Cores', index=False)
         df_form_setup.to_excel(writer, sheet_name='De_Para_Formas', index=False)
         df_min_lot.to_excel(writer, sheet_name='Lote_Minimo', index=False)
+        df_initial_form.to_excel(writer, sheet_name='Forma_Inicial', index=False)
 
     return str_output, matrix_demand, matrix_confirmed, list_products, list_weeks
 

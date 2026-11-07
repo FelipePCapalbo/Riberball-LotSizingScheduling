@@ -7,8 +7,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from processing.data import load_instance, list_data_files, DATA_DIR
 from processing.settings import load_settings
-from optimization.weekly_model import build_weekly_scenario, solve_weekly_model
+from optimization.weekly_model import build_weekly_scenario, solve_weekly_model, complete_setup_matrix
 from optimization.daily_model import build_daily_scenario, solve_daily_model
+from optimization.sequencing import evaluate_sequence, sequence_daily_plan
 
 list_failures = []
 
@@ -62,8 +63,11 @@ dict_instance = load_instance(os.path.join(DATA_DIR, 'instance_micro_P2_M3_T8.xl
 dict_base = load_settings()
 dict_base['start_week'] = '2024-01-01'
 dict_base['weeks_in_plan'] = 8
-dict_base['active_machines'] = dict_instance['machines']
 dict_base['weekly_time_limit'] = 60
+for str_product in dict_instance['products']:
+    dict_instance['mape'][str_product] = 0.0
+    for str_color in dict_instance['colors_by_product'][str_product]:
+        dict_instance['sku_is_mts'][f'{str_product}-{str_color}'] = False
 
 list_first_failure = []
 for float_hours in [8.0, 4.0, 2.0, 1.0, 0.5]:
@@ -72,7 +76,7 @@ for float_hours in [8.0, 4.0, 2.0, 1.0, 0.5]:
     dict_scenario = build_weekly_scenario(dict_instance, dict_settings)
     dict_result = solve_weekly_model(dict_scenario, dict_settings)
     dict_kpis = dict_result['kpis']
-    float_sum = (dict_kpis['backlog_cost'] + dict_kpis['lost_sales_cost']
+    float_sum = (dict_kpis['backlog_cost'] + dict_kpis['lost_sales_cost'] + dict_kpis['floor_slack_cost']
                  + dict_kpis['setup_cost'] + dict_kpis['holding_cost'])
     check(abs(float_sum - dict_kpis['total_cost']) < 1e-6,
           f'h/turno={float_hours}: decomposicao de custo soma o total')
@@ -131,10 +135,107 @@ for tuple_row in list_first_failure:
     if tuple_row[2] > 1 and float_first_backlog is None:
         float_first_backlog = tuple_row[0]
 check(float_first_lost >= float_first_backlog,
-      f'previsao cede em h={float_first_lost}, carteira em h={float_first_backlog}')
+      f'eq:obj_semanal: previsao cede em h={float_first_lost}, carteira em h={float_first_backlog}')
 
 
-print('\n== modelo diario: sequenciamento de cor com transicao proibida ==')
+print('\n== modelo semanal: estoque minimo dos baloes MTS ==')
+str_mts_product = dict_instance['products'][0]
+for str_color in dict_instance['colors_by_product'][str_mts_product]:
+    dict_instance['sku_is_mts'][f'{str_mts_product}-{str_color}'] = True
+dict_instance['mape'][str_mts_product] = 20.0
+dict_settings = dict(dict_base)
+dict_scenario = build_weekly_scenario(dict_instance, dict_settings)
+float_average = 0.0
+for timestamp_week in dict_scenario['weeks']:
+    float_average += dict_instance['demand'][str_mts_product][timestamp_week]
+float_average = float_average / len(dict_scenario['weeks'])
+check(abs(dict_scenario['stock_minimum'][str_mts_product] - float_average * 1.2) < 1e-6,
+      f'eq:estoque_minimo: previsao media do horizonte x (1 + 20%) = {float_average * 1.2:.1f} kg')
+bool_mto_zero = True
+for str_product in dict_scenario['products']:
+    if str_product != str_mts_product:
+        if dict_scenario['stock_minimum'][str_product] != 0.0:
+            bool_mto_zero = False
+check(bool_mto_zero, 'balao sem SKU MTS tem estoque minimo nulo')
+dict_result = solve_weekly_model(dict_scenario, dict_settings)
+list_stages = dict_result['stage_objectives']
+check(len(list_stages) == 4, 'quatro estagios resolvidos (atraso, venda perdida, estoque minimo, custo)')
+check(list_stages[2] < 1e-6, 'eq:piso_estoque: com capacidade folgada o estagio 3 zera a violacao do piso')
+float_floor = dict_scenario['stock_minimum'][str_mts_product]
+bool_floor = True
+for dict_row in dict_result['inventory']:
+    if dict_row['product'] == str_mts_product and dict_row['inventory'] < float_floor - 1e-4:
+        bool_floor = False
+check(bool_floor, f'estoque do balao MTS >= {float_floor:.1f} kg em toda semana')
+check(dict_result['kpis']['backlog_cost'] <= list_stages[0] + 1e-6
+      and dict_result['kpis']['lost_sales_cost'] <= list_stages[1] + 1e-6
+      and dict_result['kpis']['floor_slack_cost'] <= list_stages[2] + 1e-6,
+      'eq:trava: o estagio de custo nao cede atraso, venda perdida nem piso')
+bool_reports = len(dict_result['stage_reports']) == 4
+for dict_report in dict_result['stage_reports']:
+    if dict_report['status'] not in ('Optimal', 'Feasible') or dict_report['gap'] is None:
+        bool_reports = False
+check(bool_reports, 'relatorio por estagio com status e gap')
+
+bool_setup_rule = True
+for str_product in dict_instance['products']:
+    float_form = 0.0
+    for str_other in dict_instance['products']:
+        if str_other != str_product:
+            float_form += dict_instance['form_setup'][(str_other, str_product)]
+    float_color = 0.0
+    for str_color in dict_instance['colors_by_product'][str_product]:
+        float_worst = 0.0
+        for str_other_color in dict_instance['colors_by_product'][str_product]:
+            if (str_other_color, str_color) in dict_instance['color_setup']:
+                if dict_instance['color_setup'][(str_other_color, str_color)] > float_worst:
+                    float_worst = dict_instance['color_setup'][(str_other_color, str_color)]
+        float_color += float_worst
+    float_expected = float_form / len(dict_instance['products']) + float_color
+    if abs(dict_scenario['average_setup'][str_product] - float_expected) > 1e-9:
+        bool_setup_rule = False
+check(bool_setup_rule, 'eq:setup_semanal: tau_i = troca media de forma sobre |I| + reserva de cor de cada SKU do balao')
+
+print('\n== modelo semanal: capacidade do armazem ==')
+float_initial_total = 0.0
+for str_product in dict_instance['products']:
+    float_initial_total += dict_instance['initial_inventory'][str_product]
+dict_settings = dict(dict_base)
+dict_settings['warehouse_capacity_kg'] = 0.0
+dict_scenario = build_weekly_scenario(dict_instance, dict_settings)
+check(abs(dict_scenario['warehouse_capacity'] - float_initial_total) < 1e-6,
+      f'Omega = max(capacidade, estoque inicial total) = {float_initial_total:.1f} kg')
+dict_result_warehouse = solve_weekly_model(dict_scenario, dict_settings)
+dict_week_total = {}
+for dict_row in dict_result_warehouse['inventory']:
+    if dict_row['week'] not in dict_week_total:
+        dict_week_total[dict_row['week']] = 0.0
+    dict_week_total[dict_row['week']] += dict_row['inventory']
+bool_warehouse = True
+for str_week in dict_week_total:
+    if dict_week_total[str_week] > float_initial_total + 1e-4:
+        bool_warehouse = False
+check(bool_warehouse, 'eq:capacidade_armazem: estoque total <= Omega em toda semana')
+float_peak_without_limit = 0.0
+dict_free_total = {}
+for dict_row in dict_result['inventory']:
+    if dict_row['week'] not in dict_free_total:
+        dict_free_total[dict_row['week']] = 0.0
+    dict_free_total[dict_row['week']] += dict_row['inventory']
+for str_week in dict_free_total:
+    if dict_free_total[str_week] > float_peak_without_limit:
+        float_peak_without_limit = dict_free_total[str_week]
+check(float_peak_without_limit > float_initial_total + 1.0,
+      f'sem limite o estoque total chega a {float_peak_without_limit:.1f} kg, acima de Omega: o limite corta')
+check(dict_result_warehouse['stage_objectives'][0] <= list_stages[0] + 1e-6
+      and dict_result_warehouse['stage_objectives'][1] <= list_stages[1] + 1e-6,
+      'armazem limitado com capacidade folgada nao cria atraso nem venda perdida')
+dict_settings['warehouse_capacity_kg'] = None
+dict_scenario = build_weekly_scenario(dict_instance, dict_settings)
+check(dict_scenario['warehouse_capacity'] is None, 'sem capacidade informada a restricao nao entra')
+
+
+print('\n== modelo diario: corrida de cor, reserva de troca e lote minimo ==')
 list_shifts = []
 for int_day in range(2):
     for int_shift in range(2):
@@ -144,16 +245,20 @@ for int_day in range(2):
             'shift_number': int_shift + 1, 'day_index': int_day,
             'week': pd.Timestamp('2024-01-01'),
         })
+dict_settings = {'annual_holding_rate': 0.25, 'daily_solver_name': 'ORTOOLS',
+                 'daily_time_limit': 60, 'threads': None}
 str_product = 'A-L'
 list_skus = [f'{str_product}-X', f'{str_product}-Y', f'{str_product}-Z']
-dict_color_setup = {('X', 'Y'): 1.0, ('Y', 'X'): 2.0, ('Y', 'Z'): 1.0, ('Z', 'Y'): 1.0}
+dict_color_setup = complete_setup_matrix({('X', 'Y'): 1.0, ('Y', 'X'): 2.0, ('Y', 'Z'): 1.0, ('Z', 'Y'): 1.0},
+                                         ['X', 'Y', 'Z'])
+dict_reservation = {f'{str_product}-X': 2.0, f'{str_product}-Y': 1.0, f'{str_product}-Z': 2.0}
 dict_orders = {}
 for str_sku in list_skus:
     for dict_shift in list_shifts:
         dict_orders[(str_sku, dict_shift['index'])] = 0.0
 dict_orders[(f'{str_product}-X', 0)] = 400.0
 dict_orders[(f'{str_product}-Y', 1)] = 400.0
-dict_orders[(f'{str_product}-Z', 3)] = 400.0
+dict_orders[(f'{str_product}-Z', 3)] = 10.0
 dict_scenario = {
     'shifts': list_shifts, 'machines': ['1'], 'products': [str_product],
     'skus_of_product': {str_product: list_skus},
@@ -164,54 +269,31 @@ dict_scenario = {
     'shift_capacity': {('1', 0): 8.0, ('1', 1): 8.0, ('1', 2): 8.0, ('1', 3): 8.0},
     'productivity': {str_product: {'1': 100.0}},
     'form_setup': {(str_product, str_product): 0.0}, 'color_setup': dict_color_setup,
+    'color_reservation': dict_reservation, 'initial_form': {'1': str_product}, 'initial_color': {},
     'orders': dict_orders,
-    'forecast': dict_orders.fromkeys(dict_orders, 0.0),
     'initial_stock': {f'{str_product}-X': 0.0, f'{str_product}-Y': 0.0, f'{str_product}-Z': 0.0},
-    'target': {str_product: 0.0}, 'min_lot': {str_product: 50.0},
+    'target': {(str_product, '2024-01-01'): 0.0}, 'min_lot': {str_product: 50.0},
     'unit_cost': {str_product: 5.0}, 'margin': {str_product: 10.0},
-    'setup_hourly_cost': {'1': 100.0}, 'positions': 2, 'shifts_per_week': 4,
+    'setup_hourly_cost': {'1': 100.0}, 'weeks': ['2024-01-01'], 'last_shift_of_week': {'2024-01-01': 3},
+    'warehouse_capacity': None,
 }
-dict_settings = {'annual_holding_rate': 0.25, 'daily_solver_name': 'ORTOOLS',
-                 'daily_time_limit': 60, 'threads': None}
 dict_result = solve_daily_model(dict_scenario, dict_settings)
-list_rows = []
-for dict_row in dict_result['schedule']:
-    list_rows.append(dict_row)
-for int_pass in range(len(list_rows)):
-    for int_index in range(len(list_rows) - 1):
-        tuple_left = (list_rows[int_index]['shift_index'], list_rows[int_index]['position'])
-        tuple_right = (list_rows[int_index + 1]['shift_index'], list_rows[int_index + 1]['position'])
-        if tuple_left > tuple_right:
-            dict_swap = list_rows[int_index]
-            list_rows[int_index] = list_rows[int_index + 1]
-            list_rows[int_index + 1] = dict_swap
-list_sequence = []
-for dict_row in list_rows:
-    list_sequence.append(dict_row['color'])
 check(dict_result['status'] == 'Optimal', 'resolvido ate otimalidade')
-bool_forbidden = False
-for int_index in range(1, len(list_sequence)):
-    if list_sequence[int_index - 1] == 'X' and list_sequence[int_index] == 'Z':
-        bool_forbidden = True
-    if list_sequence[int_index - 1] == 'Z' and list_sequence[int_index] == 'X':
-        bool_forbidden = True
-check(not bool_forbidden, f'nenhuma transicao proibida na sequencia {" -> ".join(list_sequence)}')
-bool_times = True
-for int_index in range(1, len(list_rows)):
-    dict_previous = list_rows[int_index - 1]
-    dict_current = list_rows[int_index]
-    if dict_previous['color'] != dict_current['color']:
-        float_expected = dict_color_setup[(dict_previous['color'], dict_current['color'])]
-        if abs(dict_current['color_setup_hours'] - float_expected) > 1e-6:
-            bool_times = False
-    else:
-        if dict_current['color_setup_hours'] != 0.0:
-            bool_times = False
-check(bool_times, 'tempo de troca cobrado == matriz DE-PARA; mesma cor nao paga (carryover)')
-check(abs(dict_result['kpis']['color_setup_hours'] - 2.0) < 1e-6,
-      'setup de cor total = 2h (X->Y e Y->Z atraves do turno ocioso)')
+check(dict_result['kpis']['order_service_level'] > 99.99, 'carteira atendida 100%')
+bool_reservation = True
+bool_min_lot = True
+bool_one_run = True
 dict_used = {}
+list_seen_runs = []
 for dict_row in dict_result['schedule']:
+    if abs(dict_row['color_setup_hours'] - dict_reservation[dict_row['sku']]) > 1e-6:
+        bool_reservation = False
+    if dict_row['kg'] < 50.0 - 1e-6:
+        bool_min_lot = False
+    tuple_run = (dict_row['sku'], dict_row['machine'], dict_row['shift_index'])
+    if tuple_run in list_seen_runs:
+        bool_one_run = False
+    list_seen_runs.append(tuple_run)
     int_shift = dict_row['shift_index']
     if int_shift not in dict_used:
         dict_used[int_shift] = 0.0
@@ -221,11 +303,15 @@ bool_capacity = True
 for int_shift in dict_used:
     if dict_used[int_shift] > 8.0 + 1e-6:
         bool_capacity = False
-check(bool_capacity, f'producao + setup cabem no turno de 8h: {dict_used}')
-check(dict_result['kpis']['order_service_level'] > 99.99, 'carteira atendida 100%')
-check(dict_result['kpis']['max_fractional_deviation'] < 1e-6,
-      'w, u, z, zeta e phi saem inteiras sem serem declaradas binarias '
-      f"(desvio maximo {dict_result['kpis']['max_fractional_deviation']:.2e})")
+check(bool_reservation, 'eq:capacidade_turno: cada corrida reserva o pior tempo de entrada na cor')
+check(bool_capacity, f'eq:capacidade_turno: producao + reserva + troca de forma cabem no turno de 8h: {dict_used}')
+check(bool_min_lot, 'eq:lote_minimo_turno: toda corrida produz ao menos o lote minimo (pedido de 10 kg vira 50 kg)')
+check(bool_one_run, 'uma corrida por SKU, maquina e turno')
+check(abs(dict_result['kpis']['color_setup_hours'] - 5.0) < 1e-6,
+      f"tres corridas reservam 2 + 1 + 2 h, X->Z ausente vale a limpeza de 2h (obtido "
+      f"{dict_result['kpis']['color_setup_hours']})")
+dict_reservation_scenario = dict_scenario
+dict_reservation_mip = dict_result
 
 
 print('\n== modelo diario: estado de forma sobrevive a turnos ociosos ==')
@@ -245,16 +331,18 @@ dict_scenario = {
     'shift_capacity': {('1', 0): 8.0, ('1', 1): 8.0, ('1', 2): 8.0, ('1', 3): 8.0},
     'productivity': {str_a: {'1': 100.0}, str_b: {'1': 100.0}},
     'form_setup': {(str_a, str_a): 0.0, (str_b, str_b): 0.0, (str_a, str_b): 3.0, (str_b, str_a): 5.0},
-    'color_setup': {}, 'orders': dict_orders,
-    'forecast': dict_orders.fromkeys(dict_orders, 0.0),
+    'color_setup': {}, 'color_reservation': {f'{str_a}-X': 0.0, f'{str_b}-X': 0.0}, 'initial_form': {'1': str_a},
+    'initial_color': {},
+    'orders': dict_orders,
     'initial_stock': {f'{str_a}-X': 0.0, f'{str_b}-X': 0.0},
-    'target': {str_a: 0.0, str_b: 0.0}, 'min_lot': {str_a: 50.0, str_b: 50.0},
+    'target': {(str_a, '2024-01-01'): 0.0, (str_b, '2024-01-01'): 0.0}, 'min_lot': {str_a: 50.0, str_b: 50.0},
     'unit_cost': {str_a: 5.0, str_b: 5.0}, 'margin': {str_a: 10.0, str_b: 10.0},
-    'setup_hourly_cost': {'1': 100.0}, 'positions': 2, 'shifts_per_week': 4,
+    'setup_hourly_cost': {'1': 100.0}, 'weeks': ['2024-01-01'], 'last_shift_of_week': {'2024-01-01': 3},
+    'warehouse_capacity': None,
 }
 dict_result = solve_daily_model(dict_scenario, dict_settings)
 check(abs(dict_result['kpis']['form_setup_hours'] - 3.0) < 1e-6,
-      'troca de forma A->B cobrada 3h atraves de 2 turnos ociosos')
+      'eq:forma_saida + eq:forma_entrada: troca A->B cobrada 3h atraves de 2 turnos ociosos')
 check(abs(dict_result['kpis']['setup_cost'] - 300.0) < 1e-6, 'custo de setup = 3h x R$100/h')
 
 dict_orders_same = dict(dict_orders)
@@ -264,6 +352,368 @@ dict_scenario['orders'] = dict_orders_same
 dict_result = solve_daily_model(dict_scenario, dict_settings)
 check(dict_result['kpis']['form_setup_hours'] == 0.0,
       'mesma forma atravessando ociosidade nao paga setup')
+
+dict_scenario['orders'] = dict_orders
+dict_scenario['initial_form'] = {'1': str_b}
+dict_result = solve_daily_model(dict_scenario, dict_settings)
+check(abs(dict_result['kpis']['form_setup_hours'] - 8.0) < 1e-6,
+      'troca contra a forma inicial: B->A no 1o turno (5h) e A->B depois (3h)')
+
+
+dict_completed = complete_setup_matrix({(str_a, str_b): 3.0, ('C', str_a): 5.0}, [str_a, str_b, 'C'])
+check(dict_completed[(str_b, str_a)] == 5.0 and dict_completed[('0', 'C')] == 5.0
+      and dict_completed[(str_a, str_a)] == 0.0 and dict_completed[(str_a, 'C')] == 5.0,
+      'troca ausente e estado inicial ficticio 0 valem o maior tempo registrado da matriz (5h)')
+dict_scenario['form_setup'] = complete_setup_matrix({(str_a, str_b): 3.0, (str_b, str_a): 5.0}, [str_a, str_b])
+dict_scenario['initial_form'] = {}
+dict_result = solve_daily_model(dict_scenario, dict_settings)
+check(abs(dict_result['kpis']['form_setup_hours'] - 8.0) < 1e-6,
+      'eq:forma_saida: sem forma inicial a maquina parte do balao ficticio 0 e paga 5h + A->B 3h')
+dict_scenario['form_setup'] = {(str_a, str_a): 0.0, (str_b, str_b): 0.0, (str_a, str_b): 3.0, (str_b, str_a): 5.0}
+
+dict_scenario['form_setup'] = {(str_a, str_a): 0.0, (str_b, str_b): 0.0, (str_a, str_b): 6.0, (str_b, str_a): 6.0}
+dict_scenario['initial_form'] = {'1': str_a}
+dict_scenario['shift_capacity'] = {('1', 0): 4.0, ('1', 1): 4.0, ('1', 2): 4.0, ('1', 3): 4.0}
+dict_crossover_orders = {}
+for tuple_key in dict_orders:
+    dict_crossover_orders[tuple_key] = 0.0
+dict_crossover_orders[(f'{str_b}-X', 3)] = 300.0
+dict_scenario['orders'] = dict_crossover_orders
+dict_result = solve_daily_model(dict_scenario, dict_settings)
+dict_executed = {}
+for dict_row in dict_result['schedule']:
+    if dict_row['shift_index'] not in dict_executed:
+        dict_executed[dict_row['shift_index']] = 0.0
+    dict_executed[dict_row['shift_index']] += dict_row['form_setup_hours']
+bool_no_run_while_pending = True
+for dict_row in dict_result['schedule']:
+    if dict_row['kg'] > 0.0 and dict_result['plan']['pending'][('1', dict_row['shift_index'])] > 1e-6:
+        bool_no_run_while_pending = False
+float_largest_executed = 0.0
+for int_shift in dict_executed:
+    if dict_executed[int_shift] > float_largest_executed:
+        float_largest_executed = dict_executed[int_shift]
+check(dict_result['status'] == 'Optimal' and dict_result['kpis']['backlog_cost'] < 1e-6
+      and abs(dict_result['kpis']['form_setup_hours'] - 6.0) < 1e-6 and float_largest_executed <= 4.0 + 1e-6,
+      f'eq:troca_pendente: troca A->B de 6h em turnos de 4h atravessa a fronteira (executado por turno {dict_executed})')
+check(bool_no_run_while_pending, 'eq:troca_concluida: nenhuma corrida em turno com troca pendente')
+dict_scenario['shift_capacity'] = {('1', 0): 8.0, ('1', 1): 8.0, ('1', 2): 8.0, ('1', 3): 8.0}
+dict_scenario['orders'] = dict_orders
+
+print('\n== modelo diario: estagios lexicograficos ==')
+dict_scenario['initial_form'] = {'1': str_a}
+dict_scenario['setup_hourly_cost'] = {'1': 1.0e6}
+dict_result = solve_daily_model(dict_scenario, dict_settings)
+list_stages = dict_result['stage_objectives']
+check(len(list_stages) == 3, 'tres estagios resolvidos (atraso, meta, custo)')
+check(dict_result['kpis']['backlog_cost'] < 1e-6,
+      'eq:obj_turno: atraso vem antes do setup mesmo com setup a R$1e6/h')
+check(dict_result['kpis']['backlog_cost'] <= list_stages[0] + 1e-6,
+      'eq:trava: o estagio de custo nao piora o atraso alcancado no estagio 1')
+
+dict_scenario['setup_hourly_cost'] = {'1': 100.0}
+dict_scenario['target'] = {(str_a, '2024-01-01'): 0.0, (str_b, '2024-01-01'): 300.0}
+dict_result = solve_daily_model(dict_scenario, dict_settings)
+list_stages = dict_result['stage_objectives']
+check(list_stages[1] < 1e-6, 'eq:meta_semana: o estagio 2 alcanca a meta de 300 kg de B ao fim da semana')
+check(dict_result['kpis']['target_slack_cost'] <= list_stages[1] + 1e-6,
+      'eq:trava: o estagio de custo nao cede a meta')
+float_final_b = 0.0
+for dict_row in dict_result['targets']:
+    if dict_row['product'] == str_b:
+        float_final_b = dict_row['final_stock']
+check(float_final_b >= 300.0 - 1e-4, f'estoque final de B = {float_final_b:.2f} kg >= 300 kg')
+
+
+print('\n== modelo diario: meta por semana detalhada e armazem por turno ==')
+list_two_week_shifts = []
+for int_week in range(2):
+    for int_shift in range(2):
+        list_two_week_shifts.append({
+            'index': len(list_two_week_shifts),
+            'date': pd.Timestamp('2024-01-01') + pd.Timedelta(days=7 * int_week),
+            'shift_number': int_shift + 1, 'day_index': int_week,
+            'week': pd.Timestamp('2024-01-01') + pd.Timedelta(days=7 * int_week),
+        })
+str_c = 'C-L'
+dict_orders = {}
+for int_shift in range(4):
+    dict_orders[(f'{str_c}-X', int_shift)] = 0.0
+dict_orders[(f'{str_c}-X', 2)] = 250.0
+dict_scenario = {
+    'shifts': list_two_week_shifts, 'machines': ['1'], 'products': [str_c],
+    'skus_of_product': {str_c: [f'{str_c}-X']}, 'product_of_sku': {f'{str_c}-X': str_c},
+    'color_of_sku': {f'{str_c}-X': 'X'},
+    'machines_of_product': {str_c: ['1']}, 'products_of_machine': {'1': [str_c]},
+    'shift_capacity': {('1', 0): 8.0, ('1', 1): 8.0, ('1', 2): 8.0, ('1', 3): 8.0},
+    'productivity': {str_c: {'1': 100.0}},
+    'form_setup': {(str_c, str_c): 0.0}, 'color_setup': {}, 'color_reservation': {f'{str_c}-X': 0.0},
+    'initial_form': {'1': str_c}, 'initial_color': {}, 'orders': dict_orders, 'initial_stock': {f'{str_c}-X': 0.0},
+    'target': {(str_c, '2024-01-01'): 300.0, (str_c, '2024-01-08'): 100.0},
+    'min_lot': {str_c: 50.0}, 'unit_cost': {str_c: 5.0}, 'margin': {str_c: 10.0},
+    'setup_hourly_cost': {'1': 100.0}, 'weeks': ['2024-01-01', '2024-01-08'],
+    'last_shift_of_week': {'2024-01-01': 1, '2024-01-08': 3}, 'warehouse_capacity': None,
+}
+dict_result = solve_daily_model(dict_scenario, dict_settings)
+dict_week_stock = {}
+for dict_row in dict_result['targets']:
+    dict_week_stock[dict_row['week']] = dict_row['final_stock']
+check(len(dict_result['targets']) == 2 and dict_result['stage_objectives'][1] < 1e-6,
+      'eq:meta_semana: uma meta por semana detalhada, as duas alcancadas')
+check(dict_week_stock['2024-01-01'] >= 300.0 - 1e-4 and dict_week_stock['2024-01-08'] >= 100.0 - 1e-4,
+      f"estoque ao fim de cada semana: {dict_week_stock['2024-01-01']:.1f} kg >= 300 e "
+      f"{dict_week_stock['2024-01-08']:.1f} kg >= 100")
+
+dict_scenario['warehouse_capacity'] = 200.0
+dict_result = solve_daily_model(dict_scenario, dict_settings)
+bool_warehouse = True
+for dict_row in dict_result['orders']:
+    if dict_row['inventory'] > 200.0 + 1e-4:
+        bool_warehouse = False
+dict_week_slack = {}
+for dict_row in dict_result['targets']:
+    dict_week_slack[dict_row['week']] = dict_row['slack']
+check(bool_warehouse, 'eq:capacidade_armazem_turno: estoque total <= 200 kg em todo turno')
+check(dict_result['kpis']['backlog_cost'] < 1e-6 and abs(dict_week_slack['2024-01-01'] - 100.0) < 1e-4
+      and dict_week_slack['2024-01-08'] < 1e-4,
+      f"armazem corta a meta da semana 1 em 100 kg sem atrasar carteira (folgas {dict_week_slack})")
+
+dict_settings_two_weeks = dict(dict_base)
+dict_settings_two_weeks['frozen_weeks'] = 2
+dict_weekly_two = solve_weekly_model(build_weekly_scenario(dict_instance, dict_settings_two_weeks),
+                                     dict_settings_two_weeks)
+dict_instance['initial_color'] = {}
+dict_daily_two = build_daily_scenario(dict_instance, dict_settings_two_weeks, dict_weekly_two)
+bool_targets = len(dict_daily_two['weeks']) == 2
+for str_product in dict_instance['products']:
+    for str_week in dict_daily_two['weeks']:
+        float_expected = 0.0
+        if str_product == str_mts_product:
+            float_expected = dict_weekly_two['targets'][str_product][str_week]
+        if abs(dict_daily_two['target'][(str_product, str_week)] - float_expected) > 1e-9:
+            bool_targets = False
+    if dict_daily_two['last_shift_of_week'][dict_daily_two['weeks'][0]] >= dict_daily_two['last_shift_of_week'][
+            dict_daily_two['weeks'][1]]:
+        bool_targets = False
+check(bool_targets, 'build_daily_scenario: Ihat_it = I_it semanal no balao MTS e 0 nos demais, por semana detalhada')
+
+
+print('\n== sequenciamento: avaliacao e heuristica ==')
+
+
+def build_sequencing_case(dict_runs, dict_form_override, dict_form_change, dict_orders_by_run, dict_initial_form,
+                          dict_initial_color, float_warehouse):
+    list_case_shifts = []
+    for int_shift in range(4):
+        list_case_shifts.append({
+            'index': int_shift, 'date': pd.Timestamp('2024-01-01') + pd.Timedelta(days=int_shift // 2),
+            'shift_number': int_shift % 2 + 1, 'day_index': int_shift // 2, 'week': pd.Timestamp('2024-01-01'),
+        })
+    dict_skus = {'A': ['A-X', 'A-Y', 'A-Z'], 'B': ['B-X']}
+    dict_case_orders = {}
+    dict_case_stock = {}
+    for str_case_product in dict_skus:
+        for str_sku in dict_skus[str_case_product]:
+            dict_case_stock[str_sku] = 0.0
+            for int_shift in range(4):
+                dict_case_orders[(str_sku, int_shift)] = 0.0
+    for tuple_key in dict_orders_by_run:
+        dict_case_orders[tuple_key] = dict_orders_by_run[tuple_key]
+    dict_case_scenario = {
+        'shifts': list_case_shifts, 'machines': ['1', '2'], 'products': ['A', 'B'],
+        'skus_of_product': dict_skus,
+        'product_of_sku': {'A-X': 'A', 'A-Y': 'A', 'A-Z': 'A', 'B-X': 'B'},
+        'color_of_sku': {'A-X': 'X', 'A-Y': 'Y', 'A-Z': 'Z', 'B-X': 'X'},
+        'machines_of_product': {'A': ['1', '2'], 'B': ['1', '2']},
+        'products_of_machine': {'1': ['A', 'B'], '2': ['A', 'B']},
+        'productivity': {'A': {'1': 100.0, '2': 100.0}, 'B': {'1': 100.0, '2': 100.0}},
+        'color_setup': complete_setup_matrix({('X', 'Y'): 1.0, ('Y', 'X'): 2.0, ('Y', 'Z'): 1.0, ('Z', 'Y'): 1.0},
+                                             ['X', 'Y', 'Z']),
+        'form_setup': {('A', 'B'): 3.0, ('B', 'A'): 5.0},
+        'color_reservation': {'A-X': 2.0, 'A-Y': 1.0, 'A-Z': 2.0, 'B-X': 0.0},
+        'min_lot': {'A': 50.0, 'B': 50.0}, 'shift_capacity': {},
+        'setup_hourly_cost': {'1': 100.0, '2': 100.0},
+        'initial_form': dict_initial_form, 'initial_color': dict_initial_color,
+        'initial_stock': dict_case_stock, 'orders': dict_case_orders, 'warehouse_capacity': float_warehouse,
+        'weeks': ['2024-01-01'], 'last_shift_of_week': {'2024-01-01': 3},
+        'target': {('A', '2024-01-01'): 0.0, ('B', '2024-01-01'): 0.0},
+        'margin': {'A': 10.0, 'B': 10.0}, 'unit_cost': {'A': 5.0, 'B': 5.0},
+    }
+    dict_case_plan = {'quantity': {}, 'sequence': {}, 'form': {}, 'form_change': dict_form_change,
+                      'pending': {}, 'color_hours': {}, 'previous_color': {}}
+    for str_machine in ['1', '2']:
+        for int_shift in range(4):
+            dict_case_scenario['shift_capacity'][(str_machine, int_shift)] = 8.0
+            dict_case_plan['sequence'][(str_machine, int_shift)] = []
+            dict_case_plan['pending'][(str_machine, int_shift)] = 0.0
+            if (str_machine, int_shift) in dict_form_override:
+                dict_case_plan['form'][(str_machine, int_shift)] = dict_form_override[(str_machine, int_shift)]
+            else:
+                dict_case_plan['form'][(str_machine, int_shift)] = 'A'
+    for tuple_run in dict_runs:
+        dict_case_plan['quantity'][tuple_run] = dict_runs[tuple_run]
+        dict_case_plan['sequence'][(tuple_run[1], tuple_run[2])].append(tuple_run[0])
+        dict_case_plan['color_hours'][tuple_run] = dict_case_scenario['color_reservation'][tuple_run[0]]
+        dict_case_plan['previous_color'][tuple_run] = '-'
+    dict_case_mip = {'status': 'Optimal', 'stage_objectives': [], 'stage_reports': [],
+                     'kpis': {'solve_seconds': 0.0, 'hit_time_limit': False}, 'plan': dict_case_plan}
+    return dict_case_scenario, dict_case_mip
+
+
+def collect_runs(dict_sequenced):
+    dict_runs_found = {}
+    for dict_row in dict_sequenced['schedule']:
+        if dict_row['sku'] != '-':
+            dict_runs_found[(dict_row['sku'], dict_row['machine'], dict_row['shift_index'])] = dict_row
+    return dict_runs_found
+
+
+dict_case_scenario, dict_case_mip = build_sequencing_case(
+    {('A-X', '1', 0): 100.0, ('A-Y', '1', 2): 100.0}, {}, {}, {}, {}, {}, None)
+dict_case_state = {'quantity': dict_case_mip['plan']['quantity'], 'sequence': dict_case_mip['plan']['sequence']}
+dict_evaluation = evaluate_sequence(dict_case_scenario, dict_case_mip['plan'], dict_case_state, ['1'], True)
+check(abs(dict_evaluation['run_color_hours'][('A-Y', '1', 2)] - 1.0) < 1e-9
+      and dict_evaluation['run_previous_color'][('A-Y', '1', 2)] == 'X',
+      'eq:seq_entrada: a cor X do turno 0 entra no turno 2 atraves do turno 1 ocioso (X->Y = 1h)')
+check(abs(dict_evaluation['run_color_hours'][('A-X', '1', 0)] - 2.0) < 1e-9
+      and dict_evaluation['run_previous_color'][('A-X', '1', 0)] == '0',
+      'eq:seq_entrada: sem cor inicial a entrada e o SKU ficticio 0, e a primeira corrida paga a limpeza (2h)')
+
+dict_case_scenario, dict_case_mip = build_sequencing_case(
+    {('A-X', '1', 0): 100.0, ('A-Y', '1', 2): 100.0}, {('1', 1): 'B'},
+    {('1', 1): ('A', 3.0), ('1', 2): ('B', 5.0)}, {}, {}, {}, None)
+dict_case_state = {'quantity': dict_case_mip['plan']['quantity'], 'sequence': dict_case_mip['plan']['sequence']}
+dict_evaluation = evaluate_sequence(dict_case_scenario, dict_case_mip['plan'], dict_case_state, ['1'], True)
+check(dict_evaluation['run_color_hours'][('A-Y', '1', 2)] == 0.0
+      and dict_evaluation['run_previous_color'][('A-Y', '1', 2)] == '-',
+      'eq:seq_entrada: depois de troca de forma a entrada e vazia e a primeira cor custa 0')
+
+dict_case_scenario, dict_case_mip = build_sequencing_case(
+    {('A-X', '1', 0): 100.0}, {}, {}, {}, {'1': 'A'}, {'1': 'Y'}, None)
+dict_case_state = {'quantity': dict_case_mip['plan']['quantity'], 'sequence': dict_case_mip['plan']['sequence']}
+dict_evaluation = evaluate_sequence(dict_case_scenario, dict_case_mip['plan'], dict_case_state, ['1'], True)
+check(abs(dict_evaluation['run_color_hours'][('A-X', '1', 0)] - 2.0) < 1e-9,
+      'eq:seq_entrada: no turno 0 a entrada e k0_j (cor inicial Y, Y->X = 2h)')
+
+dict_case_scenario, dict_case_mip = build_sequencing_case(
+    {('A-Z', '1', 0): 100.0, ('A-X', '1', 0): 100.0, ('A-Y', '1', 0): 100.0}, {}, {}, {}, {'1': 'A'}, {'1': 'X'},
+    None)
+dict_case_state = {'quantity': dict_case_mip['plan']['quantity'], 'sequence': dict_case_mip['plan']['sequence']}
+dict_evaluation = evaluate_sequence(dict_case_scenario, dict_case_mip['plan'], dict_case_state, ['1'], True)
+check(abs(dict_evaluation['cells'][('1', 0)]['color_setup_hours'] - 5.0) < 1e-9
+      and dict_evaluation['violation']['seq_capacidade'] == 0.0,
+      'eq:seq_capacidade: a ordem Z, X, Y do MIP paga X->Z 2h + Z->X 2h + X->Y 1h = 5h e cabe na reserva')
+dict_sequenced = sequence_daily_plan(dict_case_scenario, {'annual_holding_rate': 0.25}, dict_case_mip)
+list_order = []
+for dict_row in dict_sequenced['schedule']:
+    if dict_row['shift_index'] == 0 and dict_row['machine'] == '1':
+        list_order.append(dict_row['sku'])
+check(dict_sequenced['sequencing_violations']['seq_capacidade'] == 0.0 and list_order == ['A-X', 'A-Y', 'A-Z'],
+      f'eq:obj_sequenciamento: o sequenciamento ordena X, Y, Z (obtido {list_order})')
+float_reserved = 0.0
+for tuple_run in dict_case_mip['plan']['color_hours']:
+    float_reserved += dict_case_mip['plan']['color_hours'][tuple_run]
+check(abs(dict_sequenced['kpis']['color_setup_hours'] - 2.0) < 1e-9 and abs(float_reserved - 5.0) < 1e-9,
+      'eq:obj_sequenciamento: troca real 2h contra reserva de 5h do MIP')
+dict_cell = None
+for dict_row in dict_sequenced['sequencing_report']:
+    if dict_row['machine'] == '1' and dict_row['shift_index'] == 0:
+        dict_cell = dict_row
+check(abs(dict_cell['idle_hours'] - 3.0) < 1e-9 and dict_cell['seq_capacidade'] == 0.0,
+      f"eq:seq_capacidade: 8h - 3h de producao - 2h de troca real = 3h ociosas (obtido {dict_cell['idle_hours']})")
+
+dict_case_scenario, dict_case_mip = build_sequencing_case({('A-X', '1', 0): 900.0}, {}, {}, {}, {'1': 'A'},
+                                                          {'1': 'X'}, None)
+dict_sequenced = sequence_daily_plan(dict_case_scenario, {'annual_holding_rate': 0.25}, dict_case_mip)
+check(abs(dict_sequenced['sequencing_violations']['seq_capacidade'] - 1.0) < 1e-9,
+      'eq:seq_capacidade: 900 kg em turno de 8h a 100 kg/h estoura 1h e e publicado')
+
+dict_machine_two_b = {('2', 0): 'B', ('2', 1): 'B', ('2', 2): 'B', ('2', 3): 'B'}
+dict_case_scenario, dict_case_mip = build_sequencing_case(
+    {('A-X', '1', 0): 300.0, ('A-X', '1', 2): 600.0}, dict_machine_two_b, {}, {('A-X', 3): 900.0}, {'1': 'A'}, {'1': 'X'}, None)
+dict_sequenced = sequence_daily_plan(dict_case_scenario, {'annual_holding_rate': 0.25}, dict_case_mip)
+dict_runs_found = collect_runs(dict_sequenced)
+bool_expected = (('A-X', '1', 0) in dict_runs_found and abs(dict_runs_found[('A-X', '1', 0)]['kg'] - 800.0) < 1e-6
+                 and ('A-X', '1', 1) in dict_runs_found and abs(dict_runs_found[('A-X', '1', 1)]['kg'] - 100.0) < 1e-6
+                 and ('A-X', '1', 2) not in dict_runs_found)
+check(bool_expected, 'antecipacao: estende X no turno 0 ate encher (800 kg) e traz o resto para o turno 1 ocioso')
+check(abs(dict_sequenced['kpis']['anticipated_kg'] - 600.0) < 1e-6
+      and dict_sequenced['sequencing_violations']['seq_antecipacao'] == 0.0,
+      'eq:seq_antecipacao: 600 kg antecipados, igualdade no ultimo turno preserva os 900 kg')
+check(dict_sequenced['kpis']['backlog_cost'] == 0.0 and dict_sequenced['sequencing_violations']['seq_lote'] == 0.0,
+      'eq:seq_lote: toda corrida resultante tem ao menos o lote minimo; carteira atendida')
+
+dict_case_scenario, dict_case_mip = build_sequencing_case(
+    {('A-X', '1', 0): 300.0, ('A-X', '1', 2): 600.0}, dict_machine_two_b, {},
+    {('A-X', 0): 300.0, ('A-X', 2): 600.0}, {'1': 'A'}, {'1': 'X'}, None)
+dict_sequenced = sequence_daily_plan(dict_case_scenario, {'annual_holding_rate': 0.25}, dict_case_mip)
+float_free_anticipated = dict_sequenced['kpis']['anticipated_kg']
+dict_case_scenario['warehouse_capacity'] = 400.0
+dict_sequenced = sequence_daily_plan(dict_case_scenario, {'annual_holding_rate': 0.25}, dict_case_mip)
+float_peak = 0.0
+for dict_row in dict_sequenced['orders']:
+    if dict_row['inventory'] > float_peak:
+        float_peak = dict_row['inventory']
+check(float_free_anticipated > 0.0 and dict_sequenced['sequencing_violations']['seq_armazem'] == 0.0
+      and float_peak <= 400.0 + 1e-6 and dict_sequenced['kpis']['anticipated_kg'] == 0.0,
+      f'eq:seq_armazem: sem limite antecipa {float_free_anticipated:.0f} kg; com Omega = 400 kg nada '
+      f'que estoure o armazem e antecipado (pico {float_peak:.0f} kg)')
+
+dict_form_gap = dict(dict_machine_two_b)
+dict_form_gap[('1', 1)] = 'B'
+dict_case_scenario, dict_case_mip = build_sequencing_case(
+    {('A-X', '1', 0): 300.0, ('A-X', '1', 2): 100.0, ('A-Y', '1', 3): 100.0}, dict_form_gap,
+    {('1', 1): ('A', 3.0), ('1', 2): ('B', 5.0)}, {}, {'1': 'A'}, {'1': 'X'}, None)
+dict_case_state = {'quantity': dict_case_mip['plan']['quantity'], 'sequence': dict_case_mip['plan']['sequence']}
+float_initial_setup = evaluate_sequence(dict_case_scenario, dict_case_mip['plan'], dict_case_state,
+                                        ['1', '2'], True)['setup_cost']
+dict_sequenced = sequence_daily_plan(dict_case_scenario, {'annual_holding_rate': 0.25}, dict_case_mip)
+dict_runs_found = collect_runs(dict_sequenced)
+check(('A-Y', '1', 0) not in dict_runs_found and abs(float_initial_setup - 100.0) < 1e-6
+      and dict_sequenced['kpis']['color_setup_hours'] == 0.0,
+      'eq:obj_sequenciamento: X vai para o turno 0 e Y nao, porque pagaria X->Y; Y fica depois da '
+      'troca de forma, sem custo de cor (R$100 -> R$0)')
+
+dict_case_scenario, dict_case_mip = build_sequencing_case(
+    {('B-X', '2', 2): 100.0, ('A-X', '2', 3): 100.0}, {('2', 0): 'B', ('2', 1): 'B', ('2', 2): 'B'},
+    {('2', 3): ('B', 5.0)}, {}, {'1': 'A'}, {'1': 'X'}, None)
+dict_sequenced = sequence_daily_plan(dict_case_scenario, {'annual_holding_rate': 0.25}, dict_case_mip)
+dict_runs_found = collect_runs(dict_sequenced)
+bool_b_on_one = False
+for tuple_run in dict_runs_found:
+    if tuple_run[0] == 'B-X' and tuple_run[1] == '1':
+        bool_b_on_one = True
+check(not bool_b_on_one and dict_sequenced['sequencing_violations']['seq_forma'] == 0.0,
+      'eq:seq_forma: B nao vai para a maquina 1, que tem a forma A montada')
+check(('A-X', '1', 0) in dict_runs_found and ('A-X', '2', 3) not in dict_runs_found,
+      'eq:seq_forma: A sai da maquina 2 no turno 3 para a maquina 1 no turno 0, com a forma A montada')
+
+dict_case_scenario, dict_case_mip = build_sequencing_case(
+    {('B-X', '1', 3): 100.0}, {('1', 1): 'B', ('1', 2): 'B', ('1', 3): 'B'}, {('1', 1): ('A', 10.0)}, {},
+    {'1': 'A'}, {'1': 'X'}, None)
+dict_case_mip['plan']['pending'][('1', 1)] = 2.0
+dict_sequenced = sequence_daily_plan(dict_case_scenario, {'annual_holding_rate': 0.25}, dict_case_mip)
+dict_runs_found = collect_runs(dict_sequenced)
+dict_form_by_shift = {}
+for dict_row in dict_sequenced['sequencing_report']:
+    if dict_row['machine'] == '1':
+        dict_form_by_shift[dict_row['shift_index']] = dict_row['form_setup_hours']
+check(('B-X', '1', 1) not in dict_runs_found and ('B-X', '1', 2) in dict_runs_found
+      and dict_sequenced['sequencing_violations']['seq_forma'] == 0.0
+      and dict_sequenced['sequencing_violations']['seq_capacidade'] == 0.0,
+      'eq:seq_forma: B nao vai para o turno 1, com troca pendente, e sim para o turno 2, onde a troca termina')
+check(abs(dict_form_by_shift[1] - 8.0) < 1e-9 and abs(dict_form_by_shift[2] - 2.0) < 1e-9,
+      'eq:seq_capacidade: a troca de 10h executa 8h no turno 1 e 2h no turno 2')
+
+dict_sequenced = sequence_daily_plan(dict_reservation_scenario, dict_settings, dict_reservation_mip)
+float_total_violation = 0.0
+for str_name in dict_sequenced['sequencing_violations']:
+    float_total_violation += dict_sequenced['sequencing_violations'][str_name]
+check(float_total_violation < 1e-6, f"MIP + sequenciamento: nenhuma violacao ({dict_sequenced['sequencing_violations']})")
+check(dict_sequenced['kpis']['color_setup_hours'] <= dict_reservation_mip['kpis']['color_setup_hours'] + 1e-9
+      and dict_sequenced['kpis']['order_service_level'] >= dict_reservation_mip['kpis']['order_service_level'] - 1e-9,
+      f"troca real {dict_sequenced['kpis']['color_setup_hours']:.1f}h <= reserva "
+      f"{dict_reservation_mip['kpis']['color_setup_hours']:.1f}h, atendimento mantido")
 
 
 print('\n' + '=' * 60)

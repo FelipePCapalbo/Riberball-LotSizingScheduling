@@ -21,9 +21,11 @@ optimization/
     planner.py       — orquestra as duas etapas
     solver.py        — resolve o problema PuLP com Gurobi ou OR-Tools
 processing/
-    data.py       — leitura do Excel para um dict de instância
-    settings.py   — persistência das configurações em JSON
-    history.py    — registro das execuções (semanal + diário no mesmo run_id)
+    database.py   — esquema e conexão do banco SQLite (database/riberball.sqlite)
+    data.py       — leitura do Excel e do banco para o dict de instância
+    uploads.py    — upload do Excel: diferenças contra o cadastro, aprovação de conflitos, fotografias
+    settings.py   — parâmetros de execução, gravados no banco
+    history.py    — registro das execuções (semanal + diário no mesmo run_id), gravado no banco
 backend/
     app.py               — FastAPI; rotas finas, lógica nos módulos acima
     config.py            — variáveis de ambiente (backend/.env)
@@ -33,12 +35,8 @@ backend/
 frontend/
     app/    — dashboard React + Vite + TypeScript; ambientes main e dev em src/environment.ts
     worker/ — Cloudflare Worker (serve o app, proxy /api/*, lock de conexão única); env dev no wrangler.jsonc
-config/
-    scenario.json — start_week, weeks_in_plan, frozen_weeks
-    capacity.json — shifts_per_day, hours_per_shift, working_days_per_week
-    machines.json — active_machines, setup_hourly_cost_default, setup_hourly_cost_by_machine
-    costs.json    — annual_holding_rate
-    solver.json   — motores (GUROBI | ORTOOLS), tempos limite, positions_per_shift, threads
+database/
+    riberball.sqlite — cadastro mestre, fotografias, uploads e histórico (criado no primeiro uso, fora do git)
 data/
     instance_*.xlsx           — instâncias sintéticas (ver abas abaixo)
     input_asis_ajustado.xlsx  — dado real da operação no contrato semanal
@@ -76,13 +74,48 @@ docs/
 | `Pedidos` | linha 1 | `PEDIDO_ID`, `CLIENTE`, `DATA_EMISSAO`, `DATA_VENCIMENTO` |
 | `Itens_Pedido` | linha 1 | `PEDIDO_ID`, `MODELO`, `TIPO`, `COR`, `QUANTIDADE` |
 | `Estoque_Cor` | linha 1 | `MODELO`, `TIPO`, `COR`, `ESTOQUE_INICIAL` |
-| `De_Para_Cores` | linha 1 | matriz COR × COR: célula = horas de setup; vazia = transição **proibida** |
-| `De_Para_Formas` | linha 1 | matriz `MODELO-TIPO` × `MODELO-TIPO`: horas de setup de forma; diagonal = 0 |
+| `De_Para_Cores` | linha 1 | matriz COR × COR: célula = horas de setup; vazia = limpeza completa, vale o maior tempo registrado na matriz |
+| `De_Para_Formas` | linha 1 | matriz `MODELO-TIPO` × `MODELO-TIPO`: horas de setup de forma; diagonal = 0; vazia = maior tempo registrado na matriz |
 | `Lote_Minimo` | linha 1 | `MODELO`, `TIPO`, `LOTE_MINIMO_KG` |
+
+Abas opcionais:
+
+| Aba | Cabeçalho | Conteúdo | Sem a aba |
+|-----|-----------|----------|-----------|
+| `Maquinas` | linha 1 | `MAQUINA`, `ATIVA` (`SIM`/`NAO`), `CUSTO_SETUP_HORA` (R$/h) | máquinas da `Produtividade`, ativas, R$ 250/h |
+| `MTS_MTO` | linha 1 | `MODELO`, `TIPO`, `COR`, `CLASSE` (`MTS`/`MTO`); `COR` vazia = padrão do balão | todo SKU MTS |
+| `Mix_Cores` | linha 1 | `MODELO`, `TIPO`, `COR`, `PARTICIPACAO` (soma 1 por balão) | mix da carteira; sem carteira, uniforme |
+| `MAPE` | linha 1 | `MODELO`, `TIPO`, `MAPE` (%) | 0 |
+| `Forma_Inicial` | linha 1 | `MAQUINA`, `MODELO`, `TIPO`, `COR` (opcional; cor montada no início do horizonte, do mesmo balão) | forma desconhecida: a primeira troca custa o maior tempo da `De_Para_Formas`; sem `COR`, o primeiro setup de cor custa o maior tempo da `De_Para_Cores` |
+| `Previsao_Manual` | linha 2 | mesmo formato de `Demanda`; célula preenchida sobrepõe a previsão estatística | só a estatística |
 
 Um pedido pode conter itens de balões e cores diferentes; a data de vencimento é do **pedido**.
 A carteira é a parcela já confirmada da demanda total: o modelo usa **previsão líquida**
 (`demanda total − carteira`), sem dupla contagem.
+
+### Cadastro mestre e fotografias (SQLite)
+
+A interface não lê arquivos de `data/`: o usuário sobe o Excel e o backend grava no banco
+`database/riberball.sqlite`. O caminho pode ser trocado pela variável `DATABASE_PATH`.
+
+As abas se dividem em dois grupos:
+
+| Grupo | Abas | Tratamento |
+|---|---|---|
+| Cadastro mestre | `Produtividade`, `Custos`, `Lote_Minimo`, `MTS_MTO`, `Maquinas`, `De_Para_Formas`, `De_Para_Cores`, `Disponibilidade de maquinas` | comparado com o banco; registros novos entram direto, alterações e remoções são conflitos que o usuário aprova ou rejeita |
+| Fotografia de planejamento | `Demanda`, `Previsao_Manual`, `MAPE`, `Mix_Cores`, `Pedidos`, `Itens_Pedido`, `Estoque`, `Estoque_Cor`, `Forma_Inicial` | gravada como uma nova fotografia datada, que passa a ser a ativa |
+
+Regras da comparação:
+
+- Aba ausente não altera o cadastro.
+- Coluna ausente não altera o valor gravado.
+- Remoção só é proposta quando a aba que define a tabela está presente. Por exemplo, um balão que some
+  da `Produtividade` ou uma transição de cor que fica vazia na `De_Para_Cores`.
+- Conflito não decidido é rejeitado: o cadastro mantém o valor atual.
+
+Cada execução registra a fotografia que usou. A interface permite trocar a fotografia ativa e
+ativar ou desativar máquinas, o que grava direto no cadastro. Os parâmetros de execução (horizonte,
+capacidade, taxa de carregamento, solvers) também ficam no banco, editados pela barra lateral.
 
 ## As duas camadas de demanda
 
@@ -127,7 +160,7 @@ Bucket = turno; dentro de cada turno há `positions_per_shift` posições, que d
 - Produção mais setup **cabem no turno** (restrição dura) — nenhuma ordem atravessa o turno.
 - O estado da máquina (forma e cor montadas) **sobrevive a turnos ociosos**: um turno parado não
   zera o setup acumulado.
-- Transições de cor proibidas na matriz DE-PARA nunca aparecem em posições consecutivas.
+- Transição de cor vazia na matriz DE-PARA custa o maior tempo registrado na matriz (limpeza completa).
 - Lote mínimo exigido em toda posição que **inicia** uma nova corrida de cor.
 
 O modelo é resolvido como formulado, sem heurística de resolução: o solver recebe o MILP
@@ -144,7 +177,7 @@ variáveis frente ao inteiro mais próximo, e `tests/test_models.py` verifica qu
 
 Os dois modelos são escritos em PuLP, usado só como camada de modelagem.
 `optimization/solver.py` exporta o problema em MPS e o resolve com um de dois motores, escolhido
-por etapa em `config/solver.json` (`weekly_solver_name`, `daily_solver_name`):
+por etapa nos parâmetros de execução (`weekly_solver_name`, `daily_solver_name`):
 
 | Valor | Motor | Observação |
 |---|---|---|
@@ -199,8 +232,8 @@ dos custos.
 
 O sequenciamento de cor segue a regra de limpeza do látex: escurecer é uma purga curta
 (0,25 h + 0,08 h por degrau), clarear exige limpeza profunda (0,70 h + 0,45 h por degrau) e
-`PRETO → BRANCO`, `PRETO → AMARELO` e `ROXO → BRANCO` são **proibidas** — é preciso passar por uma
-cor intermediária. A troca de forma zera quando o `MODELO` não muda: `RED. 10-LISO → RED. 10-PLATINO`
+`PRETO → BRANCO`, `PRETO → AMARELO` e `ROXO → BRANCO` ficam vazias na matriz: só com limpeza completa do
+circuito, ao custo do maior tempo registrado. A troca de forma zera quando o `MODELO` não muda: `RED. 10-LISO → RED. 10-PLATINO`
 custa só a troca de composto (1,5 h), contra 4,5–6,3 h entre famílias diferentes.
 
 ### Rodar sem interface
@@ -209,7 +242,8 @@ custa só a troca de composto (1,5 h), contra 4,5–6,3 h entre famílias difere
 python run.py [arquivo.xlsx]
 ```
 
-Roda as duas etapas e grava `results.json`.
+Lê o `.xlsx` direto de `data/`, sem passar pelo banco, roda as duas etapas e grava `results.json`.
+Os parâmetros de execução vêm do banco (ou dos valores padrão, se o banco estiver vazio).
 
 ### Testes
 
@@ -218,7 +252,7 @@ python tests/test_models.py
 ```
 
 Valida invariantes das instâncias, a hierarquia de preços do semanal (balanço, capacidade, lote
-mínimo, decomposição de custo) e o sequenciamento do diário (transições proibidas, tempos da matriz,
+mínimo, decomposição de custo) e o sequenciamento do diário (lacunas da matriz, tempos da matriz,
 carryover através de turnos ociosos, capacidade do turno).
 
 ### Interface web
@@ -282,8 +316,8 @@ por `WORKER_BASE_URL` em `backend/.env`.
 | `dev` | `riberball-lotsizingscheduling-dev.felipecapalbo.workers.dev` | desenvolvimento | OR-Tools ou Gurobi |
 
 As diferenças entre os ambientes ficam em `frontend/app/src/environment.ts`, selecionadas pelo
-`--mode` do Vite. Em `main`, se o `config/solver.json` do backend trouxer um motor fora da lista
-permitida, a interface o troca por OR-Tools antes de salvar e rodar.
+`--mode` do Vite. Em `main`, se os parâmetros de execução gravados no banco trouxerem um motor fora
+da lista permitida, a interface o troca por OR-Tools antes de salvar e rodar.
 
 | Ação | `main` | `dev` |
 |---|---|---|

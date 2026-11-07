@@ -13,14 +13,18 @@ interface InventoryTargetChartProps {
 export default function InventoryTargetChart({ data }: InventoryTargetChartProps) {
   const weeks = Array.from(new Set(data.map((row) => row.week))).sort();
   const inventory: number[] = [];
+  const stockMinimum: number[] = [];
   for (const week of weeks) {
-    let i = 0;
+    let weekInventory = 0;
+    let weekMinimum = 0;
     for (const row of data) {
       if (row.week === week) {
-        i += row.inventory;
+        weekInventory += row.inventory;
+        weekMinimum += row.stock_minimum ?? 0;
       }
     }
-    inventory.push(i);
+    inventory.push(weekInventory);
+    stockMinimum.push(weekMinimum);
   }
 
   return (
@@ -29,6 +33,7 @@ export default function InventoryTargetChart({ data }: InventoryTargetChartProps
         labels: weeks.map(formatDate),
         datasets: [
           { label: 'Estoque projetado', data: inventory, borderColor: CATEGORICAL[0], backgroundColor: CATEGORICAL[0], borderWidth: 2, pointRadius: 4, tension: 0.2 },
+          { label: 'Estoque mínimo (MTS)', data: stockMinimum, borderColor: CATEGORICAL[1], backgroundColor: CATEGORICAL[1], borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0 },
         ],
       }}
       options={{

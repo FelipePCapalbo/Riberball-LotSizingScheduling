@@ -58,6 +58,8 @@ frontend/app/tsconfig.tsbuildinfo
 *.lot
 *.bbl
 *.blg
+*.brf
+*.loq
 *.bcf
 *.run.xml
 *.nav
@@ -80,3 +82,6 @@ frontend/app/tsconfig.tsbuildinfo
 
 # Saida do run.py standalone
 /results.json
+
+# Banco SQLite local (cadastro mestre, fotografias e historico de execucoes)
+/database/
