@@ -1,0 +1,56 @@
+name: Dissertacao PDF
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - "dissertacao/**"
+      - ".github/workflows/dissertacao.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dissertacao-pdf
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile figures
+        uses: xu-cheng/latex-action@v3
+        with:
+          working_directory: dissertacao
+          root_file: figuras/figuras.tex
+          work_in_root_file_dir: false
+          args: -pdf -interaction=nonstopmode -file-line-error -output-directory=figuras
+
+      - name: Compile dissertation
+        uses: xu-cheng/latex-action@v3
+        with:
+          working_directory: dissertacao
+          root_file: ModelagemAlgebrica.tex
+          args: -pdf -interaction=nonstopmode -file-line-error
+
+      - name: Publish PDF to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view dissertacao-pdf > /dev/null 2>&1
+          then
+            gh release create dissertacao-pdf --target "$GITHUB_SHA" --title "Dissertacao PDF" --notes "PDF compilado automaticamente." --latest=false
+          fi
+          gh release upload dissertacao-pdf dissertacao/ModelagemAlgebrica.pdf --clobber
+          gh release edit dissertacao-pdf --notes "Compilado a partir de ${GITHUB_REF_NAME}@${GITHUB_SHA::7} em $(date -u '+%Y-%m-%d %H:%M UTC')."
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ModelagemAlgebrica
+          path: dissertacao/ModelagemAlgebrica.pdf
