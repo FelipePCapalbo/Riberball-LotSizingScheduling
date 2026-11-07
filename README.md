@@ -167,9 +167,11 @@ Bucket = turno; dentro de cada turno há `positions_per_shift` posições, que d
   de troca e a sua capacidade de turno; uma troca de cor num lado não para o outro. A troca de forma interrompe a máquina
   inteira e consome os dois lados. No semanal a capacidade é contada em horas-lado: `Σ x/p + (n·τF + τC)·y ≤ n·H`.
 
-O modelo é resolvido como formulado, sem heurística de resolução: o solver recebe o MILP
-completo e um tempo limite. Não há relax-and-fix, fixação parcial nem redução do conjunto de
-SKUs candidatos — o que se reporta é o que o modelo entrega.
+Nesta branch (`exp/warm-start`), uma heurística construtiva dá ao primeiro estágio lexicográfico de cada nível uma
+solução inicial completa e viável. No semanal, semana a semana, atende carteira vencida, carteira da semana,
+previsão e piso, nessa ordem, antecipando o que não cabe. No diário, turno a turno, mantém a forma enquanto há
+necessidade e reparte as cores pelos lados. O tempo da heurística sai do orçamento do primeiro estágio. Liga-se com
+`warm_start_heuristic` em `processing/settings.py`.
 
 Uma propriedade da formulação mantém o número de binárias baixo: apenas $\nu_{kjsn}$ (SKU na
 posição) é declarada binária. As variáveis de configuração — forma montada, máquina ativa,

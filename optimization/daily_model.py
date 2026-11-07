@@ -167,6 +167,32 @@ def build_daily_scenario(dict_instance, dict_settings, dict_weekly_result):
     }
 
 
+def measure_daily_need(dict_scenario, str_product, str_week, dict_cumulative_orders, dict_produced):
+    int_last_shift = dict_scenario['last_shift_of_week'][str_week]
+    dict_sku_need = {}
+    dict_sku_urgency = {}
+    float_order_need = 0.0
+    float_surplus = 0.0
+    for str_sku in dict_scenario['skus_of_product'][str_product]:
+        float_supply = dict_scenario['initial_stock'][str_sku] + dict_produced[str_sku]
+        float_balance = float_supply - dict_cumulative_orders[(str_sku, int_last_shift)]
+        dict_sku_need[str_sku] = 0.0
+        dict_sku_urgency[str_sku] = None
+        if float_balance < -1e-6:
+            dict_sku_need[str_sku] = -float_balance
+            float_order_need += -float_balance
+            int_shift = int_last_shift
+            while int_shift >= 0 and dict_cumulative_orders[(str_sku, int_shift)] > float_supply + 1e-6:
+                dict_sku_urgency[str_sku] = int_shift
+                int_shift -= 1
+        elif float_balance > 0.0:
+            float_surplus += float_balance
+    float_target_need = dict_scenario['target'][(str_product, str_week)] - float_surplus
+    if float_target_need < 1e-6:
+        float_target_need = 0.0
+    return dict_sku_need, dict_sku_urgency, float_order_need, float_target_need
+
+
 def solve_daily_model(dict_scenario, dict_settings):
     list_shifts = dict_scenario['shifts']
     list_machines = dict_scenario['machines']
@@ -447,12 +473,333 @@ def solve_daily_model(dict_scenario, dict_settings):
                                     <= dict_form[(str_product, str_machine, int_shift)],
                                     f'cor_da_forma_{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}')
 
+    float_started_at = time.perf_counter()
+    float_heuristic_seconds = None
+    if dict_settings['warm_start_heuristic']:
+        int_shift_count = len(list_shifts)
+        float_warehouse_capacity = dict_scenario['warehouse_capacity']
+
+        dict_cumulative_orders = {}
+        dict_net = {}
+        dict_produced = {}
+        list_total_stock = []
+        for int_shift in range(int_shift_count):
+            list_total_stock.append(0.0)
+        for str_product in list_products:
+            for str_sku in dict_scenario['skus_of_product'][str_product]:
+                dict_produced[str_sku] = 0.0
+                float_cumulative = 0.0
+                for int_shift in range(int_shift_count):
+                    float_cumulative += dict_scenario['orders'][(str_sku, int_shift)]
+                    dict_cumulative_orders[(str_sku, int_shift)] = float_cumulative
+                    dict_net[(str_sku, int_shift)] = dict_scenario['initial_stock'][str_sku] - float_cumulative
+                    if dict_net[(str_sku, int_shift)] > 0.0:
+                        list_total_stock[int_shift] += dict_net[(str_sku, int_shift)]
+
+        dict_mounted = {}
+        dict_pending_hours = {}
+        dict_unknown = {}
+        for str_machine in list_machines:
+            dict_mounted[str_machine] = dict_previous_forms[(str_machine, 0)][0]
+            dict_pending_hours[str_machine] = 0.0
+            for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
+                if (str_machine, int_side, 0) in dict_entry_cleaning:
+                    dict_unknown[(str_machine, int_side)] = True
+
+        int_shifts_per_day = 0
+        for dict_shift in list_shifts:
+            if dict_shift['day_index'] == list_shifts[0]['day_index']:
+                int_shifts_per_day += 1
+
+        dict_form_value = {}
+        dict_previous_form_value = {}
+        dict_pending_value = {}
+        dict_run_quantity = {}
+        dict_unknown_value = {}
+        dict_entry_value = {}
+        for dict_shift in list_shifts:
+            int_shift = dict_shift['index']
+            str_week = dict_shift['week'].strftime('%Y-%m-%d')
+            list_handled = []
+            for int_pass in range(2):
+                for str_machine in list_machines:
+                    if str_machine not in list_handled:
+                        list_machine_products = dict_scenario['products_of_machine'][str_machine]
+                        str_previous = dict_mounted[str_machine]
+                        str_form = None
+                        if int_pass == 0:
+                            if dict_pending_hours[str_machine] > 0.0:
+                                str_form = str_previous
+                            elif str_previous in list_machine_products:
+                                dict_sku_need, dict_sku_urgency, float_order_need, float_target_need = (
+                                    measure_daily_need(dict_scenario, str_previous, str_week, dict_cumulative_orders,
+                                                       dict_produced))
+                                if float_order_need + float_target_need > 1e-6:
+                                    str_form = str_previous
+                        else:
+                            float_horizon_hours = 0.0
+                            for int_later in range(int_shift, int_shift_count):
+                                float_horizon_hours += dict_scenario['shift_capacity'][(str_machine, int_later)]
+                            float_day_hours = 0.0
+                            for int_later in range(int_shift, int_shift + int_shifts_per_day):
+                                if int_later < int_shift_count:
+                                    float_day_hours += dict_scenario['shift_capacity'][(str_machine, int_later)]
+                            int_week_last_shift = dict_scenario['last_shift_of_week'][str_week]
+                            str_best = None
+                            float_best_score = 0.0
+                            bool_best_has_orders = False
+                            for str_product in list_machine_products:
+                                bool_candidate = False
+                                if str_product != str_previous:
+                                    if str_previous not in list_machine_products:
+                                        bool_candidate = True
+                                    elif dict_scenario['form_setup'][(str_previous, str_product)] < float_horizon_hours:
+                                        bool_candidate = True
+                                if bool_candidate:
+                                    dict_sku_need, dict_sku_urgency, float_order_need, float_target_need = (
+                                        measure_daily_need(dict_scenario, str_product, str_week,
+                                                           dict_cumulative_orders, dict_produced))
+                                    float_coverage = 0.0
+                                    for str_other in dict_scenario['machines_of_product'][str_product]:
+                                        if str_other != str_machine and dict_mounted[str_other] == str_product:
+                                            float_other_hours = -dict_pending_hours[str_other]
+                                            for int_later in range(int_shift + 1, int_week_last_shift + 1):
+                                                float_other_hours += dict_scenario['shift_capacity'][
+                                                    (str_other, int_later)]
+                                            if float_other_hours > 0.0:
+                                                float_coverage += (dict_scenario['productivity'][str_product][str_other]
+                                                                   * dict_scenario['color_sides'][str_other]
+                                                                   * float_other_hours)
+                                    bool_has_orders = True
+                                    float_gap = float_order_need - float_coverage
+                                    if float_gap <= 1e-6:
+                                        bool_has_orders = False
+                                        float_gap = float_order_need + float_target_need - float_coverage
+                                    float_reach = (dict_scenario['productivity'][str_product][str_machine]
+                                                   * dict_scenario['color_sides'][str_machine] * float_day_hours)
+                                    if float_gap > float_reach:
+                                        float_gap = float_reach
+                                    float_score = dict_scenario['margin'][str_product] * float_gap
+                                    if float_gap > 1e-6:
+                                        bool_better = False
+                                        if str_best is None:
+                                            bool_better = True
+                                        elif bool_has_orders and not bool_best_has_orders:
+                                            bool_better = True
+                                        elif bool_has_orders == bool_best_has_orders and float_score > float_best_score:
+                                            bool_better = True
+                                        if bool_better:
+                                            str_best = str_product
+                                            float_best_score = float_score
+                                            bool_best_has_orders = bool_has_orders
+                            if str_best is not None:
+                                str_form = str_best
+                            elif str_previous in list_machine_products:
+                                str_form = str_previous
+                            else:
+                                str_form = list_machine_products[0]
+
+                        if str_form is not None:
+                            list_handled.append(str_machine)
+                            dict_previous_form_value[(str_machine, int_shift)] = str_previous
+                            dict_form_value[(str_machine, int_shift)] = str_form
+                            float_capacity = dict_scenario['shift_capacity'][(str_machine, int_shift)]
+                            float_change_hours = 0.0
+                            if str_form != str_previous:
+                                float_change_hours = dict_scenario['form_setup'][(str_previous, str_form)]
+                                for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
+                                    if (str_machine, int_side) in dict_unknown:
+                                        dict_unknown[(str_machine, int_side)] = False
+                            dict_mounted[str_machine] = str_form
+                            float_open_hours = dict_pending_hours[str_machine] + float_change_hours
+                            float_spent_hours = float_open_hours
+                            if float_spent_hours > float_capacity:
+                                float_spent_hours = float_capacity
+                            float_left_hours = float_open_hours - float_spent_hours
+                            if float_left_hours < 1e-9:
+                                float_left_hours = 0.0
+                            dict_pending_hours[str_machine] = float_left_hours
+                            dict_pending_value[(str_machine, int_shift)] = float_left_hours
+
+                            list_sides = []
+                            dict_side_hours = {}
+                            dict_side_runs = {}
+                            for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
+                                list_sides.append(int_side)
+                                float_side_hours = 0.0
+                                if float_left_hours == 0.0:
+                                    float_side_hours = float_capacity - float_spent_hours
+                                if (str_machine, int_side) in dict_unknown and dict_unknown[(str_machine, int_side)]:
+                                    float_side_hours -= float_longest_color_change
+                                dict_side_hours[int_side] = float_side_hours
+                                dict_side_runs[int_side] = []
+
+                            float_rate = dict_scenario['productivity'][str_form][str_machine]
+                            float_min_lot = dict_scenario['min_lot'][str_form]
+                            bool_filling = True
+                            while bool_filling:
+                                dict_sku_need, dict_sku_urgency, float_order_need, float_target_need = (
+                                    measure_daily_need(dict_scenario, str_form, str_week, dict_cumulative_orders,
+                                                       dict_produced))
+                                str_action_sku = None
+                                int_action_side = None
+                                float_action_quantity = 0.0
+                                bool_action_new_run = True
+
+                                list_waiting = []
+                                for str_sku in dict_scenario['skus_of_product'][str_form]:
+                                    if dict_sku_need[str_sku] > 1e-6:
+                                        list_waiting.append(str_sku)
+                                while str_action_sku is None and len(list_waiting) > 0:
+                                    str_candidate = list_waiting[0]
+                                    for str_sku in list_waiting:
+                                        if dict_sku_urgency[str_sku] < dict_sku_urgency[str_candidate]:
+                                            str_candidate = str_sku
+                                    list_waiting.remove(str_candidate)
+                                    float_reservation = dict_scenario['color_reservation'][str_candidate]
+                                    for int_side in list_sides:
+                                        float_free_hours = dict_side_hours[int_side] - float_reservation
+                                        if (str_candidate not in dict_side_runs[int_side]
+                                                and float_rate * float_free_hours >= float_min_lot - 1e-9
+                                                and float_free_hours > 1e-6):
+                                            if (int_action_side is None
+                                                    or dict_side_hours[int_side] > dict_side_hours[int_action_side]):
+                                                int_action_side = int_side
+                                    if int_action_side is not None:
+                                        str_action_sku = str_candidate
+                                        float_free_hours = dict_side_hours[int_action_side] - float_reservation
+                                        float_action_quantity = dict_sku_need[str_candidate]
+                                        if float_action_quantity > float_rate * float_free_hours:
+                                            float_action_quantity = float_rate * float_free_hours
+                                        if float_action_quantity < float_min_lot:
+                                            float_action_quantity = float_min_lot
+
+                                if str_action_sku is None and float_target_need > 1e-6:
+                                    for int_side in list_sides:
+                                        if (str_action_sku is None and len(dict_side_runs[int_side]) > 0
+                                                and dict_side_hours[int_side] > 1e-6):
+                                            str_action_sku = dict_side_runs[int_side][-1]
+                                            int_action_side = int_side
+                                            bool_action_new_run = False
+                                            float_action_quantity = float_target_need
+                                            if float_action_quantity > float_rate * dict_side_hours[int_side]:
+                                                float_action_quantity = float_rate * dict_side_hours[int_side]
+                                    for int_side in list_sides:
+                                        if str_action_sku is None and len(dict_side_runs[int_side]) == 0:
+                                            for str_sku in dict_scenario['skus_of_product'][str_form]:
+                                                float_free_hours = (dict_side_hours[int_side]
+                                                                    - dict_scenario['color_reservation'][str_sku])
+                                                if (float_rate * float_free_hours >= float_min_lot - 1e-9
+                                                        and float_free_hours > 1e-6):
+                                                    if (str_action_sku is None
+                                                            or dict_scenario['color_reservation'][str_sku]
+                                                            < dict_scenario['color_reservation'][str_action_sku]):
+                                                        str_action_sku = str_sku
+                                            if str_action_sku is not None:
+                                                int_action_side = int_side
+                                                float_free_hours = (dict_side_hours[int_side]
+                                                                    - dict_scenario['color_reservation'][
+                                                                        str_action_sku])
+                                                float_action_quantity = float_target_need
+                                                if float_action_quantity > float_rate * float_free_hours:
+                                                    float_action_quantity = float_rate * float_free_hours
+                                                if float_action_quantity < float_min_lot:
+                                                    float_action_quantity = float_min_lot
+
+                                if str_action_sku is not None and float_warehouse_capacity is not None:
+                                    for int_later in range(int_shift, int_shift_count):
+                                        float_room = float_warehouse_capacity - list_total_stock[int_later]
+                                        if dict_net[(str_action_sku, int_later)] < 0.0:
+                                            float_room -= dict_net[(str_action_sku, int_later)]
+                                        if float_room < float_action_quantity:
+                                            float_action_quantity = float_room
+
+                                if str_action_sku is None:
+                                    bool_filling = False
+                                elif bool_action_new_run and float_action_quantity < float_min_lot - 1e-9:
+                                    bool_filling = False
+                                elif float_action_quantity <= 1e-6:
+                                    bool_filling = False
+                                else:
+                                    tuple_run = (str_action_sku, str_machine, int_action_side, int_shift)
+                                    if bool_action_new_run:
+                                        dict_side_runs[int_action_side].append(str_action_sku)
+                                        dict_side_hours[int_action_side] -= dict_scenario['color_reservation'][
+                                            str_action_sku]
+                                        dict_run_quantity[tuple_run] = 0.0
+                                    dict_run_quantity[tuple_run] += float_action_quantity
+                                    dict_side_hours[int_action_side] -= float_action_quantity / float_rate
+                                    dict_produced[str_action_sku] += float_action_quantity
+                                    for int_later in range(int_shift, int_shift_count):
+                                        float_old_net = dict_net[(str_action_sku, int_later)]
+                                        float_new_net = float_old_net + float_action_quantity
+                                        if float_old_net > 0.0:
+                                            list_total_stock[int_later] -= float_old_net
+                                        if float_new_net > 0.0:
+                                            list_total_stock[int_later] += float_new_net
+                                        dict_net[(str_action_sku, int_later)] = float_new_net
+
+                            for int_side in list_sides:
+                                tuple_cell = (str_machine, int_side, int_shift)
+                                if tuple_cell in dict_entry_cleaning:
+                                    dict_unknown_value[tuple_cell] = 0.0
+                                    dict_entry_value[tuple_cell] = 0.0
+                                    if dict_unknown[(str_machine, int_side)]:
+                                        dict_unknown_value[tuple_cell] = 1.0
+                                        if len(dict_side_runs[int_side]) > 0:
+                                            dict_entry_value[tuple_cell] = float_longest_color_change
+                                            dict_unknown[(str_machine, int_side)] = False
+
+        for tuple_key in dict_form:
+            str_product, str_machine, int_shift = tuple_key
+            if dict_form_value[(str_machine, int_shift)] == str_product:
+                dict_form[tuple_key].setInitialValue(1)
+            else:
+                dict_form[tuple_key].setInitialValue(0)
+        for tuple_key in dict_form_change:
+            str_from, str_to, str_machine, int_shift = tuple_key
+            if (dict_previous_form_value[(str_machine, int_shift)] == str_from
+                    and dict_form_value[(str_machine, int_shift)] == str_to):
+                dict_form_change[tuple_key].setInitialValue(1)
+            else:
+                dict_form_change[tuple_key].setInitialValue(0)
+        for tuple_key in dict_pending:
+            dict_pending[tuple_key].setInitialValue(dict_pending_value[tuple_key])
+        for tuple_key in dict_run:
+            if tuple_key in dict_run_quantity:
+                dict_run[tuple_key].setInitialValue(1)
+                dict_quantity[tuple_key].setInitialValue(dict_run_quantity[tuple_key])
+            else:
+                dict_run[tuple_key].setInitialValue(0)
+                dict_quantity[tuple_key].setInitialValue(0.0)
+        for tuple_key in dict_entry_cleaning:
+            dict_unknown_color[tuple_key].setInitialValue(dict_unknown_value[tuple_key])
+            dict_entry_cleaning[tuple_key].setInitialValue(dict_entry_value[tuple_key])
+        for tuple_key in dict_inventory:
+            if dict_net[tuple_key] > 0.0:
+                dict_inventory[tuple_key].setInitialValue(dict_net[tuple_key])
+                dict_backlog[tuple_key].setInitialValue(0.0)
+            else:
+                dict_inventory[tuple_key].setInitialValue(0.0)
+                dict_backlog[tuple_key].setInitialValue(-dict_net[tuple_key])
+        for tuple_key in dict_target_slack:
+            str_product, str_week = tuple_key
+            int_week_last_shift = dict_scenario['last_shift_of_week'][str_week]
+            float_target_gap = dict_scenario['target'][tuple_key]
+            for str_sku in dict_scenario['skus_of_product'][str_product]:
+                if dict_net[(str_sku, int_week_last_shift)] > 0.0:
+                    float_target_gap -= dict_net[(str_sku, int_week_last_shift)]
+            if float_target_gap < 0.0:
+                float_target_gap = 0.0
+            dict_target_slack[tuple_key].setInitialValue(float_target_gap)
+        float_heuristic_seconds = time.perf_counter() - float_started_at
+
     list_stage_expressions = [pulp.lpSum(list_backlog_terms), pulp.lpSum(list_target_terms),
                               pulp.lpSum(list_cost_terms)]
-    float_started_at = time.perf_counter()
     str_status, bool_hit_time_limit, list_stage_values, list_stage_reports = solve_lexicographic(
         problem, list_stage_expressions, dict_settings['daily_solver_name'], int(dict_settings['daily_time_limit']),
-        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'])
+        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'],
+        float_heuristic_seconds)
     float_solve_seconds = time.perf_counter() - float_started_at
 
     if str_status not in ('Optimal', 'Feasible'):

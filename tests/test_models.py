@@ -246,7 +246,8 @@ for int_day in range(2):
             'week': pd.Timestamp('2024-01-01'),
         })
 dict_settings = {'annual_holding_rate': 0.25, 'daily_solver_name': 'ORTOOLS',
-                 'daily_time_limit': 60, 'threads': None, 'solver_seed': 0, 'solver_log_file': None}
+                 'daily_time_limit': 60, 'threads': None, 'solver_seed': 0, 'solver_log_file': None,
+                 'warm_start_heuristic': True}
 str_product = 'A-L'
 list_skus = [f'{str_product}-X', f'{str_product}-Y', f'{str_product}-Z']
 dict_color_setup = complete_setup_matrix({('X', 'Y'): 1.0, ('Y', 'X'): 2.0, ('Y', 'Z'): 1.0, ('Z', 'Y'): 1.0},
@@ -835,6 +836,43 @@ float_short_one = dict_result_one['kpis']['backlog_cost'] + dict_result_one['kpi
 float_short_two = dict_result_two['kpis']['backlog_cost'] + dict_result_two['kpis']['lost_sales_cost']
 check(float_short_two < float_short_one,
       f'com 1 h/turno, duas cores reduzem atraso + venda perdida de {float_short_one:,.0f} para {float_short_two:,.0f}')
+
+
+print('\n== heuristica construtiva: solucao inicial viavel para os dois modelos ==')
+list_heuristic_cases = [['instance_micro_P2_M3_T8.xlsx', 8], ['instance_pequeno_P4_M6_T13.xlsx', 13]]
+for list_case in list_heuristic_cases:
+    dict_instance_heuristic = load_instance(os.path.join(DATA_DIR, list_case[0]))
+    for str_variant in ['folgada', 'apertada']:
+        dict_settings = load_settings()
+        dict_settings['start_week'] = '2024-01-01'
+        dict_settings['weeks_in_plan'] = list_case[1]
+        dict_settings['weekly_time_limit'] = 30
+        dict_settings['daily_time_limit'] = 30
+        dict_settings['warm_start_heuristic'] = True
+        if str_variant == 'apertada':
+            dict_settings['hours_per_shift'] = 2.0
+            dict_settings['warehouse_capacity_kg'] = 0.0
+            dict_settings['frozen_weeks'] = 2
+        dict_scenario = build_weekly_scenario(dict_instance_heuristic, dict_settings)
+        dict_weekly = solve_weekly_model(dict_scenario, dict_settings)
+        dict_daily_scenario = build_daily_scenario(dict_instance_heuristic, dict_settings, dict_weekly)
+        dict_daily = solve_daily_model(dict_daily_scenario, dict_settings)
+        for list_level in [['semanal', dict_weekly], ['diario', dict_daily]]:
+            dict_first_report = list_level[1]['stage_reports'][0]
+            list_heuristic_objective = dict_first_report['heuristic_objective']
+            bool_computed = list_heuristic_objective is not None and None not in list_heuristic_objective
+            check(dict_first_report['heuristic_feasible'] and bool_computed,
+                  f'{list_case[0]} {str_variant} {list_level[0]}: solucao da heuristica respeita todas as restricoes '
+                  f'e variaveis, objetivos {list_heuristic_objective}')
+            bool_not_worse = True
+            if dict_first_report['status'] == 'Optimal' and bool_computed:
+                if list_level[1]['stage_objectives'][0] > list_heuristic_objective[0] + 1e-6:
+                    bool_not_worse = False
+            check(bool_not_worse,
+                  f'{list_case[0]} {str_variant} {list_level[0]}: otimo do estagio 1 nao fica acima da heuristica')
+
+check(dict_reservation_mip['stage_reports'][0]['heuristic_feasible'],
+      'cenario montado a mao (cor inicial desconhecida, reserva de entrada): heuristica viavel')
 
 
 print('\n' + '=' * 60)

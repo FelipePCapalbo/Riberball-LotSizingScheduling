@@ -162,6 +162,37 @@ def build_weekly_scenario(dict_instance, dict_settings):
     }
 
 
+def simulate_weekly_stock(dict_scenario, str_product, list_output):
+    list_inventory = []
+    list_backlog = []
+    list_lost = []
+    float_previous_inventory = dict_scenario['initial_inventory'][str_product]
+    float_previous_backlog = 0.0
+    for int_index in range(len(dict_scenario['weeks'])):
+        timestamp_week = dict_scenario['weeks'][int_index]
+        float_available = float_previous_inventory + list_output[int_index]
+        float_orders_due = float_previous_backlog + dict_scenario['orders'][str_product][timestamp_week]
+        float_forecast = dict_scenario['forecast'][str_product][timestamp_week]
+        if float_available >= float_orders_due:
+            float_backlog = 0.0
+            float_available = float_available - float_orders_due
+        else:
+            float_backlog = float_orders_due - float_available
+            float_available = 0.0
+        if float_available >= float_forecast:
+            float_lost = 0.0
+            float_available = float_available - float_forecast
+        else:
+            float_lost = float_forecast - float_available
+            float_available = 0.0
+        list_inventory.append(float_available)
+        list_backlog.append(float_backlog)
+        list_lost.append(float_lost)
+        float_previous_inventory = float_available
+        float_previous_backlog = float_backlog
+    return list_inventory, list_backlog, list_lost
+
+
 def solve_weekly_model(dict_scenario, dict_settings):
     list_weeks = dict_scenario['weeks']
     list_products = dict_scenario['products']
@@ -275,6 +306,7 @@ def solve_weekly_model(dict_scenario, dict_settings):
             problem += (pulp.lpSum(list_capacity_terms) <= dict_scenario['capacity'][str_machine][timestamp_week],
                         f'capacidade_semanal_{str_machine}_{clean_name(timestamp_week.date())}')
 
+    dict_big_m = {}
     for str_product in list_products:
         float_min_lot = dict_scenario['min_lot'][str_product]
         for int_index in range(len(list_weeks)):
@@ -292,17 +324,183 @@ def solve_weekly_model(dict_scenario, dict_settings):
                 float_big_m = float_rate * dict_scenario['capacity'][str_machine][timestamp_week]
                 if float_remaining_demand < float_big_m:
                     float_big_m = float_remaining_demand
+                dict_big_m[tuple_key] = float_big_m
                 problem += (float_min_lot * dict_setup[tuple_key] <= dict_production[tuple_key],
                             f'lote_minimo_inferior_{str_label}')
                 problem += (dict_production[tuple_key] <= float_big_m * dict_setup[tuple_key],
                             f'lote_minimo_superior_{str_label}')
 
+    float_started_at = time.perf_counter()
+    float_heuristic_seconds = None
+    if dict_settings['warm_start_heuristic']:
+        int_week_count = len(list_weeks)
+        float_warehouse_capacity = dict_scenario['warehouse_capacity']
+
+        list_products_by_margin = []
+        list_unsorted_products = list(list_products)
+        while len(list_unsorted_products) > 0:
+            str_best_product = list_unsorted_products[0]
+            for str_product in list_unsorted_products:
+                if dict_scenario['margin'][str_product] > dict_scenario['margin'][str_best_product]:
+                    str_best_product = str_product
+            list_products_by_margin.append(str_best_product)
+            list_unsorted_products.remove(str_best_product)
+
+        dict_net_hourly_value = {}
+        for str_product in list_products:
+            for str_machine in dict_scenario['machines_of_product'][str_product]:
+                float_alternative_value = 0.0
+                for str_other in list_products:
+                    if str_other != str_product and str_machine in dict_scenario['machines_of_product'][str_other]:
+                        float_other_value = (dict_scenario['margin'][str_other]
+                                             * dict_scenario['productivity'][str_other][str_machine])
+                        if float_other_value > float_alternative_value:
+                            float_alternative_value = float_other_value
+                dict_net_hourly_value[(str_product, str_machine)] = (
+                    dict_scenario['margin'][str_product] * dict_scenario['productivity'][str_product][str_machine]
+                    - float_alternative_value)
+
+        dict_planned = {}
+        for tuple_key in dict_production:
+            dict_planned[tuple_key] = 0.0
+        dict_used_hours = {}
+        for str_machine in dict_scenario['machines']:
+            for timestamp_week in list_weeks:
+                dict_used_hours[(str_machine, timestamp_week)] = 0.0
+
+        list_total_inventory = []
+        for int_index in range(int_week_count):
+            list_total_inventory.append(0.0)
+        dict_weekly_output = {}
+        dict_simulation = {}
+        for str_product in list_products:
+            list_output = []
+            for int_index in range(int_week_count):
+                list_output.append(0.0)
+            dict_weekly_output[str_product] = list_output
+            dict_simulation[str_product] = simulate_weekly_stock(dict_scenario, str_product, list_output)
+            for int_index in range(int_week_count):
+                list_total_inventory[int_index] += dict_simulation[str_product][0][int_index]
+
+        for int_week in range(int_week_count):
+            timestamp_week = list_weeks[int_week]
+            for int_layer in range(4):
+                for str_product in list_products_by_margin:
+                    float_min_lot = dict_scenario['min_lot'][str_product]
+                    int_candidate = int_week
+                    bool_searching = True
+                    while bool_searching:
+                        list_inventory, list_backlog, list_lost = dict_simulation[str_product]
+                        if int_week == 0:
+                            float_previous_inventory = dict_scenario['initial_inventory'][str_product]
+                            float_requirement = 0.0
+                        else:
+                            float_previous_inventory = list_inventory[int_week - 1]
+                            float_requirement = list_backlog[int_week - 1]
+                        if int_layer >= 1:
+                            float_requirement += dict_scenario['orders'][str_product][timestamp_week]
+                        if int_layer >= 2:
+                            float_requirement += dict_scenario['forecast'][str_product][timestamp_week]
+                        if int_layer >= 3:
+                            float_requirement += dict_scenario['stock_minimum'][str_product]
+                        float_need = (float_requirement - float_previous_inventory
+                                      - dict_weekly_output[str_product][int_week])
+                        if float_need <= 1e-6 or int_candidate < 0:
+                            bool_searching = False
+                        else:
+                            timestamp_candidate = list_weeks[int_candidate]
+                            float_headroom = None
+                            if float_warehouse_capacity is not None:
+                                for int_later in range(int_candidate, int_week_count):
+                                    float_room = (float_warehouse_capacity - list_total_inventory[int_later]
+                                                  + list_backlog[int_later])
+                                    if float_headroom is None or float_room < float_headroom:
+                                        float_headroom = float_room
+                            str_chosen_machine = None
+                            float_chosen_quantity = 0.0
+                            float_chosen_rate = 0.0
+                            bool_chosen_has_setup = False
+                            for str_machine in dict_scenario['machines_of_product'][str_product]:
+                                tuple_key = (str_product, str_machine, timestamp_candidate)
+                                float_rate = dict_scenario['productivity'][str_product][str_machine]
+                                bool_has_setup = dict_planned[tuple_key] > 0.0
+                                float_free_hours = (dict_scenario['capacity'][str_machine][timestamp_candidate]
+                                                    - dict_used_hours[(str_machine, timestamp_candidate)])
+                                if not bool_has_setup:
+                                    float_free_hours -= dict_scenario['side_setup'][(str_product, str_machine)]
+                                float_limit = float_rate * float_free_hours
+                                if dict_big_m[tuple_key] - dict_planned[tuple_key] < float_limit:
+                                    float_limit = dict_big_m[tuple_key] - dict_planned[tuple_key]
+                                if float_headroom is not None and float_headroom < float_limit:
+                                    float_limit = float_headroom
+                                float_quantity = float_need
+                                if not bool_has_setup and float_quantity < float_min_lot:
+                                    float_quantity = float_min_lot
+                                if float_quantity > float_limit:
+                                    float_quantity = float_limit
+                                bool_fits = False
+                                if bool_has_setup and float_quantity > 1e-6:
+                                    bool_fits = True
+                                if not bool_has_setup and float_quantity >= float_min_lot and float_quantity > 1e-6:
+                                    bool_fits = True
+                                if bool_fits:
+                                    bool_better = False
+                                    if str_chosen_machine is None:
+                                        bool_better = True
+                                    elif bool_has_setup and not bool_chosen_has_setup:
+                                        bool_better = True
+                                    elif (bool_has_setup == bool_chosen_has_setup
+                                          and dict_net_hourly_value[(str_product, str_machine)]
+                                          > dict_net_hourly_value[(str_product, str_chosen_machine)]):
+                                        bool_better = True
+                                    if bool_better:
+                                        str_chosen_machine = str_machine
+                                        float_chosen_quantity = float_quantity
+                                        float_chosen_rate = float_rate
+                                        bool_chosen_has_setup = bool_has_setup
+                            if str_chosen_machine is None:
+                                int_candidate -= 1
+                            else:
+                                tuple_key = (str_product, str_chosen_machine, timestamp_candidate)
+                                tuple_cell = (str_chosen_machine, timestamp_candidate)
+                                if not bool_chosen_has_setup:
+                                    dict_used_hours[tuple_cell] += dict_scenario['side_setup'][
+                                        (str_product, str_chosen_machine)]
+                                dict_used_hours[tuple_cell] += float_chosen_quantity / float_chosen_rate
+                                dict_planned[tuple_key] += float_chosen_quantity
+                                dict_weekly_output[str_product][int_candidate] += float_chosen_quantity
+                                for int_index in range(int_week_count):
+                                    list_total_inventory[int_index] -= list_inventory[int_index]
+                                dict_simulation[str_product] = simulate_weekly_stock(
+                                    dict_scenario, str_product, dict_weekly_output[str_product])
+                                for int_index in range(int_week_count):
+                                    list_total_inventory[int_index] += dict_simulation[str_product][0][int_index]
+
+        for tuple_key in dict_production:
+            dict_production[tuple_key].setInitialValue(dict_planned[tuple_key])
+            if dict_planned[tuple_key] > 0.0:
+                dict_setup[tuple_key].setInitialValue(1)
+            else:
+                dict_setup[tuple_key].setInitialValue(0)
+        for str_product in list_products:
+            list_inventory, list_backlog, list_lost = dict_simulation[str_product]
+            for int_index in range(int_week_count):
+                tuple_key = (str_product, list_weeks[int_index])
+                dict_inventory[tuple_key].setInitialValue(list_inventory[int_index])
+                dict_backlog[tuple_key].setInitialValue(list_backlog[int_index])
+                dict_lost[tuple_key].setInitialValue(list_lost[int_index])
+                float_floor_gap = dict_scenario['stock_minimum'][str_product] - list_inventory[int_index]
+                if float_floor_gap < 0.0:
+                    float_floor_gap = 0.0
+                dict_floor_slack[tuple_key].setInitialValue(float_floor_gap)
+        float_heuristic_seconds = time.perf_counter() - float_started_at
+
     list_stage_expressions = [pulp.lpSum(list_backlog_terms), pulp.lpSum(list_lost_terms),
                               pulp.lpSum(list_floor_terms), pulp.lpSum(list_cost_terms)]
-    float_started_at = time.perf_counter()
     str_status, bool_hit_time_limit, list_stage_values, list_stage_reports = solve_lexicographic(
         problem, list_stage_expressions, dict_settings['weekly_solver_name'], int(dict_settings['weekly_time_limit']),
-        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'])
+        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'],
+        float_heuristic_seconds)
     float_solve_seconds = time.perf_counter() - float_started_at
 
     if str_status not in ('Optimal', 'Feasible'):

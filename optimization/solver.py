@@ -8,18 +8,37 @@ from ortools.linear_solver.python import model_builder
 
 
 def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_time_limit, int_threads, int_seed,
-                        str_log_file):
+                        str_log_file, float_heuristic_seconds):
     list_stage_values = []
     list_stage_reports = []
-    float_started_at = time.perf_counter()
+    bool_heuristic = float_heuristic_seconds is not None
+    float_spent_on_heuristic = 0.0
+    if bool_heuristic:
+        float_spent_on_heuristic = float_heuristic_seconds
+    float_started_at = time.perf_counter() - float_spent_on_heuristic
+    list_heuristic_objective = None
+    bool_heuristic_feasible = None
+    bool_heuristic_used = None
     str_status = 'Optimal'
     bool_hit_time_limit = False
     bool_continue = True
     int_stage = 0
     while int_stage < len(list_stage_expressions) and bool_continue:
         float_stage_started_at = time.perf_counter()
-        float_remaining = int_time_limit - (float_stage_started_at - float_started_at)
-        int_stage_time_limit = int(float_remaining / (len(list_stage_expressions) - int_stage))
+        if int_stage == 0:
+            float_stage_started_at = float_started_at
+        if int_stage == 0 and bool_heuristic:
+            list_heuristic_objective = []
+            for expression_stage in list_stage_expressions:
+                list_heuristic_objective.append(pulp.value(expression_stage))
+            bool_heuristic_feasible = problem.valid(1e-6)
+        float_remaining = int_time_limit - (time.perf_counter() - float_started_at)
+        if int_stage == 0:
+            float_stage_budget = ((float_remaining + float_spent_on_heuristic) / len(list_stage_expressions)
+                                  - float_spent_on_heuristic)
+        else:
+            float_stage_budget = float_remaining / (len(list_stage_expressions) - int_stage)
+        int_stage_time_limit = int(float_stage_budget)
         if int_stage_time_limit < 1:
             int_stage_time_limit = 1
         problem.setObjective(list_stage_expressions[int_stage])
@@ -52,7 +71,23 @@ def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_ti
                 for gurobi_variable in gurobi_model.getVars():
                     if gurobi_variable.VarName in dict_start:
                         gurobi_variable.Start = dict_start[gurobi_variable.VarName]
+                bool_read_start_log = int_stage == 0 and bool_heuristic
+                if bool_read_start_log:
+                    if str_log_file:
+                        str_start_log = str_log_file
+                        int_log_offset = os.path.getsize(str_log_file)
+                    else:
+                        str_start_log = os.path.join(str_directory, 'gurobi.log')
+                        int_log_offset = 0
+                        gurobi_model.Params.LogToConsole = 0
+                        gurobi_model.Params.LogFile = str_start_log
+                        gurobi_model.Params.OutputFlag = 1
                 gurobi_model.optimize()
+                if bool_read_start_log:
+                    with open(str_start_log, encoding='utf-8', errors='replace') as file_log:
+                        file_log.seek(int_log_offset)
+                        str_stage_log = file_log.read()
+                    bool_heuristic_used = 'Loaded user MIP start' in str_stage_log
                 if gurobi_model.SolCount > 0:
                     for gurobi_variable in gurobi_model.getVars():
                         dict_values[gurobi_variable.VarName] = gurobi_variable.X
@@ -134,6 +169,11 @@ def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_ti
             'constraints': dict_effort['constraints'],
             'nonzeros': dict_effort['nonzeros'],
         })
+        if int_stage == 0:
+            list_stage_reports[0]['heuristic_seconds'] = float_heuristic_seconds
+            list_stage_reports[0]['heuristic_objective'] = list_heuristic_objective
+            list_stage_reports[0]['heuristic_feasible'] = bool_heuristic_feasible
+            list_stage_reports[0]['heuristic_used'] = bool_heuristic_used
 
         if str_stage_status in ('Optimal', 'Feasible'):
             float_stage_value = pulp.value(list_stage_expressions[int_stage])
