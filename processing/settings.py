@@ -16,6 +16,8 @@ DEFAULT_SETTINGS = {
     'daily_solver_name': 'ORTOOLS',
     'daily_time_limit': 600,
     'threads': None,
+    'solver_seed': 0,
+    'solver_log_file': None,
 }
 
 

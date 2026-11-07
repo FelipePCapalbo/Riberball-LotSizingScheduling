@@ -1,0 +1,248 @@
+{
+  "instancia_base": "data/input_asis_ajustado.xlsx",
+  "parametros": {
+    "start_week": "2024-01-01",
+    "weeks_in_plan": 13,
+    "frozen_weeks": 1,
+    "shifts_per_day": 3,
+    "hours_per_shift": 8,
+    "working_days_per_week": 6,
+    "warehouse_capacity_kg": null,
+    "annual_holding_rate": 0.25,
+    "weekly_solver_name": "GUROBI",
+    "weekly_time_limit": 300,
+    "daily_solver_name": "GUROBI",
+    "daily_time_limit": 600,
+    "threads": 2,
+    "solver_seed": 0
+  },
+  "fatores": [
+    {
+      "name": "maquinas",
+      "levels": [
+        1,
+        2,
+        4,
+        7,
+        10,
+        14,
+        20,
+        28
+      ],
+      "baseline": 28,
+      "draws": true
+    },
+    {
+      "name": "baloes",
+      "levels": [
+        1,
+        2,
+        4,
+        6,
+        9,
+        12,
+        15,
+        17
+      ],
+      "baseline": 17,
+      "draws": true
+    },
+    {
+      "name": "cores",
+      "levels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        7
+      ],
+      "baseline": 7,
+      "draws": false
+    },
+    {
+      "name": "flexibilidade",
+      "levels": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.5,
+        2.0
+      ],
+      "baseline": 1.0,
+      "draws": true
+    },
+    {
+      "name": "demanda",
+      "levels": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        2.0
+      ],
+      "baseline": 1.0,
+      "draws": false
+    },
+    {
+      "name": "estoque",
+      "levels": [
+        0.0,
+        0.25,
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        3.0
+      ],
+      "baseline": 1.0,
+      "draws": false
+    },
+    {
+      "name": "capacidade",
+      "levels": [
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5
+      ],
+      "baseline": 1.0,
+      "draws": false
+    },
+    {
+      "name": "setup",
+      "levels": [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        3.0
+      ],
+      "baseline": 1.0,
+      "draws": false
+    },
+    {
+      "name": "duas_cores",
+      "levels": [
+        0.0,
+        0.25,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "baseline": 0.25,
+      "draws": true
+    },
+    {
+      "name": "horizonte",
+      "levels": [
+        4,
+        8,
+        13,
+        26,
+        52
+      ],
+      "baseline": 13,
+      "draws": false
+    },
+    {
+      "name": "congeladas",
+      "levels": [
+        1,
+        2
+      ],
+      "baseline": 1,
+      "draws": false
+    }
+  ],
+  "niveis_sem_sorteio": [
+    [
+      "duas_cores",
+      0.0
+    ],
+    [
+      "duas_cores",
+      1.0
+    ]
+  ],
+  "sorteios": [
+    1,
+    2,
+    3
+  ],
+  "sementes_solver_base": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "sorteio_grades": 1,
+  "grades": [
+    [
+      [
+        "maquinas",
+        [
+          4,
+          10,
+          20,
+          28
+        ]
+      ],
+      [
+        "demanda",
+        [
+          0.5,
+          1.0,
+          1.5,
+          2.0
+        ]
+      ]
+    ],
+    [
+      [
+        "cores",
+        [
+          1,
+          3,
+          5,
+          7
+        ]
+      ],
+      [
+        "setup",
+        [
+          0.5,
+          1.0,
+          2.0,
+          3.0
+        ]
+      ]
+    ],
+    [
+      [
+        "estoque",
+        [
+          0.0,
+          0.5,
+          1.0,
+          2.0
+        ]
+      ],
+      [
+        "demanda",
+        [
+          0.5,
+          1.0,
+          1.5,
+          2.0
+        ]
+      ]
+    ]
+  ]
+}

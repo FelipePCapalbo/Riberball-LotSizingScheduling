@@ -82,11 +82,11 @@ Abas opcionais:
 
 | Aba | Cabeçalho | Conteúdo | Sem a aba |
 |-----|-----------|----------|-----------|
-| `Maquinas` | linha 1 | `MAQUINA`, `ATIVA` (`SIM`/`NAO`), `CUSTO_SETUP_HORA` (R$/h) | máquinas da `Produtividade`, ativas, R$ 250/h |
+| `Maquinas` | linha 1 | `MAQUINA`, `ATIVA` (`SIM`/`NAO`), `CUSTO_SETUP_HORA` (R$/h), `DUAS_CORES` (`SIM`/`NAO`, opcional) | máquinas da `Produtividade`, ativas, R$ 250/h, uma cor |
 | `MTS_MTO` | linha 1 | `MODELO`, `TIPO`, `COR`, `CLASSE` (`MTS`/`MTO`); `COR` vazia = padrão do balão | todo SKU MTS |
 | `Mix_Cores` | linha 1 | `MODELO`, `TIPO`, `COR`, `PARTICIPACAO` (soma 1 por balão) | mix da carteira; sem carteira, uniforme |
 | `MAPE` | linha 1 | `MODELO`, `TIPO`, `MAPE` (%) | 0 |
-| `Forma_Inicial` | linha 1 | `MAQUINA`, `MODELO`, `TIPO`, `COR` (opcional; cor montada no início do horizonte, do mesmo balão) | forma desconhecida: a primeira troca custa o maior tempo da `De_Para_Formas`; sem `COR`, o primeiro setup de cor custa o maior tempo da `De_Para_Cores` |
+| `Forma_Inicial` | linha 1 | `MAQUINA`, `MODELO`, `TIPO`, `COR` (opcional; cor montada no início do horizonte, do mesmo balão), `COR_LADO_2` (opcional; cor do segundo tanque da máquina de duas cores) | forma desconhecida: a primeira troca custa o maior tempo da `De_Para_Formas`; sem `COR`, o primeiro setup de cor custa o maior tempo da `De_Para_Cores` |
 | `Previsao_Manual` | linha 2 | mesmo formato de `Demanda`; célula preenchida sobrepõe a previsão estatística | só a estatística |
 
 Um pedido pode conter itens de balões e cores diferentes; a data de vencimento é do **pedido**.
@@ -114,7 +114,7 @@ Regras da comparação:
 - Conflito não decidido é rejeitado: o cadastro mantém o valor atual.
 
 Cada execução registra a fotografia que usou. A interface permite trocar a fotografia ativa e
-ativar ou desativar máquinas, o que grava direto no cadastro. Os parâmetros de execução (horizonte,
+ativar ou desativar máquinas e marcar as de duas cores, o que grava direto no cadastro. Os parâmetros de execução (horizonte,
 capacidade, taxa de carregamento, solvers) também ficam no banco, editados pela barra lateral.
 
 ## As duas camadas de demanda
@@ -162,6 +162,10 @@ Bucket = turno; dentro de cada turno há `positions_per_shift` posições, que d
   zera o setup acumulado.
 - Transição de cor vazia na matriz DE-PARA custa o maior tempo registrado na matriz (limpeza completa).
 - Lote mínimo exigido em toda posição que **inicia** uma nova corrida de cor.
+- Máquina de **duas cores**: a cadeia tem dois lados, cada um com o seu tanque, e os dois rodam a mesma forma.
+  Cada lado produz com a taxa cadastrada (a máquina tem o dobro da vazão), tem a sua corrida de cor, a sua reserva
+  de troca e a sua capacidade de turno; uma troca de cor num lado não para o outro. A troca de forma interrompe a máquina
+  inteira e consome os dois lados. No semanal a capacidade é contada em horas-lado: `Σ x/p + (n·τF + τC)·y ≤ n·H`.
 
 O modelo é resolvido como formulado, sem heurística de resolução: o solver recebe o MILP
 completo e um tempo limite. Não há relax-and-fix, fixação parcial nem redução do conjunto de
@@ -224,9 +228,10 @@ no contrato semanal. O dado real é preservado; o que a operação não coletou 
 | `De_Para_Cores` | sintética — clarear custa mais que escurecer |
 | `De_Para_Formas` | sintética — família, calibre e troca de composto |
 | `Lote_Minimo` | sintético — corrida mínima de ~2 h |
+| `Maquinas` | sintética — todas ativas, R$ 250/h; 7 das 28 (25 %) de duas cores, sorteadas com semente fixa: 1, 3, 5, 10, 13, 16 e 19 |
 | `Faturado`, `Produzido` | **reais**, mensais, mantidos como referência As-Is |
 
-A operação não registra cor, carteira, matrizes de setup nem lote mínimo: essas quatro dimensões
+A operação não registra cor, carteira, matrizes de setup, lote mínimo nem o tipo de máquina: essas cinco dimensões
 existem só no arquivo ajustado e devem ser levantadas em campo antes de qualquer leitura absoluta
 dos custos.
 
@@ -254,6 +259,21 @@ python tests/test_models.py
 Valida invariantes das instâncias, a hierarquia de preços do semanal (balanço, capacidade, lote
 mínimo, decomposição de custo) e o sequenciamento do diário (lacunas da matriz, tempos da matriz,
 carryover através de turnos ociosos, capacidade do turno).
+
+### Experimentos de esforço computacional
+
+```bash
+python scripts/computational_experiments.py <variante> [pasta_saida] [rapido]
+python scripts/computational_experiments_analysis.py
+```
+
+Parte de `data/input_asis_ajustado.xlsx` e varia um fator por vez (máquinas, balões, cores por balão,
+flexibilidade, demanda, estoque inicial, capacidade, tempos de setup, máquinas de duas cores, horizonte e
+semanas congeladas), mais três grades 4×4 de pares de fatores. Usa Gurobi com 2 threads e os limites da operação
+(300 s no semanal, 600 s no diário). Cada execução grava `execucoes/<id>.json` e o log do Gurobi em
+`logs/<id>.log`, e `resultados.csv` é refeito ao fim de cada execução. Uma execução que já tem JSON é pulada, então
+a bateria pode ser interrompida e retomada. `rapido` roda a baseline e um nível de cada fator, com 30 s por nível.
+A análise escreve os CSVs dos gráficos em `dissertacao/dados/esforco/`.
 
 ### Interface web
 
@@ -371,7 +391,8 @@ registro, então o lease não expira enquanto o `cloudflared` sobe.
 - **Plano semanal** — estoque projetado, natureza da produção (contra pedido /
   previsão / estoque), composição do custo e tabela semanal.
 - **Programação por turno** — Gantt máquina × turno (produção e setup, com o tipo de setup
-  hachurado), horas por máquina e a tabela de operações (data, turno, máquina, posição, balão, cor,
+  hachurado, uma linha por lado nas máquinas de duas cores), horas por máquina e a tabela de operações
+  (data, turno, máquina, lado, posição, balão, cor,
   quantidade, horas de produção e de setup, natureza).
 - **Carteira** — atendimento pedido a pedido por turno, com atraso e venda perdida.
 - **Comparação de cenários** — histórico das execuções, com os KPIs das duas etapas lado a lado.

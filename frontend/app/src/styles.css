@@ -550,6 +550,17 @@ body {
   color: var(--accent);
 }
 
+.two-color-grid .machine-box {
+  background: #f8f9fa;
+  color: #6c757d;
+}
+
+.two-color-grid .machine-box.selected {
+  background: rgba(0, 33, 93, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .machine-box:hover { opacity: 0.75; }
 
 /* Legenda das máquinas */

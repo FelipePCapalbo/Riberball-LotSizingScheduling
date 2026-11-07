@@ -1,0 +1,13 @@
+\pgfplotstableread{dados/esforco/tamanho.csv}\tabelaesforcotamanho%
+\begin{tikzpicture}%
+\begin{axis}[
+  width=0.62\textwidth, height=5.5cm,
+  xmode=log, ymode=log,
+  xlabel={variáveis binárias}, ylabel={trabalho do Gurobi},
+  legend style={at={(0.02,0.98)}, anchor=north west},
+]
+\addplot[only marks, mark=o, mark size=1.6pt, corfrioa] table[x=semanal_binarias, y=semanal_work]{\tabelaesforcotamanho};
+\addplot[only marks, mark=*, mark size=1.6pt, corproposto] table[x=diario_binarias, y=diario_work]{\tabelaesforcotamanho};
+\legend{Plano semanal, Programação por turno}
+\end{axis}%
+\end{tikzpicture}%

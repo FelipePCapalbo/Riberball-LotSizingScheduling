@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS sku_classes (
 CREATE TABLE IF NOT EXISTS machines (
     machine TEXT PRIMARY KEY,
     is_active INTEGER NOT NULL,
-    setup_hourly_cost REAL NOT NULL
+    setup_hourly_cost REAL NOT NULL,
+    color_sides INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS productivity (
@@ -134,6 +135,7 @@ CREATE TABLE IF NOT EXISTS initial_form (
     machine TEXT NOT NULL,
     product TEXT NOT NULL,
     color TEXT,
+    color_side_2 TEXT,
     PRIMARY KEY (snapshot_id, machine)
 );
 
@@ -184,7 +186,7 @@ MASTER_TABLES = {
     },
     'machines': {
         'keys': ['machine'],
-        'defaults': {'is_active': 1, 'setup_hourly_cost': 250.0},
+        'defaults': {'is_active': 1, 'setup_hourly_cost': 250.0, 'color_sides': 1},
     },
     'productivity': {
         'keys': ['product', 'machine'],
@@ -204,6 +206,11 @@ MASTER_TABLES = {
     },
 }
 
+ADDED_COLUMNS = [
+    ['machines', 'color_sides', 'INTEGER NOT NULL DEFAULT 1'],
+    ['initial_form', 'color_side_2', 'TEXT'],
+]
+
 SNAPSHOT_TABLES = ['forecast', 'forecast_accuracy', 'color_mix', 'orders', 'order_items',
                    'product_stock', 'sku_stock', 'initial_form']
 
@@ -214,6 +221,12 @@ def connect_database():
     connection.row_factory = sqlite3.Row
     connection.execute('PRAGMA foreign_keys = ON')
     connection.executescript(SCHEMA)
+    for list_added in ADDED_COLUMNS:
+        list_existing_columns = []
+        for row in connection.execute(f'PRAGMA table_info({list_added[0]})'):
+            list_existing_columns.append(row['name'])
+        if list_added[1] not in list_existing_columns:
+            connection.execute(f'ALTER TABLE {list_added[0]} ADD COLUMN {list_added[1]} {list_added[2]}')
     return connection
 
 

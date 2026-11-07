@@ -7,7 +7,8 @@ import pulp
 from ortools.linear_solver.python import model_builder
 
 
-def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_time_limit, int_threads):
+def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_time_limit, int_threads, int_seed,
+                        str_log_file):
     list_stage_values = []
     list_stage_reports = []
     float_started_at = time.perf_counter()
@@ -34,11 +35,18 @@ def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_ti
             dict_values = {}
             float_objective = None
             float_bound = None
+            dict_effort = {'work': None, 'nodes': None, 'simplex_iterations': None, 'variables': None,
+                           'binaries': None, 'integers': None, 'constraints': None, 'nonzeros': None}
 
             if str_solver_name.upper() == 'GUROBI':
-                gurobi_environment = gurobipy.Env(params={'OutputFlag': 0})
+                if str_log_file:
+                    gurobi_environment = gurobipy.Env(params={'OutputFlag': 1, 'LogToConsole': 0,
+                                                              'LogFile': str_log_file})
+                else:
+                    gurobi_environment = gurobipy.Env(params={'OutputFlag': 0})
                 gurobi_model = gurobipy.read(str_mps_path, env=gurobi_environment)
                 gurobi_model.Params.TimeLimit = int_stage_time_limit
+                gurobi_model.Params.Seed = int_seed
                 if int_threads:
                     gurobi_model.Params.Threads = int_threads
                 for gurobi_variable in gurobi_model.getVars():
@@ -59,6 +67,14 @@ def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_ti
                 else:
                     str_stage_status = 'Not Solved'
                 bool_stage_hit_time_limit = gurobi_model.Status == gurobipy.GRB.TIME_LIMIT
+                dict_effort['work'] = gurobi_model.Work
+                dict_effort['nodes'] = gurobi_model.NodeCount
+                dict_effort['simplex_iterations'] = gurobi_model.IterCount
+                dict_effort['variables'] = gurobi_model.NumVars
+                dict_effort['binaries'] = gurobi_model.NumBinVars
+                dict_effort['integers'] = gurobi_model.NumIntVars
+                dict_effort['constraints'] = gurobi_model.NumConstrs
+                dict_effort['nonzeros'] = gurobi_model.NumNZs
                 gurobi_model.dispose()
                 gurobi_environment.dispose()
 
@@ -88,6 +104,8 @@ def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_ti
                     str_stage_status = 'Not Solved'
                 bool_stage_hit_time_limit = ortools_status in (model_builder.SolveStatus.FEASIBLE,
                                                                model_builder.SolveStatus.NOT_SOLVED)
+                dict_effort['variables'] = ortools_model.num_variables
+                dict_effort['constraints'] = ortools_model.num_constraints
 
         problem.assignVarsVals(dict_values)
         if bool_stage_hit_time_limit:
@@ -107,6 +125,14 @@ def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_ti
             'gap': float_gap,
             'hit_time_limit': bool_stage_hit_time_limit,
             'seconds': time.perf_counter() - float_stage_started_at,
+            'work': dict_effort['work'],
+            'nodes': dict_effort['nodes'],
+            'simplex_iterations': dict_effort['simplex_iterations'],
+            'variables': dict_effort['variables'],
+            'binaries': dict_effort['binaries'],
+            'integers': dict_effort['integers'],
+            'constraints': dict_effort['constraints'],
+            'nonzeros': dict_effort['nonzeros'],
         })
 
         if str_stage_status in ('Optimal', 'Feasible'):

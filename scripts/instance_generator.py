@@ -19,7 +19,7 @@ PROFILES = {
         'form_setup_min': 3.0, 'form_setup_max': 3.0,
         'confirmed_fraction_0': 0.95, 'order_decay_tau': 4.0,
         'min_items_per_order': 1, 'max_items_per_order': 2,
-        'min_lot_fraction': 0.05,
+        'min_lot_fraction': 0.05, 'two_color_fraction': 0.25,
     },
     'pequeno': {
         'n_products': 4, 'n_machines': 6, 'n_weeks': 13,
@@ -32,7 +32,7 @@ PROFILES = {
         'form_setup_min': 3.0, 'form_setup_max': 5.0,
         'confirmed_fraction_0': 0.95, 'order_decay_tau': 5.0,
         'min_items_per_order': 1, 'max_items_per_order': 3,
-        'min_lot_fraction': 0.05,
+        'min_lot_fraction': 0.05, 'two_color_fraction': 0.25,
     },
     'medio': {
         'n_products': 8, 'n_machines': 12, 'n_weeks': 13,
@@ -45,7 +45,7 @@ PROFILES = {
         'form_setup_min': 3.0, 'form_setup_max': 7.0,
         'confirmed_fraction_0': 0.95, 'order_decay_tau': 5.0,
         'min_items_per_order': 1, 'max_items_per_order': 4,
-        'min_lot_fraction': 0.08,
+        'min_lot_fraction': 0.08, 'two_color_fraction': 0.25,
     },
     'grande': {
         'n_products': 12, 'n_machines': 20, 'n_weeks': 26,
@@ -58,7 +58,7 @@ PROFILES = {
         'form_setup_min': 3.0, 'form_setup_max': 7.0,
         'confirmed_fraction_0': 0.95, 'order_decay_tau': 6.0,
         'min_items_per_order': 1, 'max_items_per_order': 4,
-        'min_lot_fraction': 0.08,
+        'min_lot_fraction': 0.08, 'two_color_fraction': 0.25,
     },
     'real': {
         'n_products': 17, 'n_machines': 28, 'n_weeks': 26,
@@ -71,7 +71,7 @@ PROFILES = {
         'form_setup_min': 3.0, 'form_setup_max': 7.0,
         'confirmed_fraction_0': 0.95, 'order_decay_tau': 8.0,
         'min_items_per_order': 1, 'max_items_per_order': 4,
-        'min_lot_fraction': 0.08,
+        'min_lot_fraction': 0.08, 'two_color_fraction': 0.25,
     },
 }
 
@@ -358,6 +358,21 @@ def generate_instance(str_name, dict_profile, int_seed):
             })
     df_initial_form = pd.DataFrame(list_initial_form)
 
+    rng_two_color = np.random.default_rng(int_seed + 2)
+    int_two_color_count = int(round(dict_profile['two_color_fraction'] * int_machines))
+    array_two_color_indices = rng_two_color.choice(int_machines, size=int_two_color_count, replace=False)
+    list_two_color_indices = []
+    for int_index in array_two_color_indices:
+        list_two_color_indices.append(int(int_index))
+    list_machine_rows = []
+    for int_j in range(int_machines):
+        str_two_color = 'NAO'
+        if int_j in list_two_color_indices:
+            str_two_color = 'SIM'
+        list_machine_rows.append({'MAQUINA': int(list_machines[int_j]), 'ATIVA': 'SIM', 'CUSTO_SETUP_HORA': 250.0,
+                                  'DUAS_CORES': str_two_color})
+    df_machines = pd.DataFrame(list_machine_rows)
+
     dict_color_rows = {}
     for str_from in list_used_colors:
         dict_row = {}
@@ -396,6 +411,7 @@ def generate_instance(str_name, dict_profile, int_seed):
         df_form_setup.to_excel(writer, sheet_name='De_Para_Formas', index=False)
         df_min_lot.to_excel(writer, sheet_name='Lote_Minimo', index=False)
         df_initial_form.to_excel(writer, sheet_name='Forma_Inicial', index=False)
+        df_machines.to_excel(writer, sheet_name='Maquinas', index=False)
 
     return str_output, matrix_demand, matrix_confirmed, list_products, list_weeks
 

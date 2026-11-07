@@ -705,13 +705,14 @@ A perecibilidade do látex não é modelada. O recebimento diário e a capacidad
 
 \section{Notação comum}
 
-Os índices são fixos nos dois modelos: $i$ para balão (formato e acabamento, sem cor), $j$ para máquina, $t$ para semana, $s$ para turno e $k$ para SKU-cor, isto é, a combinação de balão e cor. O SKU herda os parâmetros do balão a que pertence, por meio do subconjunto $K_i$ definido adiante.
+Os índices são fixos nos dois modelos: $i$ para balão (formato e acabamento, sem cor), $j$ para máquina, $\ell$ para lado de cor da máquina, $t$ para semana, $s$ para turno e $k$ para SKU-cor, isto é, a combinação de balão e cor. O SKU herda os parâmetros do balão a que pertence, por meio do subconjunto $K_i$ definido adiante.
 
 \begin{notacao}{Parâmetros}
 $m_{i}$ & Margem de contribuição do balão $i$ (R\$/kg).\\
 $h_{i}$ & Custo de manter o balão $i$ em estoque por uma semana, Seção~\ref{sec:custo_estoque} (R\$/kg).\\
 $c_{j}$ & Custo do \textit{setup} da máquina $j$ por hora (R\$/h).\\
-$p_{ij}$ & Produtividade do balão $i$ na máquina $j$ (kg/h).\\
+$n_{j}$ & Número de lados de cor da máquina $j$: 1 na máquina de uma cor e 2 na de duas cores.\\
+$p_{ij}$ & Produtividade do balão $i$ em cada lado da máquina $j$ (kg/h).\\
 $q_{i}$ & Lote mínimo do balão $i$ (kg).\\
 \end{notacao}
 
@@ -741,8 +742,9 @@ $f_{it}$ & Previsão do balão $i$ na semana $t$, líquida da carteira (kg).\\
 $\bar{d}_{i}$ & Previsão semanal média dos SKU do balão $i$ produzidos para estoque (kg).\\
 $\underline{I}_{i}$ & Estoque mínimo do balão $i$ (kg).\\
 $\Omega$ & Capacidade do armazém (kg).\\
-$\kappa_{jt}$ & Horas produtivas da máquina $j$ na semana $t$ (h).\\
-$\tau_{i}$ & Tempo de \textit{setup} do balão $i$ por preparação semanal (h).\\
+$\kappa_{jt}$ & Horas produtivas de cada lado da máquina $j$ na semana $t$ (h).\\
+$\tau_{i}$ & Tempo de \textit{setup} do balão $i$ por preparação semanal, $\tau_{i} = \tau^{\mathrm{F}}_{i} + \tau^{\mathrm{C}}_{i}$ (h).\\
+$\tau^{\mathrm{F}}_{i}, \tau^{\mathrm{C}}_{i}$ & Parcelas de forma e de cor de $\tau_{i}$ (h).\\
 $I_{i0}, b_{i0}$ & Estoque e carteira em atraso do balão $i$ no início do horizonte (kg).\\
 \end{notacao}
 
@@ -788,8 +790,8 @@ I_{it} + g_{it} &\ge \underline{I}_{i}
     && \forall\, i \in I,\; t \in T \label{eq:piso_estoque} \\
 \sum_{i \in I} I_{it} &\le \Omega
     && \forall\, t \in T \label{eq:capacidade_armazem} \\
-\sum_{i \in I} \left( \frac{x_{ijt}}{p_{ij}} + \tau_{i}\, y_{ijt} \right)
-    &\le \kappa_{jt}
+\sum_{i \in I} \left( \frac{x_{ijt}}{p_{ij}} + \bigl( n_{j}\, \tau^{\mathrm{F}}_{i} + \tau^{\mathrm{C}}_{i} \bigr)\, y_{ijt} \right)
+    &\le n_{j}\, \kappa_{jt}
     && \forall\, j \in J,\; t \in T \label{eq:capacidade_semanal} \\
 q_{i}\, y_{ijt} \le x_{ijt} &\le M_{ijt}\, y_{ijt}
     && \forall\, i \in I,\; j \in J_i,\; t \in T \label{eq:lote_minimo}
@@ -809,7 +811,7 @@ O estoque mínimo \eqref{eq:piso_estoque} é meta suave: a violação $g_{it}$ �
 
 A capacidade do armazém \eqref{eq:capacidade_armazem} limita o estoque total, e sua composição é decisão do modelo: quando falta espaço, os estágios decidem o que guardar, atendimento antes de estoque mínimo e, dentro do estágio, a maior margem $m_i$. Como as metas que descem ao nível operacional são estoques do próprio plano semanal, elas já cabem no armazém.
 
-A capacidade \eqref{eq:capacidade_semanal} converte a produção em horas pela produtividade e soma as horas de \textit{setup} de cada par ativado, tudo contra as $\kappa_{jt}$ horas disponíveis. O lote mínimo \eqref{eq:lote_minimo} liga produção e preparação: produzir exige preparar a máquina, e preparar exige produzir ao menos $q_i$. O limitante $M_{ijt}$ é tomado como o menor valor válido entre a capacidade da máquina na semana, $p_{ij}\,\kappa_{jt}$, e a soma da carteira ainda devida, da previsão remanescente e do estoque mínimo do balão; um $M$ frouxo degradaria a relaxação linear e, com ela, o desempenho do \textit{branch-and-bound} \cite{jansdegraeve2008}.
+A capacidade \eqref{eq:capacidade_semanal} converte a produção em horas pela produtividade e soma as horas de \textit{setup} de cada par ativado, tudo contra as horas disponíveis. As horas são contadas por lado de cor: a máquina de duas cores tem $2\,\kappa_{jt}$ horas-lado e produz com $p_{ij}$ em cada lado. A troca de forma interrompe a cadeia inteira e consome os $n_j$ lados, enquanto cada corrida de cor ocupa só o lado do seu tanque; por isso a forma pesa $n_j\,\tau^{\mathrm{F}}_i$ e a cor $\tau^{\mathrm{C}}_i$. Com $n_j = 1$ a restrição é a da máquina de uma cor. O lote mínimo \eqref{eq:lote_minimo} liga produção e preparação: produzir exige preparar a máquina, e preparar exige produzir ao menos $q_i$. O limitante $M_{ijt}$ é tomado como o menor valor válido entre a capacidade da máquina na semana, $n_j\,p_{ij}\,\kappa_{jt}$, e a soma da carteira ainda devida, da previsão remanescente e do estoque mínimo do balão; um $M$ frouxo degradaria a relaxação linear e, com ela, o desempenho do \textit{branch-and-bound} \cite{jansdegraeve2008}.
 
 \section{Modelo operacional por turno}
 \label{sec:modelo_turno}
@@ -823,12 +825,13 @@ $T^{\mathrm{O}} \subseteq T$ & Primeiras semanas do horizonte, detalhadas em tur
 $S$ & Turnos das semanas de $T^{\mathrm{O}}$, ordenados; $\bar{s}_t$ é o último turno da semana $t$.\\
 $K$ & SKU, pares de balão e cor.\\
 $K_{i} \subseteq K$ & SKU do balão $i$.\\
+$L_{j}$ & Lados de cor da máquina $j$, $\{1, \dots, n_j\}$.\\
 \end{notacao}
 
 \begin{notacao}{Parâmetros}
 $d_{ks}$ & Carteira do SKU $k$ com vencimento no turno $s$ (kg).\\
 $\hat{I}_{it}$ & Meta de estoque do balão $i$ ao fim da semana $t$ (kg).\\
-$\kappa_{js}$ & Horas produtivas da máquina $j$ no turno $s$ (h).\\
+$\kappa_{js}$ & Horas produtivas de cada lado da máquina $j$ no turno $s$ (h).\\
 $\tau^{\mathrm{F}}_{i'i}$ & Tempo de troca da forma do balão $i'$ para a do balão $i$ (h).\\
 $\bar{\tau}^{\mathrm{F}}$ & Maior tempo de troca de forma (h).\\
 $\tau^{\mathrm{C}}_{kk'}$ & Tempo de troca da cor do SKU $k$ para a do SKU $k'$ (h).\\
@@ -838,9 +841,9 @@ $y_{ij0}$ & 1 se a forma do balão $i$ está montada na máquina $j$ no início 
 \end{notacao}
 
 \begin{notacao}{Variáveis}
-$x_{kjs} \ge 0$ & Quantidade do SKU $k$ produzida na máquina $j$ no turno $s$ (kg).\\
+$x_{kj\ell s} \ge 0$ & Quantidade do SKU $k$ produzida no lado $\ell$ da máquina $j$ no turno $s$ (kg).\\
 $y_{ijs} \in \{0,1\}$ & 1 se a forma do balão $i$ está montada na máquina $j$ no turno $s$.\\
-$y^{\mathrm{C}}_{kjs} \in \{0,1\}$ & 1 se o SKU $k$ tem corrida na máquina $j$ no turno $s$.\\
+$y^{\mathrm{C}}_{kj\ell s} \in \{0,1\}$ & 1 se o SKU $k$ tem corrida no lado $\ell$ da máquina $j$ no turno $s$.\\
 $z_{i'ijs} \in [0,1]$ & 1 se a forma passa do balão $i'$ para o balão $i$ na máquina $j$ na abertura do turno $s$.\\
 $I_{ks} \ge 0$ & Estoque do SKU $k$ ao fim do turno $s$ (kg).\\
 $b_{ks} \ge 0$ & Carteira do SKU $k$ em atraso ao fim do turno $s$ (kg).\\
@@ -856,7 +859,7 @@ Z^{O}_{1} &= \sum_{k \in K}\sum_{s \in S} m_{k}\, b_{ks} \\
 Z^{O}_{2} &= \sum_{i \in I}\sum_{t \in T^{\mathrm{O}}} m_{i}\, g_{it} \\
 Z^{O}_{3} &= \sum_{j \in J}\sum_{s \in S} c_{j} \left(
         \sum_{i' \in I}\sum_{i \in I} \tau^{\mathrm{F}}_{i'i}\, z_{i'ijs}
-        + \sum_{k \in K} \bar{\tau}^{\mathrm{C}}_{k}\, y^{\mathrm{C}}_{kjs} \right)
+        + \sum_{\ell \in L_j}\sum_{k \in K} \bar{\tau}^{\mathrm{C}}_{k}\, y^{\mathrm{C}}_{kj\ell s} \right)
     + \sum_{k \in K}\sum_{s \in S} \frac{|T^{\mathrm{O}}|}{|S|}\, h_{k}\, I_{ks}
 \end{aligned}
 \label{eq:obj_turno}
@@ -865,7 +868,7 @@ Z^{O}_{3} &= \sum_{j \in J}\sum_{s \in S} c_{j} \left(
 
 \noindent\textbf{Sujeito a}
 \begin{align}
-I_{k,s-1} + \sum_{j \in J_k} x_{kjs} + b_{ks}
+I_{k,s-1} + \sum_{j \in J_k}\sum_{\ell \in L_j} x_{kj\ell s} + b_{ks}
     &= I_{ks} + d_{ks} + b_{k,s-1}
     && \forall\, k \in K,\; s \in S \label{eq:balanco_turno} \\
 \sum_{k \in K_i} I_{k\bar{s}_t} + g_{it} &\ge \hat{I}_{it}
@@ -875,25 +878,25 @@ I_{k,s-1} + \sum_{j \in J_k} x_{kjs} + b_{ks}
 \end{align}
 \begin{equation}
 \begin{split}
-    &\sum_{k \in K} \left( \frac{x_{kjs}}{p_{kj}} + \bar{\tau}^{\mathrm{C}}_{k}\, y^{\mathrm{C}}_{kjs} \right) + w_{j,s-1} - w_{js} \\
+    &\sum_{k \in K} \left( \frac{x_{kj\ell s}}{p_{kj}} + \bar{\tau}^{\mathrm{C}}_{k}\, y^{\mathrm{C}}_{kj\ell s} \right) + w_{j,s-1} - w_{js} \\
     &\quad + \sum_{i' \in I}\sum_{i \in I} \tau^{\mathrm{F}}_{i'i}\, z_{i'ijs} \le \kappa_{js}
-    \qquad \forall\, j \in J,\; s \in S
+    \qquad \forall\, j \in J,\; \ell \in L_j,\; s \in S
 \end{split}
 \label{eq:capacidade_turno}
 \end{equation}
 \begin{align}
 w_{js} &\le w_{j,s-1} + \sum_{i' \in I}\sum_{i \in I} \tau^{\mathrm{F}}_{i'i}\, z_{i'ijs}
     && \forall\, j \in J,\; s \in S \label{eq:troca_pendente} \\
-w_{js} &\le \bar{\tau}^{\mathrm{F}} \bigl( 1 - y^{\mathrm{C}}_{kjs} \bigr)
-    && \forall\, k \in K,\; j \in J_k,\; s \in S \label{eq:troca_concluida} \\
-q_{k}\, y^{\mathrm{C}}_{kjs} \le x_{kjs} &\le p_{kj}\, \kappa_{js}\, y^{\mathrm{C}}_{kjs}
-    && \forall\, k \in K,\; j \in J_k,\; s \in S \label{eq:lote_minimo_turno} \\
+w_{js} &\le \bar{\tau}^{\mathrm{F}} \bigl( 1 - y^{\mathrm{C}}_{kj\ell s} \bigr)
+    && \forall\, k \in K,\; j \in J_k,\; \ell \in L_j,\; s \in S \label{eq:troca_concluida} \\
+q_{k}\, y^{\mathrm{C}}_{kj\ell s} \le x_{kj\ell s} &\le p_{kj}\, \kappa_{js}\, y^{\mathrm{C}}_{kj\ell s}
+    && \forall\, k \in K,\; j \in J_k,\; \ell \in L_j,\; s \in S \label{eq:lote_minimo_turno} \\
 \sum_{i \in I} z_{i'ijs} &= y_{i'j,s-1}
     && \forall\, i' \in I,\; j \in J_{i'},\; s \in S \label{eq:forma_saida} \\
 \sum_{i' \in I} z_{i'ijs} &= y_{ijs}
     && \forall\, i \in I,\; j \in J_i,\; s \in S \label{eq:forma_entrada} \\
-y^{\mathrm{C}}_{kjs} &\le y_{ijs}
-    && \forall\, i \in I,\; k \in K_i,\; j \in J_i,\; s \in S \label{eq:cor_da_forma}
+y^{\mathrm{C}}_{kj\ell s} &\le y_{ijs}
+    && \forall\, i \in I,\; k \in K_i,\; j \in J_i,\; \ell \in L_j,\; s \in S \label{eq:cor_da_forma}
 \end{align}
 
 O objetivo perde a venda perdida. Os estágios de \eqref{eq:obj_turno} são os de \eqref{eq:obj_semanal}, com a mesma trava \eqref{eq:trava}, sem o segundo: a previsão não entra neste nível, porque chega embutida na meta $\hat{I}_{it}$, e a carteira por SKU é a única demanda. O \textit{setup} é cobrado pelos tempos de troca de forma da matriz e pela reserva de cor de cada corrida, em vez do tempo médio $\tau_i$, e o carregamento semanal $h_k$ é rateado pelos turnos de cada semana.
@@ -904,42 +907,42 @@ O estoque mínimo vira meta de fim de semana. A restrição \eqref{eq:meta_seman
 
 O armazém é o mesmo. A restrição \eqref{eq:capacidade_armazem_turno} é \eqref{eq:capacidade_armazem} por SKU e turno.
 
-A capacidade separa os dois \textit{setups}. Em \eqref{eq:capacidade_turno} a troca de forma entra pelas horas executadas no turno e a troca de cor pela reserva $\bar{\tau}^{\mathrm{C}}_k$ de cada corrida ativa. Como a reserva é o pior tempo de entrada na cor a partir de qualquer cor do mesmo balão, inclusive a herdada do turno anterior, qualquer ordem das corridas do turno cabe nas horas do turno. A restrição é dura: uma ordem de produção não atravessa a fronteira do turno. A troca de forma, ao contrário, pode atravessá-la: $w_{js}$ guarda as horas que faltam, \eqref{eq:troca_pendente} impede que o turno execute horas negativas, e \eqref{eq:troca_concluida} proíbe corridas enquanto a troca não termina. É o \textit{crossover} de \textit{setup} de \citeonline{belofilho2014}, sem o qual uma troca mais longa que o turno disponível nunca seria executada.
+A capacidade separa os dois \textit{setups}. Em \eqref{eq:capacidade_turno} a troca de forma entra pelas horas executadas no turno e a troca de cor pela reserva $\bar{\tau}^{\mathrm{C}}_k$ de cada corrida ativa. A restrição vale por lado de cor: na máquina de duas cores cada lado tem o seu tanque e as suas corridas, e uma troca de cor num lado não consome horas do outro. A troca de forma interrompe a cadeia inteira e entra nos dois lados, e a forma montada $y_{ijs}$ é uma só para a máquina. Como a reserva é o pior tempo de entrada na cor a partir de qualquer cor do mesmo balão, inclusive a herdada do turno anterior, qualquer ordem das corridas do turno cabe nas horas do turno. A restrição é dura: uma ordem de produção não atravessa a fronteira do turno. A troca de forma, ao contrário, pode atravessá-la: $w_{js}$ guarda as horas que faltam, \eqref{eq:troca_pendente} impede que o turno execute horas negativas, e \eqref{eq:troca_concluida} proíbe corridas enquanto a troca não termina. É o \textit{crossover} de \textit{setup} de \citeonline{belofilho2014}, sem o qual uma troca mais longa que o turno disponível nunca seria executada.
 
 O nível semanal desconta o \textit{setup} pela mesma regra, com a troca média de forma e uma corrida de cada cor do balão, de modo que os dois níveis enxergam a mesma capacidade:
 \begin{ceqn}
 \begin{equation}
-\tau_{i} = \frac{1}{|I|} \sum_{i' \in I} \tau^{\mathrm{F}}_{i'i} + \sum_{k \in K_i} \bar{\tau}^{\mathrm{C}}_{k} \quad \forall\, i \in I
+\tau^{\mathrm{F}}_{i} = \frac{1}{|I|} \sum_{i' \in I} \tau^{\mathrm{F}}_{i'i}, \qquad \tau^{\mathrm{C}}_{i} = \sum_{k \in K_i} \bar{\tau}^{\mathrm{C}}_{k} \quad \forall\, i \in I
 \label{eq:setup_semanal}
 \end{equation}
 \end{ceqn}
 
-O lote mínimo incide na corrida. A restrição \eqref{eq:lote_minimo_turno} tem a forma de \eqref{eq:lote_minimo}, com a corrida de cor no lugar da preparação semanal e a capacidade do turno como limitante.
+O lote mínimo incide na corrida. A restrição \eqref{eq:lote_minimo_turno} tem a forma de \eqref{eq:lote_minimo}, com a corrida de cor no lugar da preparação semanal e a capacidade do turno de um lado como limitante.
 
-A forma é estado. As restrições \eqref{eq:forma_saida} e \eqref{eq:forma_entrada} não têm correspondente semanal: tratam a forma montada como um fluxo entre turnos consecutivos. A forma do turno anterior sai por exatamente um arco, que a mantém, com $z_{iijs}$ e tempo nulo, ou a troca, e a forma do turno atual chega por exatamente um. Como o estado inicial tem uma forma por máquina, cada turno também tem, inclusive o ocioso; o estado sobrevive ao turno sem produção e a troca seguinte é cobrada a partir dele, o mecanismo de estado de \citeonline{soxgao1999}. Com $y$ binária, o arco entre duas formas é determinado, e $z$ pode ser contínua; as duas equações implicam $z_{i'ijs} \ge y_{i'j,s-1} + y_{ijs} - 1$, de modo que a relaxação linear é ao menos tão forte quanto a da conjunção linearizada. A restrição \eqref{eq:cor_da_forma} limita as corridas aos SKU da forma montada.
+A forma é estado. As restrições \eqref{eq:forma_saida} e \eqref{eq:forma_entrada} não têm correspondente semanal: tratam a forma montada como um fluxo entre turnos consecutivos. A forma do turno anterior sai por exatamente um arco, que a mantém, com $z_{iijs}$ e tempo nulo, ou a troca, e a forma do turno atual chega por exatamente um. Como o estado inicial tem uma forma por máquina, cada turno também tem, inclusive o ocioso; o estado sobrevive ao turno sem produção e a troca seguinte é cobrada a partir dele, o mecanismo de estado de \citeonline{soxgao1999}. Com $y$ binária, o arco entre duas formas é determinado, e $z$ pode ser contínua; as duas equações implicam $z_{i'ijs} \ge y_{i'j,s-1} + y_{ijs} - 1$, de modo que a relaxação linear é ao menos tão forte quanto a da conjunção linearizada. A restrição \eqref{eq:cor_da_forma} limita as corridas dos dois lados aos SKU da forma montada; os dois lados podem correr a mesma cor.
 
 \section{Sequenciamento por turno}
 \label{sec:sequenciamento}
 
-O modelo operacional fixa a forma montada em cada máquina e turno e a quantidade de cada SKU, mas não a ordem das corridas. Como reserva para cada corrida o pior tempo de entrada na cor, a sequência real paga menos que a reserva e deixa horas ociosas no turno. O sequenciamento ordena as corridas de cada turno e ocupa essas horas com produção já planejada para turnos futuros, como no painel (c) da Figura~\ref{fig:gantt_niveis}.
+O modelo operacional fixa a forma montada em cada máquina e turno e a quantidade de cada SKU em cada lado, mas não a ordem das corridas, que é decidida para cada lado de cor. Como reserva para cada corrida o pior tempo de entrada na cor, a sequência real paga menos que a reserva e deixa horas ociosas no turno. O sequenciamento ordena as corridas de cada turno e ocupa essas horas com produção já planejada para turnos futuros, como no painel (c) da Figura~\ref{fig:gantt_niveis}.
 
-O subproblema é resolvido por heurística, turno a turno, em ordem cronológica. As equações a seguir são as condições que a solução respeita. Os valores fixados pelo modelo operacional levam acento circunflexo, como $\hat{x}_{kjs}$, $\hat{y}_{ijs}$ e $\hat{w}_{js}$, com $\hat{y}_{ij0} = y_{ij0}$; o estoque $I_{ks}$ segue \eqref{eq:balanco_turno} com a produção após a antecipação; os demais símbolos são os das Seções~\ref{sec:modelo_semanal} e~\ref{sec:modelo_turno}.
+O subproblema é resolvido por heurística, turno a turno, em ordem cronológica. As equações a seguir são as condições que a solução respeita. Os valores fixados pelo modelo operacional levam acento circunflexo, como $\hat{x}_{kj\ell s}$, $\hat{y}_{ijs}$ e $\hat{w}_{js}$, com $\hat{y}_{ij0} = y_{ij0}$; o estoque $I_{ks}$ segue \eqref{eq:balanco_turno} com a produção após a antecipação; os demais símbolos são os das Seções~\ref{sec:modelo_semanal} e~\ref{sec:modelo_turno}.
 
 \begin{notacao}{Conjuntos}
-$R_{js}$ & Corridas da máquina $j$ no turno $s$, $\{k \in K : x_{kjs} > 0\}$, com $\bar{n}_{js} = |R_{js}|$.\\
+$R_{j\ell s}$ & Corridas do lado $\ell$ da máquina $j$ no turno $s$, $\{k \in K : x_{kj\ell s} > 0\}$, com $\bar{n}_{j\ell s} = |R_{j\ell s}|$.\\
 \noalign{\vskip 6pt}\multicolumn{2}{@{}l}{\textbf{Parâmetros}}\\[2pt]
-$k_{j01}$ & SKU da cor montada na máquina $j$ no início do horizonte operacional, única corrida do turno 0.\\
+$k_{j\ell 01}$ & SKU da cor montada no lado $\ell$ da máquina $j$ no início do horizonte operacional, única corrida do turno 0.\\
 \noalign{\vskip 6pt}\multicolumn{2}{@{}l}{\textbf{Variáveis}}\\[2pt]
-$x_{kjs} \ge 0$ & Quantidade do SKU $k$ produzida na máquina $j$ no turno $s$ (kg).\\
-$k_{jsn}$ & SKU da máquina $j$ no turno $s$ na posição $n = 1, \dots, \bar{n}_{js}$; $k_{js0}$ é o SKU de entrada.\\
+$x_{kj\ell s} \ge 0$ & Quantidade do SKU $k$ produzida no lado $\ell$ da máquina $j$ no turno $s$ (kg).\\
+$k_{j\ell sn}$ & SKU do lado $\ell$ da máquina $j$ no turno $s$ na posição $n = 1, \dots, \bar{n}_{j\ell s}$; $k_{j\ell s0}$ é o SKU de entrada.\\
 \end{notacao}
 
 \noindent\textbf{Minimizar, em ordem lexicográfica, $(Z^{\mathrm{Q}}_{1}, Z^{\mathrm{Q}}_{2})$}
 \begin{ceqn}
 \begin{equation}
 \begin{aligned}
-Z^{\mathrm{Q}}_{1} &= \sum_{j \in J}\sum_{s \in S} c_{j} \sum_{n=1}^{\bar{n}_{js}} \tau^{\mathrm{C}}_{k_{js,n-1}k_{jsn}} \\
-Z^{\mathrm{Q}}_{2} &= \sum_{k \in K}\sum_{j \in J_k}\sum_{s \in S} s\, \frac{x_{kjs}}{p_{kj}}
+Z^{\mathrm{Q}}_{1} &= \sum_{j \in J}\sum_{\ell \in L_j}\sum_{s \in S} c_{j} \sum_{n=1}^{\bar{n}_{j\ell s}} \tau^{\mathrm{C}}_{k_{j\ell s,n-1}k_{j\ell sn}} \\
+Z^{\mathrm{Q}}_{2} &= \sum_{k \in K}\sum_{j \in J_k}\sum_{\ell \in L_j}\sum_{s \in S} s\, \frac{x_{kj\ell s}}{p_{kj}}
 \end{aligned}
 \label{eq:obj_sequenciamento}
 \end{equation}
@@ -947,27 +950,27 @@ Z^{\mathrm{Q}}_{2} &= \sum_{k \in K}\sum_{j \in J_k}\sum_{s \in S} s\, \frac{x_{
 
 \noindent\textbf{Sujeito a}
 \begin{align}
-k_{js0} &=
+k_{j\ell s0} &=
 \begin{cases}
-k_{js'\bar{n}_{js'}} & \text{se } \hat{y}_{\cdot js''} = \hat{y}_{\cdot js},\ s'' \in [s', s] \\
+k_{j\ell s'\bar{n}_{j\ell s'}} & \text{se } \hat{y}_{\cdot js''} = \hat{y}_{\cdot js},\ s'' \in [s', s] \\
 \varnothing & \text{caso contrário}
 \end{cases}
-    && \forall\, j \in J,\; s \in S \label{eq:seq_entrada}
+    && \forall\, j \in J,\; \ell \in L_j,\; s \in S \label{eq:seq_entrada}
 \end{align}
 \begin{equation}
 \begin{split}
-    &\sum_{k \in R_{js}} \frac{x_{kjs}}{p_{kj}} + \sum_{n=1}^{\bar{n}_{js}} \tau^{\mathrm{C}}_{k_{js,n-1}k_{jsn}} + \hat{w}_{j,s-1} - \hat{w}_{js} \\
+    &\sum_{k \in R_{j\ell s}} \frac{x_{kj\ell s}}{p_{kj}} + \sum_{n=1}^{\bar{n}_{j\ell s}} \tau^{\mathrm{C}}_{k_{j\ell s,n-1}k_{j\ell sn}} + \hat{w}_{j,s-1} - \hat{w}_{js} \\
     &\quad + \sum_{i' \in I}\sum_{i \in I} \tau^{\mathrm{F}}_{i'i}\, \hat{y}_{i'j,s-1}\, \hat{y}_{ijs} \le \kappa_{js}
-    \qquad \forall\, j \in J,\; s \in S
+    \qquad \forall\, j \in J,\; \ell \in L_j,\; s \in S
 \end{split}
 \label{eq:seq_capacidade}
 \end{equation}
 \begin{align}
-x_{kjs} &\le p_{kj}\, \kappa_{js}\, \hat{y}_{ijs}\, [\hat{w}_{js} = 0]
-    && \forall\, i \in I,\; k \in K_i,\; j \in J_i,\; s \in S \label{eq:seq_forma} \\
-x_{kjs} &\ge q_{k}
-    && \forall\, j \in J,\; s \in S,\; k \in R_{js} \label{eq:seq_lote} \\
-\sum_{j \in J_k}\sum_{s' \le s} x_{kjs'} &\ge \sum_{j \in J_k}\sum_{s' \le s} \hat{x}_{kjs'}
+x_{kj\ell s} &\le p_{kj}\, \kappa_{js}\, \hat{y}_{ijs}\, [\hat{w}_{js} = 0]
+    && \forall\, i \in I,\; k \in K_i,\; j \in J_i,\; \ell \in L_j,\; s \in S \label{eq:seq_forma} \\
+x_{kj\ell s} &\ge q_{k}
+    && \forall\, j \in J,\; \ell \in L_j,\; s \in S,\; k \in R_{j\ell s} \label{eq:seq_lote} \\
+\sum_{j \in J_k}\sum_{\ell \in L_j}\sum_{s' \le s} x_{kj\ell s'} &\ge \sum_{j \in J_k}\sum_{\ell \in L_j}\sum_{s' \le s} \hat{x}_{kj\ell s'}
     && \forall\, k \in K,\; s \in S \label{eq:seq_antecipacao} \\
 \sum_{k \in K} I_{ks} &\le \Omega
     && \forall\, s \in S \label{eq:seq_armazem}
@@ -975,7 +978,7 @@ x_{kjs} &\ge q_{k}
 
 O objetivo \eqref{eq:obj_sequenciamento} põe o bom sequenciamento antes da ocupação. O primeiro estágio minimiza o custo das trocas de cor efetivamente pagas; o segundo minimiza as horas de produção ponderadas pela ordem do turno, que caem quando a produção vem para mais cedo. Com essa ordem, a antecipação estende uma corrida de cor que já está no turno ou move uma corrida inteira, e nunca acrescenta troca de cor. O carregamento de poucos turnos não entra no objetivo.
 
-A entrada \eqref{eq:seq_entrada} herda a cor da última corrida do turno $s'$, o último anterior a $s$ com produção na máquina, ou do turno 0, inclusive através de turnos ociosos, e fica vazia depois de uma troca de forma, que já prepara a máquina para a primeira cor do novo balão: $\tau^{\mathrm{C}}_{\varnothing k} = 0$. A capacidade \eqref{eq:seq_capacidade} usa os tempos de troca efetivos da sequência. A folga entre essa capacidade e a reserva \eqref{eq:capacidade_turno} do modelo operacional é a ociosidade que a antecipação ocupa. Como cada SKU tem uma única corrida por turno, as corridas de um mesmo SKU são contíguas por construção.
+A entrada \eqref{eq:seq_entrada} herda a cor da última corrida do turno $s'$, o último anterior a $s$ com produção no mesmo lado da máquina, ou do turno 0, inclusive através de turnos ociosos, e fica vazia depois de uma troca de forma, que já prepara a máquina para a primeira cor do novo balão: $\tau^{\mathrm{C}}_{\varnothing k} = 0$. A capacidade \eqref{eq:seq_capacidade} usa os tempos de troca efetivos da sequência. A folga entre essa capacidade e a reserva \eqref{eq:capacidade_turno} do modelo operacional é a ociosidade que a antecipação ocupa. Como cada SKU tem uma única corrida por turno, as corridas de um mesmo SKU são contíguas por construção.
 
 A antecipação move apenas quantidade planejada e apenas para mais cedo. A forma \eqref{eq:seq_forma}, em que $[\hat{w}_{js} = 0]$ vale 1 quando a troca está concluída e 0 caso contrário, restringe a produção aos turnos em que a forma do balão está montada e pronta, em qualquer máquina compatível, e o lote mínimo \eqref{eq:seq_lote} vale para cada corrida resultante. A restrição \eqref{eq:seq_antecipacao} impede que a produção acumulada fique abaixo do plano em qualquer turno e vale com igualdade no último turno de $S$, o que preserva o total planejado; assim o estoque de cada turno nunca fica abaixo do plano operacional, o atraso não cresce e as metas de fim de semana não caem. O armazém \eqref{eq:seq_armazem} é a única restrição de estoque que a antecipação pode violar.
 

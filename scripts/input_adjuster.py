@@ -51,6 +51,10 @@ MAINTENANCE_AVAILABILITY_HIGH = 0.90
 COLLECTIVE_SHUTDOWN_AVAILABILITY = 0.40
 CARNIVAL_AVAILABILITY = 0.85
 
+TWO_COLOR_MACHINE_FRACTION = 0.25
+TWO_COLOR_SEED = 2026
+SETUP_HOURLY_COST = 250.0
+
 rng = np.random.default_rng(42)
 
 df_source_productivity = pd.read_excel(SOURCE_PATH, sheet_name='Produtividade', header=1)
@@ -526,6 +530,21 @@ for str_from in list_products:
     dict_form_rows[str_from] = dict_row
 df_form_setup = pd.DataFrame(dict_form_rows).T.reset_index().rename(columns={'index': 'DE'})
 
+rng_two_color = np.random.default_rng(TWO_COLOR_SEED)
+int_two_color_count = int(round(TWO_COLOR_MACHINE_FRACTION * len(list_machines)))
+array_two_color_indices = rng_two_color.choice(len(list_machines), size=int_two_color_count, replace=False)
+list_two_color_machines = []
+for int_index in array_two_color_indices:
+    list_two_color_machines.append(list_machines[int(int_index)])
+list_machine_rows = []
+for str_machine in list_machines:
+    str_two_color = 'NAO'
+    if str_machine in list_two_color_machines:
+        str_two_color = 'SIM'
+    list_machine_rows.append({'MAQUINA': int(str_machine), 'ATIVA': 'SIM', 'CUSTO_SETUP_HORA': SETUP_HOURLY_COST,
+                              'DUAS_CORES': str_two_color})
+df_machines = pd.DataFrame(list_machine_rows)
+
 with pd.ExcelWriter(OUTPUT_PATH, engine='openpyxl') as writer:
     df_productivity.to_excel(writer, sheet_name='Produtividade', index=False, startrow=1)
     df_demand.to_excel(writer, sheet_name='Demanda', index=False, startrow=1)
@@ -538,9 +557,11 @@ with pd.ExcelWriter(OUTPUT_PATH, engine='openpyxl') as writer:
     df_color_setup.to_excel(writer, sheet_name='De_Para_Cores', index=False)
     df_form_setup.to_excel(writer, sheet_name='De_Para_Formas', index=False)
     df_min_lot.to_excel(writer, sheet_name='Lote_Minimo', index=False)
+    df_machines.to_excel(writer, sheet_name='Maquinas', index=False)
     df_source_invoiced.to_excel(writer, sheet_name='Faturado', index=False, startrow=1)
     df_source_produced.to_excel(writer, sheet_name='Produzido', index=False, startrow=1)
 
 print(f'gerado: {os.path.basename(OUTPUT_PATH)}')
 print(f'produtos: {len(list_products)}  maquinas: {len(list_machines)}  semanas: {len(list_weeks)}')
+print(f'maquinas de duas cores: {sorted(list_two_color_machines, key=int)}')
 print(f'pedidos: {len(list_order_headers)}  itens: {len(list_order_items)}  cores: {len(list_used_colors)}')

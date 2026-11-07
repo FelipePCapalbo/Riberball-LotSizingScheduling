@@ -103,11 +103,13 @@ def build_weekly_scenario(dict_instance, dict_settings):
         dict_capacity[str_machine] = {}
         for timestamp_week in list_weeks:
             float_availability = dict_instance['availability'][str_machine][timestamp_week]
-            dict_capacity[str_machine][timestamp_week] = float_hours_per_week * float_availability
+            dict_capacity[str_machine][timestamp_week] = (dict_instance['color_sides'][str_machine]
+                                                          * float_hours_per_week * float_availability)
 
     dict_form_setup = complete_setup_matrix(dict_instance['form_setup'], dict_instance['products'])
     dict_color_setup, dict_color_reservation = build_color_reservation(dict_instance)
     dict_average_setup = {}
+    dict_average_form_setup = {}
     for str_product in dict_instance['products']:
         float_form_total = 0.0
         for str_other in dict_instance['products']:
@@ -115,14 +117,20 @@ def build_weekly_scenario(dict_instance, dict_settings):
         float_color_total = 0.0
         for str_color in dict_instance['colors_by_product'][str_product]:
             float_color_total += dict_color_reservation[f'{str_product}-{str_color}']
-        dict_average_setup[str_product] = float_form_total / len(dict_instance['products']) + float_color_total
+        dict_average_form_setup[str_product] = float_form_total / len(dict_instance['products'])
+        dict_average_setup[str_product] = dict_average_form_setup[str_product] + float_color_total
 
     dict_machines_of_product = {}
+    dict_side_setup = {}
     for str_product in dict_instance['products']:
         dict_machines_of_product[str_product] = []
         for str_machine in dict_instance['machines']:
             if str_machine in dict_instance['productivity'][str_product]:
                 dict_machines_of_product[str_product].append(str_machine)
+                int_sides = dict_instance['color_sides'][str_machine]
+                dict_side_setup[(str_product, str_machine)] = (dict_average_setup[str_product]
+                                                               + (int_sides - 1)
+                                                               * dict_average_form_setup[str_product])
 
     float_warehouse_capacity = dict_settings['warehouse_capacity_kg']
     if float_warehouse_capacity is not None:
@@ -144,6 +152,7 @@ def build_weekly_scenario(dict_instance, dict_settings):
         'productivity': dict_instance['productivity'],
         'machines_of_product': dict_machines_of_product,
         'average_setup': dict_average_setup,
+        'side_setup': dict_side_setup,
         'setup_hourly_cost': dict_instance['setup_hourly_cost'],
         'initial_inventory': dict_instance['initial_inventory'],
         'min_lot': dict_instance['min_lot'],
@@ -261,7 +270,8 @@ def solve_weekly_model(dict_scenario, dict_settings):
                     tuple_key = (str_product, str_machine, timestamp_week)
                     float_rate = dict_scenario['productivity'][str_product][str_machine]
                     list_capacity_terms.append(dict_production[tuple_key] / float_rate)
-                    list_capacity_terms.append(dict_scenario['average_setup'][str_product] * dict_setup[tuple_key])
+                    list_capacity_terms.append(dict_scenario['side_setup'][(str_product, str_machine)]
+                                               * dict_setup[tuple_key])
             problem += (pulp.lpSum(list_capacity_terms) <= dict_scenario['capacity'][str_machine][timestamp_week],
                         f'capacidade_semanal_{str_machine}_{clean_name(timestamp_week.date())}')
 
@@ -292,7 +302,7 @@ def solve_weekly_model(dict_scenario, dict_settings):
     float_started_at = time.perf_counter()
     str_status, bool_hit_time_limit, list_stage_values, list_stage_reports = solve_lexicographic(
         problem, list_stage_expressions, dict_settings['weekly_solver_name'], int(dict_settings['weekly_time_limit']),
-        dict_settings['threads'])
+        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'])
     float_solve_seconds = time.perf_counter() - float_started_at
 
     if str_status not in ('Optimal', 'Feasible'):
@@ -371,7 +381,7 @@ def solve_weekly_model(dict_scenario, dict_settings):
                             'week': str_week, 'machine': str_machine, 'product': str_product,
                             'kg': float_quantity,
                             'hours': float_quantity / float_rate,
-                            'setup_hours': dict_scenario['average_setup'][str_product] * float_active,
+                            'setup_hours': dict_scenario['side_setup'][(str_product, str_machine)] * float_active,
                         })
                     if float_active > 0.5:
                         float_hours = dict_scenario['average_setup'][str_product]

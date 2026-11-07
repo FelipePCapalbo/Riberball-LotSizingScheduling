@@ -18,6 +18,7 @@ export interface InitData {
   weeks: string[];
   machines: string[];
   active_machines: string[];
+  two_color_machines: string[];
   products: string[];
   orders: number;
   source: string | null;
@@ -157,6 +158,7 @@ export interface DailyKpis {
 
 export interface SequencingReportRow {
   machine: string;
+  side?: number;
   shift_index: number;
   date: string;
   shift: number;
@@ -184,6 +186,7 @@ export interface ScheduleRow {
   shift: number;
   shift_index: number;
   machine: string;
+  side?: number;
   position: number;
   product: string;
   color: string;

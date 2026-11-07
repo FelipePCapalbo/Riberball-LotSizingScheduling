@@ -84,6 +84,14 @@ export function setMachineActive(machine: string, isActive: boolean): Promise<{ 
   });
 }
 
+export function setMachineColorSides(machine: string, colorSides: number): Promise<{ status: string }> {
+  return requestJson('/api/machines/color-sides', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ machine, color_sides: colorSides }),
+  });
+}
+
 export function getInitData(): Promise<InitData> {
   return requestJson('/api/init-data');
 }

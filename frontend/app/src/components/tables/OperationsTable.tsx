@@ -29,6 +29,7 @@ export default function OperationsTable({ data }: OperationsTableProps) {
       (a, b) =>
         a.shift_index - b.shift_index ||
         parseInt(a.machine, 10) - parseInt(b.machine, 10) ||
+        (a.side ?? 1) - (b.side ?? 1) ||
         a.position - b.position,
     );
   }, [data, machineFilter]);
@@ -53,11 +54,12 @@ export default function OperationsTable({ data }: OperationsTableProps) {
           onClick={() =>
             downloadCSV(
               rows,
-              ['Data', 'Turno', 'Maquina', 'Posicao', 'Balao', 'Cor', 'Kg', 'Horas producao', 'Horas setup forma', 'Horas setup cor', 'Natureza'],
+              ['Data', 'Turno', 'Maquina', 'Lado', 'Posicao', 'Balao', 'Cor', 'Kg', 'Horas producao', 'Horas setup forma', 'Horas setup cor', 'Natureza'],
               (row) => [
                 formatDate(row.date),
                 row.shift,
                 `M${row.machine}`,
+                row.side ?? 1,
                 row.position,
                 row.product,
                 row.color,
@@ -81,6 +83,7 @@ export default function OperationsTable({ data }: OperationsTableProps) {
               <th>Data</th>
               <th>Turno</th>
               <th>Máquina</th>
+              <th>Lado</th>
               <th>Pos.</th>
               <th>Balão</th>
               <th>Cor</th>
@@ -93,10 +96,11 @@ export default function OperationsTable({ data }: OperationsTableProps) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={`${row.machine}-${row.shift_index}-${row.position}`}>
+              <tr key={`${row.machine}-${row.side ?? 1}-${row.shift_index}-${row.position}`}>
                 <td>{formatDate(row.date)}</td>
                 <td>T{row.shift}</td>
                 <td>M{row.machine}</td>
+                <td>{row.side ?? 1}</td>
                 <td>{row.position}</td>
                 <td>{row.product}</td>
                 <td>{row.color}</td>

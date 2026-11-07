@@ -18,6 +18,9 @@ Reportar no capitulo de Resultados o status e o gap de cada instancia, nao apena
 
 ## Dados
 
+- Levantar em campo quais máquinas são de duas cores. Hoje o arquivo ajustado marca 7 das 28 de forma sintética
+  (1, 3, 5, 10, 13, 16, 19), e o tipo pode ser trocado pela interface.
+
 - Feito: `scripts/input_adjuster.py` converte `data/brutos/input_asis.xlsx` para `data/input_asis_ajustado.xlsx`
   no contrato semanal.
 - Levantar em campo as quatro dimensoes que a operacao nao registra e que hoje sao sinteticas no

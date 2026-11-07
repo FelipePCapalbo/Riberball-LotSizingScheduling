@@ -73,6 +73,7 @@ export default function App() {
   const [dataSource, setDataSource] = useState<string | null>(null);
   const [machines, setMachines] = useState<string[]>([]);
   const [activeMachines, setActiveMachines] = useState<string[]>([]);
+  const [twoColorMachines, setTwoColorMachines] = useState<string[]>([]);
   const [uploadReview, setUploadReview] = useState<UploadReview | null>(null);
   const [uploading, setUploading] = useState(false);
   const [applyingUpload, setApplyingUpload] = useState(false);
@@ -98,6 +99,7 @@ export default function App() {
     setDataSource(init.source);
     setMachines(init.machines);
     setActiveMachines(init.active_machines);
+    setTwoColorMachines(init.two_color_machines);
     setWeeks(init.weeks);
     setSettings((prev) => {
       const merged = { ...prev, ...loaded };
@@ -265,6 +267,31 @@ export default function App() {
     }
   };
 
+  const handleTwoColorToggle = async (machine: string) => {
+    const isTwoColor = !twoColorMachines.includes(machine);
+    const next: string[] = [];
+    for (const candidate of machines) {
+      if (candidate === machine) {
+        if (isTwoColor) {
+          next.push(candidate);
+        }
+      } else if (twoColorMachines.includes(candidate)) {
+        next.push(candidate);
+      }
+    }
+    setTwoColorMachines(next);
+    let colorSides = 1;
+    if (isTwoColor) {
+      colorSides = 2;
+    }
+    try {
+      await api.setMachineColorSides(machine, colorSides);
+    } catch (err) {
+      setStatusText(`Erro ao gravar a máquina: ${(err as Error).message}`);
+      setStatusTone('bad');
+    }
+  };
+
   const handleFieldChange = (patch: Partial<Settings>, save: boolean) => {
     const next = { ...settings, ...patch };
     setSettings(next);
@@ -398,6 +425,8 @@ export default function App() {
         machines={machines}
         activeMachines={activeMachines}
         onMachineToggle={handleMachineToggle}
+        twoColorMachines={twoColorMachines}
+        onTwoColorToggle={handleTwoColorToggle}
         weeks={weeks}
         settings={settings}
         onFieldChange={handleFieldChange}

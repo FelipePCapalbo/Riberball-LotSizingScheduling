@@ -15,6 +15,8 @@ interface SidebarProps {
   machines: string[];
   activeMachines: string[];
   onMachineToggle: (machine: string) => void;
+  twoColorMachines: string[];
+  onTwoColorToggle: (machine: string) => void;
   weeks: string[];
   settings: Settings;
   onFieldChange: (patch: Partial<Settings>, save: boolean) => void;
@@ -37,6 +39,8 @@ export default function Sidebar({
   machines,
   activeMachines,
   onMachineToggle,
+  twoColorMachines,
+  onTwoColorToggle,
   weeks,
   settings,
   onFieldChange,
@@ -61,6 +65,7 @@ export default function Sidebar({
   };
 
   const activeMachineSet = new Set(activeMachines);
+  const twoColorMachineSet = new Set(twoColorMachines);
   const shiftsPerWeek = settings.shifts_per_day * settings.working_days_per_week;
   const hoursPerWeek = (shiftsPerWeek * settings.hours_per_shift).toFixed(1);
 
@@ -236,6 +241,20 @@ export default function Sidebar({
             <div className="sb-hint">
               Ativar ou desativar uma máquina grava no cadastro. O custo horário de setup de cada máquina vem da aba
               Maquinas do Excel.
+            </div>
+            <div className="sb-field">
+              <label>Máquinas de duas cores</label>
+            </div>
+            <MachineGrid
+              machines={machines}
+              selected={twoColorMachineSet}
+              onToggle={onTwoColorToggle}
+              toggledClassName="selected"
+              containerClassName="two-color-grid"
+            />
+            <div className="sb-hint">
+              Na máquina de duas cores cada lado tem o seu tanque e roda com a taxa cadastrada. A forma é a mesma nos
+              dois lados, e a troca de cor de um lado não para o outro.
             </div>
           </AccordionSection>
 

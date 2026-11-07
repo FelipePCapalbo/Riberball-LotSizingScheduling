@@ -23,6 +23,24 @@ export default function GanttChart({ data, hoursPerShift, shiftsPerDay }: GanttC
     const machines = Array.from(new Set(data.map((row) => row.machine))).sort(
       (a, b) => parseInt(a, 10) - parseInt(b, 10),
     );
+    const sidesByMachine = new Map<string, number>();
+    for (const row of data) {
+      const side = row.side ?? 1;
+      if (side > (sidesByMachine.get(row.machine) ?? 1)) {
+        sidesByMachine.set(row.machine, side);
+      }
+    }
+    const lanes: { machine: string; side: number; label: string }[] = [];
+    for (const machine of machines) {
+      const sides = sidesByMachine.get(machine) ?? 1;
+      for (let side = 1; side <= sides; side += 1) {
+        if (sides > 1) {
+          lanes.push({ machine, side, label: `M${machine}·L${side}` });
+        } else {
+          lanes.push({ machine, side, label: `M${machine}` });
+        }
+      }
+    }
     const shiftIndexes = Array.from(new Set(data.map((row) => row.shift_index))).sort((a, b) => a - b);
     const maxShift = shiftIndexes.length ? shiftIndexes[shiftIndexes.length - 1] : 0;
     const columns: number[] = [];
@@ -36,16 +54,20 @@ export default function GanttChart({ data, hoursPerShift, shiftsPerDay }: GanttC
     const ranked = rankByVolume(data, (row) => row.product, (row) => row.kg);
     const colorMap = buildColorMap(ranked);
     const byCell = new Map<string, ScheduleRow[]>();
+    const formHoursByMachineShift = new Map<string, number>();
     for (const row of data) {
-      const key = `${row.machine}|${row.shift_index}`;
+      const key = `${row.machine}|${row.side ?? 1}|${row.shift_index}`;
       const list = byCell.get(key) ?? [];
       list.push(row);
       byCell.set(key, list);
+      if (row.form_setup_hours > 0) {
+        formHoursByMachineShift.set(`${row.machine}|${row.shift_index}`, row.form_setup_hours);
+      }
     }
     for (const list of byCell.values()) {
       list.sort((a, b) => a.position - b.position);
     }
-    return { machines, columns, shiftMeta, colorMap, ranked, byCell };
+    return { lanes, columns, shiftMeta, colorMap, ranked, byCell, formHoursByMachineShift };
   }, [data]);
 
   if (!data.length) {
@@ -53,7 +75,7 @@ export default function GanttChart({ data, hoursPerShift, shiftsPerDay }: GanttC
   }
 
   const width = LABEL_WIDTH + model.columns.length * COL_WIDTH;
-  const height = HEADER_HEIGHT + model.machines.length * (ROW_HEIGHT + ROW_GAP);
+  const height = HEADER_HEIGHT + model.lanes.length * (ROW_HEIGHT + ROW_GAP);
   const legendKeys = model.ranked.slice(0, 8);
   const hasOther = model.ranked.length > 8;
 
@@ -116,12 +138,13 @@ export default function GanttChart({ data, hoursPerShift, shiftsPerDay }: GanttC
             );
           })}
 
-          {model.machines.map((machine, rowIndex) => {
+          {model.lanes.map((lane, rowIndex) => {
+            const machine = lane.machine;
             const y = HEADER_HEIGHT + rowIndex * (ROW_HEIGHT + ROW_GAP);
             return (
-              <g key={machine}>
+              <g key={`${machine}-${lane.side}`}>
                 <text x={LABEL_WIDTH - 8} y={y + ROW_HEIGHT / 2 + 4} textAnchor="end" className="gantt-machine">
-                  M{machine}
+                  {lane.label}
                 </text>
                 <rect
                   x={LABEL_WIDTH}
@@ -131,12 +154,21 @@ export default function GanttChart({ data, hoursPerShift, shiftsPerDay }: GanttC
                   fill="#f2f1ec"
                 />
                 {model.columns.map((shiftIndex) => {
-                  const cell = model.byCell.get(`${machine}|${shiftIndex}`);
+                  const cell = model.byCell.get(`${machine}|${lane.side}|${shiftIndex}`);
                   if (!cell) {
                     return null;
                   }
                   const x0 = LABEL_WIDTH + shiftIndex * COL_WIDTH;
                   let cursor = 0;
+                  let laneHasForm = false;
+                  for (const row of cell) {
+                    if (row.form_setup_hours > 0) {
+                      laneHasForm = true;
+                    }
+                  }
+                  if (!laneHasForm) {
+                    cursor = model.formHoursByMachineShift.get(`${machine}|${shiftIndex}`) ?? 0;
+                  }
                   return cell.flatMap((row) => {
                     const segments: ReactElement[] = [];
                     let previousForm = row.previous_form;
@@ -155,7 +187,7 @@ export default function GanttChart({ data, hoursPerShift, shiftsPerDay }: GanttC
                       const x = x0 + (cursor / hoursPerShift) * COL_WIDTH;
                       segments.push(
                         <rect
-                          key={`${machine}-${shiftIndex}-${row.position}-${kind}`}
+                          key={`${machine}-${lane.side}-${shiftIndex}-${row.position}-${kind}`}
                           x={x}
                           y={y + 2}
                           width={w}
@@ -167,7 +199,7 @@ export default function GanttChart({ data, hoursPerShift, shiftsPerDay }: GanttC
                               x: event.clientX,
                               y: event.clientY,
                               text: [
-                                `${formatDate(row.date)} · Turno ${row.shift} · M${row.machine} · pos ${row.position}`,
+                                `${formatDate(row.date)} · Turno ${row.shift} · ${lane.label} · pos ${row.position}`,
                                 `${row.product} — ${row.color}`,
                                 `${fmtN(row.kg, 0)} kg em ${fmtN(row.production_hours, 2)} h`,
                                 row.form_setup_hours > 0

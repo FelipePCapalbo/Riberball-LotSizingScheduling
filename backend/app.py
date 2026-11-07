@@ -251,17 +251,22 @@ async def post_discard_upload(upload_id: int):
 async def get_init_data():
     int_snapshot_id = get_active_snapshot_id()
     if int_snapshot_id is None:
-        response = {'weeks': [], 'machines': [], 'active_machines': [], 'products': [], 'orders': 0,
-                    'source': None, 'snapshot_id': None}
+        response = {'weeks': [], 'machines': [], 'active_machines': [], 'two_color_machines': [], 'products': [],
+                    'orders': 0, 'source': None, 'snapshot_id': None}
     else:
         dict_instance = load_snapshot_instance(int_snapshot_id)
         list_weeks = []
         for timestamp_week in dict_instance['weeks']:
             list_weeks.append(timestamp_week.strftime('%Y-%m-%d'))
+        list_two_color_machines = []
+        for str_machine in dict_instance['all_machines']:
+            if dict_instance['color_sides'][str_machine] == 2:
+                list_two_color_machines.append(str_machine)
         response = {
             'weeks': list_weeks,
             'machines': dict_instance['all_machines'],
             'active_machines': dict_instance['machines'],
+            'two_color_machines': list_two_color_machines,
             'products': dict_instance['products'],
             'orders': len(dict_instance['orders']),
             'source': dict_instance['source'],
@@ -279,6 +284,20 @@ async def post_machine_active(request: Request):
     connection = connect_database()
     connection.execute('UPDATE machines SET is_active = ? WHERE machine = ?',
                        (int_is_active, str(dict_body['machine'])))
+    connection.commit()
+    connection.close()
+    return {'status': 'ok'}
+
+
+@app.post('/api/machines/color-sides')
+async def post_machine_color_sides(request: Request):
+    dict_body = await request.json()
+    int_color_sides = 1
+    if int(dict_body['color_sides']) == 2:
+        int_color_sides = 2
+    connection = connect_database()
+    connection.execute('UPDATE machines SET color_sides = ? WHERE machine = ?',
+                       (int_color_sides, str(dict_body['machine'])))
     connection.commit()
     connection.close()
     return {'status': 'ok'}

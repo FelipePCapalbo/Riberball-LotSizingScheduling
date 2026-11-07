@@ -120,9 +120,14 @@ def read_workbook_tables(source):
             int_is_active = 0
             if str(series_row['ATIVA']).strip().upper() == 'SIM':
                 int_is_active = 1
-            dict_tables['machines'].append({'machine': str(int(float(series_row['MAQUINA']))),
-                                            'is_active': int_is_active,
-                                            'setup_hourly_cost': float(series_row['CUSTO_SETUP_HORA'])})
+            dict_machine_row = {'machine': str(int(float(series_row['MAQUINA']))),
+                                'is_active': int_is_active,
+                                'setup_hourly_cost': float(series_row['CUSTO_SETUP_HORA'])}
+            if 'DUAS_CORES' in df_machines.columns:
+                dict_machine_row['color_sides'] = 1
+                if str(series_row['DUAS_CORES']).strip().upper() == 'SIM':
+                    dict_machine_row['color_sides'] = 2
+            dict_tables['machines'].append(dict_machine_row)
 
     if 'De_Para_Formas' in list_sheets:
         df_form_setup = pd.read_excel(excel_file, sheet_name='De_Para_Formas')
@@ -245,9 +250,13 @@ def read_workbook_tables(source):
             str_initial_color = None
             if 'COR' in df_initial_form.columns and not pd.isna(series_row['COR']):
                 str_initial_color = str(series_row['COR']).strip()
+            str_initial_color_side_2 = None
+            if 'COR_LADO_2' in df_initial_form.columns and not pd.isna(series_row['COR_LADO_2']):
+                str_initial_color_side_2 = str(series_row['COR_LADO_2']).strip()
             dict_tables['initial_form'].append({'machine': str(int(float(series_row['MAQUINA']))),
                                                 'product': f"{series_row['MODELO']}-{series_row['TIPO']}",
-                                                'color': str_initial_color})
+                                                'color': str_initial_color,
+                                                'color_side_2': str_initial_color_side_2})
 
     return dict_tables, list_complete_tables, list_sheets
 
@@ -284,9 +293,11 @@ def build_instance(dict_tables, str_source):
     list_all_machines = []
     list_machines = []
     dict_setup_hourly_cost = {}
+    dict_color_sides = {}
     for dict_row in dict_tables.get('machines', []):
         list_all_machines.append(dict_row['machine'])
         dict_setup_hourly_cost[dict_row['machine']] = float(dict_row['setup_hourly_cost'])
+        dict_color_sides[dict_row['machine']] = int(dict_row['color_sides'])
         if dict_row['is_active']:
             list_machines.append(dict_row['machine'])
 
@@ -428,7 +439,9 @@ def build_instance(dict_tables, str_source):
     for dict_row in dict_tables.get('initial_form', []):
         dict_initial_form[dict_row['machine']] = dict_row['product']
         if dict_row['color'] is not None:
-            dict_initial_color[dict_row['machine']] = dict_row['color']
+            dict_initial_color[(dict_row['machine'], 1)] = dict_row['color']
+        if dict_row.get('color_side_2') is not None:
+            dict_initial_color[(dict_row['machine'], 2)] = dict_row['color_side_2']
 
     return {
         'source': str_source,
@@ -449,6 +462,7 @@ def build_instance(dict_tables, str_source):
         'min_lot': dict_min_lot,
         'colors_by_product': dict_colors_by_product,
         'setup_hourly_cost': dict_setup_hourly_cost,
+        'color_sides': dict_color_sides,
         'sku_is_mts': dict_sku_is_mts,
         'color_mix': dict_color_mix,
         'mape': dict_mape,

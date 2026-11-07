@@ -81,15 +81,16 @@ Ficam registradas para que nenhuma sessão as reabra sem o usuário.
     - variação de `Ω`;
     - variação de `|T^O|`.
   - Números a reportar: reserva de cor contra troca real e quantidade antecipada pelo sequenciamento.
-- Máquinas de duas cores (decisão do usuário em 2026-11-06: só figura e texto por enquanto). Na máquina de uma cor a
-  cadeia gira num plano vertical (eixo paralelo ao chão); na de duas cores gira num plano horizontal (eixo
-  perpendicular ao chão), e cada lado do laço passa por um tanque próprio: duas cores ao mesmo tempo, mesmo formato.
-  O modelo ainda trata toda máquina como um circuito único de cor. Para incorporar:
-  - no operacional, os dois lados com metade da taxa da máquina, cada um com a sua corrida de cor, reserva e capacidade;
-  - os dois lados de uma máquina compartilham o estado de forma, a troca de forma e o *crossover*;
-  - o semanal não muda, desde que `p_ij` seja a taxa total da máquina;
-  - os dados precisam do tipo de cada máquina (uma ou duas cores);
-  - o sequenciamento passa a ordenar por lado.
+- Máquinas de duas cores: incorporadas ao modelo em 2026-11-07. Decisões do usuário: cada lado roda com a taxa
+  cadastrada `p_ij` (a máquina de duas cores tem o dobro da vazão), o setup de cor de um lado é independente do outro
+  e a forma é compartilhada. No `.tex`: `n_j` e `L_j` na notação; `eq:capacidade_semanal` em horas-lado,
+  `(n_j τ^F_i + τ^C_i)` contra `n_j κ_jt`; o índice `ℓ` em `x`, `y^C`, `eq:capacidade_turno`, `eq:troca_concluida`,
+  `eq:lote_minimo_turno`, `eq:cor_da_forma` e no sequenciamento. Os dados reais não marcam o tipo de máquina; o
+  arquivo ajustado usa 7 das 28 sintéticas (1, 3, 5, 10, 13, 16, 19), configuráveis pelo app. Falta levantar em
+  campo quais são de duas cores.
+- Experimento de esforço computacional (2026-11-07): OFAT a partir da instância real e três grades 4×4, em
+  `scripts/computational_experiments.py`; a mesma bateria roda em worktrees com relax-and-fix por tempo, máquina e
+  produto, pré-processamento em numba e warm start. O texto do capítulo de Resultados entra depois dos números.
 - Posição da lavagem em água quente na sequência da máquina (desenhada depois da estufa): confirmar com o usuário.
 - Resumo e abstract: acrescentar os resultados e revisar.
 - Justificativa do trabalho, na Introdução: o planejamento atual da fábrica funciona corretamente, mas é feito sem
