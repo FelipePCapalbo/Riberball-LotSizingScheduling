@@ -167,9 +167,12 @@ Bucket = turno; dentro de cada turno há `positions_per_shift` posições, que d
   de troca e a sua capacidade de turno; uma troca de cor num lado não para o outro. A troca de forma interrompe a máquina
   inteira e consome os dois lados. No semanal a capacidade é contada em horas-lado: `Σ x/p + (n·τF + τC)·y ≤ n·H`.
 
-O modelo é resolvido como formulado, sem heurística de resolução: o solver recebe o MILP
-completo e um tempo limite. Não há relax-and-fix, fixação parcial nem redução do conjunto de
-SKUs candidatos — o que se reporta é o que o modelo entrega.
+Nesta branch (`exp/rf-maquina`), cada estágio lexicográfico é resolvido por relax-and-fix seguido de
+fix-and-optimize, com decomposição por maquina: blocos de grupos de 7 máquinas, as mais carregadas primeiro. No relax-and-fix, a
+janela de dois blocos é inteira, os blocos anteriores ficam fixados e os seguintes relaxados; o fix-and-optimize
+reotimiza um bloco por vez com o resto fixado, até uma volta sem melhora. O limitante reportado é a relaxação linear
+do estágio completo. As travas dos estágios são as da formulação pura. Parâmetros em `processing/settings.py`:
+`decomposition`, `weekly_block_size`, `daily_block_size` e `fo_time_share` (0,3).
 
 Uma propriedade da formulação mantém o número de binárias baixo: apenas $\nu_{kjsn}$ (SKU na
 posição) é declarada binária. As variáveis de configuração — forma montada, máquina ativa,
