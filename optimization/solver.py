@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import time
@@ -8,7 +9,25 @@ from ortools.linear_solver.python import model_builder
 
 
 def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_time_limit, int_threads, int_seed,
-                        str_log_file):
+                        str_log_file, dict_settings):
+    str_binary_prefix = dict_settings.get('binary_variable_prefix')
+    bool_relax_binaries = dict_settings.get('relax_binaries')
+    dict_fixed_values = dict_settings.get('fixed_variable_values')
+    set_free_names = set()
+    if dict_settings.get('free_variable_names') is not None:
+        set_free_names = set(dict_settings['free_variable_names'])
+    for variable in problem.variables():
+        if str_binary_prefix is not None and variable.name.startswith(str_binary_prefix):
+            variable.cat = pulp.LpInteger
+            variable.lowBound = 0
+            variable.upBound = 1
+        if bool_relax_binaries and variable.cat == pulp.LpInteger:
+            variable.cat = pulp.LpContinuous
+        if dict_fixed_values is not None:
+            if variable.name in dict_fixed_values and variable.name not in set_free_names:
+                variable.lowBound = dict_fixed_values[variable.name]
+                variable.upBound = dict_fixed_values[variable.name]
+
     list_stage_values = []
     list_stage_reports = []
     float_started_at = time.perf_counter()
@@ -35,8 +54,9 @@ def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_ti
             dict_values = {}
             float_objective = None
             float_bound = None
-            dict_effort = {'work': None, 'nodes': None, 'simplex_iterations': None, 'variables': None,
-                           'binaries': None, 'integers': None, 'constraints': None, 'nonzeros': None}
+            dict_effort = {'solver_seconds': None, 'work': None, 'nodes': None, 'simplex_iterations': None,
+                           'variables': None, 'binaries': None, 'integers': None, 'constraints': None,
+                           'nonzeros': None}
 
             if str_solver_name.upper() == 'GUROBI':
                 if str_log_file:
@@ -67,6 +87,7 @@ def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_ti
                 else:
                     str_stage_status = 'Not Solved'
                 bool_stage_hit_time_limit = gurobi_model.Status == gurobipy.GRB.TIME_LIMIT
+                dict_effort['solver_seconds'] = gurobi_model.Runtime
                 dict_effort['work'] = gurobi_model.Work
                 dict_effort['nodes'] = gurobi_model.NodeCount
                 dict_effort['simplex_iterations'] = gurobi_model.IterCount
@@ -125,6 +146,7 @@ def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_ti
             'gap': float_gap,
             'hit_time_limit': bool_stage_hit_time_limit,
             'seconds': time.perf_counter() - float_stage_started_at,
+            'solver_seconds': dict_effort['solver_seconds'],
             'work': dict_effort['work'],
             'nodes': dict_effort['nodes'],
             'simplex_iterations': dict_effort['simplex_iterations'],
@@ -148,4 +170,12 @@ def solve_lexicographic(problem, list_stage_expressions, str_solver_name, int_ti
             else:
                 str_status = 'Feasible'
         int_stage += 1
+
+    if dict_settings.get('variable_values_file') is not None:
+        dict_integer_values = {}
+        for variable in problem.variables():
+            if variable.cat == pulp.LpInteger:
+                dict_integer_values[variable.name] = variable.varValue
+        with open(dict_settings['variable_values_file'], 'w', encoding='utf-8') as file_values:
+            json.dump(dict_integer_values, file_values)
     return str_status, bool_hit_time_limit, list_stage_values, list_stage_reports

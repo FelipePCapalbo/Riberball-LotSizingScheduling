@@ -18,6 +18,11 @@ DEFAULT_SETTINGS = {
     'threads': None,
     'solver_seed': 0,
     'solver_log_file': None,
+    'relax_binaries': False,
+    'fixed_variable_values': None,
+    'free_variable_names': None,
+    'binary_variable_prefix': None,
+    'variable_values_file': None,
 }
 
 

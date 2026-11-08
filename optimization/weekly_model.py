@@ -302,7 +302,8 @@ def solve_weekly_model(dict_scenario, dict_settings):
     float_started_at = time.perf_counter()
     str_status, bool_hit_time_limit, list_stage_values, list_stage_reports = solve_lexicographic(
         problem, list_stage_expressions, dict_settings['weekly_solver_name'], int(dict_settings['weekly_time_limit']),
-        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'])
+        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'],
+        dict_settings)
     float_solve_seconds = time.perf_counter() - float_started_at
 
     if str_status not in ('Optimal', 'Feasible'):

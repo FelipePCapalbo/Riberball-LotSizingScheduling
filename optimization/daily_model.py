@@ -452,11 +452,15 @@ def solve_daily_model(dict_scenario, dict_settings):
     float_started_at = time.perf_counter()
     str_status, bool_hit_time_limit, list_stage_values, list_stage_reports = solve_lexicographic(
         problem, list_stage_expressions, dict_settings['daily_solver_name'], int(dict_settings['daily_time_limit']),
-        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'])
+        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'],
+        dict_settings)
     float_solve_seconds = time.perf_counter() - float_started_at
 
     if str_status not in ('Optimal', 'Feasible'):
         dict_result = {'status': str_status, 'stage_reports': list_stage_reports, 'kpis': {}}
+    elif dict_settings.get('relax_binaries'):
+        dict_result = {'status': str_status, 'stage_objectives': list_stage_values, 'stage_reports': list_stage_reports,
+                       'kpis': {'solve_seconds': float_solve_seconds, 'hit_time_limit': bool_hit_time_limit}}
     else:
         dict_plan = {'quantity': {}, 'sequence': {}, 'form': {}, 'form_change': {}, 'pending': {}, 'color_hours': {},
                      'previous_color': {}}

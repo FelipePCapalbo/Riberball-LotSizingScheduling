@@ -294,6 +294,17 @@ python scripts/launch_experiments.py monolitico_pura formulacao --bateria arquit
 variantes monolíticas são `monolitico_<tecnica>`, com `pura`, `desagregado`, `rf_tempo`, `rf_maquina`, `rf_produto`,
 `preprocessamento`, `warm_start` e `cascata`.
 
+O teste de classes de variáveis (`scripts/variable_class_test.py`, worktree `../Riberball-wt-classes-variaveis`) mede
+quanto cada classe pesa no esforço, nos dois níveis, em `pequeno`, `medio` e `ajustado`, com 600 s por nível e as
+sementes 0, 1 e 2: modelo como formulado, binárias relaxadas, 0 a 100% das binárias livres (o resto fixado na solução
+base), todas fixadas com o tamanho variando (e o horizonte de 4, 8 e 13 semanas no ajustado) e, no diário, `z` binária.
+Escreve `resultados.csv` (uma linha por configuração) e `regressao.csv` (elasticidades por MQO e correlação entre
+segundos e `work`):
+
+```bash
+python scripts/launch_experiments.py classes_variaveis --bateria classes --threads 1
+```
+
 O worktree que faltar é criado a partir da sua branch `exp/*`. As variantes de uma onda rodam em paralelo
 (`--paralelo`, padrão 3), cada uma com `--threads` do Gurobi (padrão 2). A comparação de tempo só vale entre rodadas
 da mesma máquina; as unidades de trabalho do Gurobi (`work`) são determinísticas e são a resposta principal.
