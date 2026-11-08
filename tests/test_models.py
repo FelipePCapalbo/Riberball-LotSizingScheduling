@@ -6,8 +6,10 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from processing.data import load_instance, list_data_files, DATA_DIR
-from processing.settings import load_settings
+from processing.settings import load_settings, DEFAULT_SETTINGS
 from optimization.weekly_model import build_weekly_scenario, solve_weekly_model, complete_setup_matrix
+from optimization.monolithic_model import (build_monolithic_scenario, evaluate_monolithic_schedule,
+                                           run_monolithic_plan)
 from optimization.daily_model import build_daily_scenario, solve_daily_model
 from optimization.sequencing import evaluate_sequence, sequence_daily_plan
 
@@ -835,6 +837,141 @@ float_short_one = dict_result_one['kpis']['backlog_cost'] + dict_result_one['kpi
 float_short_two = dict_result_two['kpis']['backlog_cost'] + dict_result_two['kpis']['lost_sales_cost']
 check(float_short_two < float_short_one,
       f'com 1 h/turno, duas cores reduzem atraso + venda perdida de {float_short_one:,.0f} para {float_short_two:,.0f}')
+
+
+print('\n== modelo monolitico: tamanho, viabilidade, sequencia e avaliacao comum ==')
+dict_monolithic_settings = dict(load_settings())
+dict_monolithic_settings.update({'start_week': '2024-01-01', 'frozen_weeks': 1, 'shifts_per_day': 3,
+                                 'hours_per_shift': 8, 'working_days_per_week': 6, 'warehouse_capacity_kg': None,
+                                 'annual_holding_rate': 0.25, 'daily_solver_name': 'GUROBI', 'threads': 1,
+                                 'solver_seed': 0, 'solver_log_file': None,
+                                 'monolithic_max_nonzeros': DEFAULT_SETTINGS['monolithic_max_nonzeros']})
+
+for str_file, int_weeks, int_limit in [('instance_micro_P2_M3_T8.xlsx', 8, 30),
+                                       ('instance_pequeno_P4_M6_T13.xlsx', 13, 8)]:
+    dict_instance = load_instance(os.path.join(DATA_DIR, str_file))
+    dict_settings = dict(dict_monolithic_settings)
+    dict_settings['weeks_in_plan'] = int_weeks
+    dict_settings['monolithic_technique'] = 'pura'
+    dict_settings['monolithic_time_limit'] = int_limit
+    dict_result = run_monolithic_plan(dict_settings, dict_instance)
+    dict_analytic = dict_result['size']['analytic']
+    dict_built = dict_result['size']['built']
+    bool_same_size = True
+    for str_key in ['binaries', 'continuous', 'variables', 'constraints', 'nonzeros']:
+        if dict_analytic[str_key] != dict_built[str_key]:
+            bool_same_size = False
+    dict_first_report = dict_result['stage_reports'][0]
+    if (dict_first_report['variables'] != dict_analytic['variables']
+            or dict_first_report['binaries'] != dict_analytic['binaries']
+            or dict_first_report['constraints'] != dict_analytic['constraints']
+            or dict_first_report['nonzeros'] != dict_analytic['nonzeros']):
+        bool_same_size = False
+    check(bool_same_size, f"{str_file}: contagem analitica = modelo montado = Gurobi "
+                          f"({dict_analytic['binaries']} binarias, {dict_analytic['nonzeros']} nao zeros)")
+
+    dict_settings['monolithic_max_nonzeros'] = dict_analytic['nonzeros'] - 1
+    dict_guarded = run_monolithic_plan(dict_settings, dict_instance)
+    check(dict_guarded['status'] == 'NaoMontavel' and dict_guarded['size']['built'] is None
+          and dict_guarded['size']['analytic']['nonzeros'] == dict_analytic['nonzeros'],
+          f'{str_file}: acima do limite de nao zeros o modelo nao e montado e a contagem analitica volta')
+
+dict_instance = load_instance(os.path.join(DATA_DIR, 'instance_micro_P2_M3_T8.xlsx'))
+dict_settings = dict(dict_monolithic_settings)
+dict_settings['weeks_in_plan'] = 8
+dict_settings['monolithic_time_limit'] = 30
+dict_scenario = build_monolithic_scenario(dict_instance, dict_settings, 8)
+for str_technique in ['pura', 'desagregado', 'rf_tempo', 'rf_maquina', 'rf_produto', 'preprocessamento',
+                      'warm_start', 'cascata']:
+    dict_settings['monolithic_technique'] = str_technique
+    dict_result = run_monolithic_plan(dict_settings, dict_instance)
+    check(dict_result['status'] in ('Optimal', 'Feasible') and len(dict_result['schedule']) > 0,
+          f"{str_technique}: solucao viavel no micro ({dict_result['status']}, "
+          f"custo {dict_result['kpis']['total_cost']})")
+    if dict_result['status'] in ('Optimal', 'Feasible'):
+        dict_full = evaluate_monolithic_schedule(dict_instance, dict_settings, dict_result['schedule'], 8)
+        check(dict_full['total_violation'] < 1e-6,
+              f'{str_technique}: capacidade, lote minimo, forma montada e troca pendente respeitados no horizonte')
+        bool_service_optimal = True
+        for dict_report in dict_result['stage_reports']:
+            if dict_report['stage'] <= 3 and dict_report['status'] != 'Optimal':
+                bool_service_optimal = False
+        dict_detailed = dict_result['detailed_evaluation']
+        if bool_service_optimal:
+            bool_full_match = True
+            for int_stage in range(4):
+                float_model = dict_result['kpis']['stage_values'][int_stage]
+                if abs(dict_full['stage_values'][int_stage] - float_model) > 1e-3 + 1e-5 * abs(float_model):
+                    bool_full_match = False
+            check(bool_full_match, f'{str_technique}: a avaliacao comum reproduz os estagios do modelo no horizonte')
+            bool_detail_match = True
+            for int_stage in range(4):
+                float_model = dict_detailed['model_stage_values'][int_stage]
+                if abs(dict_detailed['stage_values'][int_stage] - float_model) > 1e-3 + 1e-5 * abs(float_model):
+                    bool_detail_match = False
+            check(bool_detail_match,
+                  f"{str_technique}: a avaliacao comum reproduz os estagios nas semanas detalhadas "
+                  f"{dict_detailed['stage_values']}")
+        else:
+            check(dict_full['stage_values'][0] <= dict_result['kpis']['stage_values'][0] + 1e-3,
+                  f"{str_technique}: estagios de servico sem prova de otimo; o atendimento FIFO da avaliacao nao "
+                  f"atrasa mais que o modelo ({dict_full['stage_values'][0]:,.0f} <= "
+                  f"{dict_result['kpis']['stage_values'][0]:,.0f})")
+
+    if str_technique == 'pura':
+        dict_used = {}
+        dict_state = {}
+        bool_lot = True
+        bool_form = True
+        bool_color = True
+        dict_mounted = dict(dict_scenario['initial_form'])
+        list_rows = list(dict_result['schedule'])
+        list_sorted = []
+        for dict_row in list_rows:
+            list_sorted.append((dict_row['shift_index'], dict_row['machine'], dict_row['side'], dict_row['position'],
+                                len(list_sorted)))
+        list_sorted.sort()
+        for tuple_order in list_sorted:
+            dict_row = list_rows[tuple_order[4]]
+            tuple_cell = (dict_row['machine'], dict_row['side'], dict_row['shift_index'])
+            if tuple_cell not in dict_used:
+                dict_used[tuple_cell] = 0.0
+            dict_used[tuple_cell] += dict_row['production_hours'] + dict_row['color_setup_hours']
+            if dict_row['form_setup_hours'] > 0.0:
+                for int_side in range(1, dict_scenario['color_sides'][dict_row['machine']] + 1):
+                    tuple_side_cell = (dict_row['machine'], int_side, dict_row['shift_index'])
+                    if tuple_side_cell not in dict_used:
+                        dict_used[tuple_side_cell] = 0.0
+                    dict_used[tuple_side_cell] += dict_row['form_setup_hours']
+            if dict_row['previous_form'] != '-':
+                if dict_mounted[dict_row['machine']] != dict_row['previous_form']:
+                    bool_form = False
+                for int_side in range(1, dict_scenario['color_sides'][dict_row['machine']] + 1):
+                    dict_state[(dict_row['machine'], int_side)] = None
+            dict_mounted[dict_row['machine']] = dict_row['product']
+            if dict_row['sku'] != '-':
+                if dict_scenario['product_of_sku'][dict_row['sku']] != dict_row['product']:
+                    bool_form = False
+                if dict_row['kg'] < dict_scenario['min_lot'][dict_row['product']] - 1e-4:
+                    bool_lot = False
+                tuple_side = (dict_row['machine'], dict_row['side'])
+                if tuple_side not in dict_state:
+                    dict_state[tuple_side] = dict_scenario['initial_color'][tuple_side]
+                float_expected = 0.0
+                if dict_state[tuple_side] is not None:
+                    float_expected = dict_scenario['color_setup'][(dict_state[tuple_side], dict_row['color'])]
+                if abs(float_expected - dict_row['color_setup_hours']) > 1e-9:
+                    bool_color = False
+                dict_state[tuple_side] = dict_row['color']
+        bool_capacity = True
+        for tuple_cell in dict_used:
+            if dict_used[tuple_cell] > dict_scenario['shift_capacity'][(tuple_cell[0], tuple_cell[2])] + 1e-4:
+                bool_capacity = False
+        check(bool_capacity, 'pura: producao + troca de cor real + troca de forma cabem em cada lado-turno')
+        check(bool_lot, 'pura: toda posicao ocupada respeita o lote minimo')
+        check(bool_form and bool_color,
+              'pura: so o balao montado produz, a troca de cor segue a matriz desde a cor anterior do lado '
+              '(vazia apos troca de forma, desconhecida = limpeza completa)')
 
 
 print('\n' + '=' * 60)

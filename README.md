@@ -19,7 +19,8 @@ optimization/
     weekly_model.py  — MILP semanal (CLSP em máquinas paralelas não relacionadas)
     daily_model.py   — MILP por turno (GLSP: microperíodos = posições dentro do turno)
     planner.py       — orquestra as duas etapas
-    solver.py        — resolve o problema PuLP com Gurobi ou OR-Tools
+    monolithic_model.py — MILP monolítico do horizonte inteiro, técnicas de resolução e avaliação comum
+    solver.py        — resolve o problema PuLP com Gurobi ou OR-Tools; travas lexicográficas, relax-and-fix e cascata
 processing/
     database.py   — esquema e conexão do banco SQLite (database/riberball.sqlite)
     data.py       — leitura do Excel e do banco para o dict de instância
@@ -48,6 +49,7 @@ tests/
 scripts/
     instance_generator.py — gera as instâncias sintéticas
     input_adjuster.py     — converte brutos/input_asis.xlsx para input_asis_ajustado.xlsx
+    evaluate_hierarchical_runs.py — estágios do monolítico para a solução de uma rodada hierárquica
 run.py                — execução standalone das duas etapas
 dissertacao/
     ModelagemAlgebrica.tex — texto da dissertação
@@ -176,6 +178,93 @@ posição) é declarada binária. As variáveis de configuração — forma mont
 trocas de forma e de cor, estado de cor — são contínuas em [0, 1] e assumem valor inteiro por
 consequência das restrições. O KPI `max_fractional_deviation` reporta o desvio máximo dessas
 variáveis frente ao inteiro mais próximo, e `tests/test_models.py` verifica que ele é nulo.
+
+## Modelo monolítico (branch `exp/monolitico`)
+
+`optimization/monolithic_model.py` decide tudo num único MILP sobre o horizonte inteiro (`weeks_in_plan` semanas a
+partir de `start_week`), turno a turno, com posições de cor dentro do turno e por lado. É o que a cascata semanal →
+turno → sequenciamento decide, sem agregação por balão. Ponto de entrada: `run_monolithic_plan(dict_settings,
+dict_instance)`, chamado por `scripts/architecture_experiments.py --arquitetura monolitica`. Usa o motor de
+`daily_solver_name`.
+
+### Delta algébrico frente ao modelo por turno
+
+Conjuntos: $S$ passa a ser todos os turnos do horizonte (não só as semanas congeladas); $W$ semanas do horizonte,
+$s_w$ último turno da semana $w$; posições $n \in \{1..N_j\}$, $N_j = \max_{i \in P_j} |K_i|$ (maior número de cores
+entre os balões da máquina); lados $l \in \{1..L_j\}$.
+
+Mantidas do modelo por turno, com os mesmos nomes: $y_{ijs}$ (binária), $z_{i'ijs}$, $w_{js}$, `forma_saida`,
+`forma_entrada`, `troca_pendente`, $I_{ks}$, $b_{ks}$, capacidade do armazém por turno.
+
+Variáveis novas:
+
+| Variável | Domínio | Significado |
+|---|---|---|
+| $\nu_{kjlsn}$ | binária | SKU $k$ na posição $n$ do lado $l$ (substitui a corrida $yc_{kjls}$) |
+| $x_{kjlsn}$ | $\ge 0$ | kg produzidos na posição |
+| $T_{k'kjlsn}$ | $\ge 0$ | troca de cor $k' \to k$ entre as posições $n-1$ e $n$, $n \ge 2$, mesmo balão |
+| $q_{kjls}$ | $[0,1]$ | SKU no fim do turno (cor transportada ao turno seguinte, inclusive ocioso) |
+| $e_{jls}$ | $\ge 0$ | horas da troca de cor de entrada do turno |
+| $u_{jls}$ | $[0,1]$ | cor da `Forma_Inicial` ainda montada (`'0'` = desconhecida) |
+| $l_{kw}$, $g_{iw}$ | $\ge 0$ | venda perdida por SKU-semana, folga do piso por balão-semana |
+
+Restrições novas ou alteradas ($z_{iijs}$ = turno sem troca de forma com $i$ montado):
+
+- balanço por SKU-turno: $I_{k,s-1} + \sum x_{kjlsn} + b_{ks} + l_{kw}[s=s_w] = I_{ks} + D_{ks} + F_{kw}[s=s_w] + b_{k,s-1}$,
+  $l_{kw} \le F_{kw}$; carteira no turno de vencimento (como no turno), previsão líquida do semanal rateada pelo
+  `Mix_Cores`, $F_{kw} = \text{mix}_k \max(0, d_{iw} - \text{carteira}_{iw})$, vencida no último turno da semana;
+- piso: $\sum_{k \in K_i} I_{k s_w} + g_{iw} \ge \underline{I}_i$ ($\underline{I}_i$ do semanal);
+- capacidade por lado: $\sum x/p_{ij} + \sum \tau^C_{k'k} T + e_{jls} + w_{j,s-1} - w_{js} + \sum \tau^F z \le H_{js}$
+  (troca de cor real, não reserva; a de forma consome os dois lados);
+- troca concluída: $w_{js} \le \tau^F_{\max}(1 - \sum_k \nu_{kjls1})$;
+- posição do balão montado: $\sum_{k \in K_i} \nu_{kjlsn} \le y_{ijs}$; corrida única: $\sum_n \nu_{kjlsn} \le 1$;
+  lote mínimo por posição: $\text{LM}_i \nu \le x \le p_{ij} H_{js} \nu$;
+- fluxo de troca: $\sum_{k'} T_{k'kjlsn} = \nu_{kjlsn}$, $\sum_k T_{k'kjlsn} \le \nu_{k'jl s,n-1}$ ($T$ exato e
+  posições contíguas por consequência);
+- cor final: $q_{kjls} \ge \sum_n \nu_{kjlsn} - \sum_{n \ge 2} \sum_{k''} T_{kk''jlsn}$; transporte:
+  $q_{kjls} \ge q_{kjl,s-1} - \sum_{k'' \in K_i} \nu_{k''jls1} - 1 + z_{iijs}$;
+- troca de entrada: $e_{jls} \ge \tau^C_{k'k}(q_{k'jl,s-1} + \nu_{kjls1} + z_{iijs} - 2)$; após troca de forma a
+  entrada é vazia (custo zero, como no sequenciamento);
+- cor inicial: $u_{jl0} \ge z_{i^0 i^0 j 0}$, $u_{jls} \ge u_{jl,s-1} - \sum_{k \in K_{i^0}} \nu_{kjl,s-1,1} - 1 +
+  z_{i^0 i^0 js}$, $e_{jls} \ge \tau^C_{c^0 k}(u_{jls} + \nu_{kjls1} - 1)$; cor desconhecida = limpeza completa.
+
+Objetivo lexicográfico com os estágios do semanal, travas exatas (`solve_lexicographic`, mesmo padrão do dev): (1) atraso
+$\sum m_i b_{ks}$ por turno, como no modelo por turno; (2) venda perdida $\sum m_i l_{kw}$; (3) folga do piso
+$\sum m_i g_{iw}$; (4) custo $\sum c_j \tau^F z + \sum c_j \tau^C T + \sum c_j e + \sum h_i I_{ks}$.
+
+### Técnicas (`monolithic_technique`, orçamento único `monolithic_time_limit`)
+
+| Valor | O que faz |
+|---|---|
+| `pura` | o MILP inteiro de uma vez |
+| `desagregado` | semana a semana, cada uma sozinha com o estado da anterior (estoque, atraso, forma, troca pendente, cor por lado), sem antecipação |
+| `rf_tempo`, `rf_maquina`, `rf_produto` | relax-and-fix + fix-and-optimize das branches `exp/rf-*` em cada estágio; blocos de semanas, de máquinas por carga, de balões por demanda (ABC); `monolithic_rf_*_block_size`, `monolithic_fo_time_share` |
+| `preprocessamento` | reduções exatas de `exp/preprocessamento-numba` (em numpy puro, sem numba): posições que não cabem no turno ($n\,\text{LM}_i/p_{ij} + (n-1)\min\tau^C \le H_{js}$, inclui $n > |K_i|$), SKU sem demanda nem piso (só se a matriz de cor respeita a desigualdade triangular), $x \le \min(p_{ij}H_{js}, \text{demanda restante})\,\nu$, $w \le \tau^F_{\max}$ |
+| `warm_start` | heurística construtiva própria do monolítico (forma por necessidade da semana, cores por necessidade, troca real), solução inicial do estágio 1; não usa a solução hierárquica |
+| `cascata` | cascata por segmento de negócio de `exp/cascata-negocio` em cada estágio (atraso por semanas 1-2, 3-6, 7+; venda perdida e piso por classe ABC), só como solução inicial |
+
+### Guarda de tamanho
+
+Antes de montar, binárias, contínuas, restrições e não zeros são contados analiticamente (iguais ao modelo
+montado e ao lido pelo Gurobi; verificado em `tests/test_models.py`). Se os não zeros passam de
+`monolithic_max_nonzeros` (padrão 30 milhões) ou a memória estimada passa de um terço da RAM da máquina, o modelo não
+é montado: `status = 'NaoMontavel'`, com a contagem em `size['analytic']`.
+
+### Avaliação comum
+
+`evaluate_monolithic_schedule(dict_instance, dict_settings, list_schedule_rows, int_weeks)` recalcula os quatro
+estágios de qualquer programação (linhas máquina, lado, turno, posição, SKU, kg) nas primeiras `int_weeks` semanas:
+forma por máquina-turno a partir das linhas, troca de forma pela matriz, troca de cor pela sequência real com a cor
+transportada, atendimento FIFO da carteira, previsão servida com a sobra no fim da semana, piso e estocagem. Também
+conta violações (capacidade, lote mínimo, forma, troca pendente). Com uma semana detalhada a regra coincide com o
+ótimo lexicográfico dos fluxos; com mais de uma é a alocação míope. Se os estágios de serviço do modelo param no tempo limite sem prova de ótimo, a trava folgada deixa o modelo guardar estoque com carteira atrasada e a avaliação FIFO difere dos valores internos (atraso menor, piso e venda perdida possivelmente maiores).
+
+```bash
+python scripts/evaluate_hierarchical_runs.py --rodada <pasta de uma rodada hierárquica>
+```
+
+grava `<pasta>/avaliacao_monolitica/<caso>.json` e `<pasta>/avaliacao_monolitica.csv` com os estágios do monolítico
+para a solução da cascata nas semanas detalhadas.
 
 ## Solvers
 

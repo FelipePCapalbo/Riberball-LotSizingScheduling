@@ -8,7 +8,7 @@ DEFAULT_SETTINGS = {
     'frozen_weeks': 1,
     'shifts_per_day': 3,
     'hours_per_shift': 8,
-    'working_days_per_week': 6,
+    'working_days_per_week': 7,
     'warehouse_capacity_kg': None,
     'annual_holding_rate': 0.25,
     'weekly_solver_name': 'ORTOOLS',
@@ -18,6 +18,15 @@ DEFAULT_SETTINGS = {
     'threads': None,
     'solver_seed': 0,
     'solver_log_file': None,
+    'monolithic_technique': 'pura',
+    'monolithic_time_limit': 900,
+    'monolithic_max_nonzeros': 30_000_000,
+    'monolithic_rf_tempo_block_size': 1,
+    'monolithic_rf_maquina_block_size': 7,
+    'monolithic_rf_produto_block_size': 5,
+    'monolithic_fo_time_share': 0.3,
+    'monolithic_cascade_time_share': 0.5,
+    'monolithic_cascade_tie_breaker': 0.0001,
 }
 
 
