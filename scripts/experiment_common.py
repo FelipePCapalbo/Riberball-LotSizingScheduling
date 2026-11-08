@@ -5,6 +5,34 @@ import platform
 import subprocess
 from datetime import datetime
 
+ARCHITECTURE_SETTINGS = {
+    'start_week': '2024-01-01',
+    'frozen_weeks': 1,
+    'shifts_per_day': 3,
+    'hours_per_shift': 8,
+    'working_days_per_week': 7,
+    'warehouse_capacity_kg': None,
+    'annual_holding_rate': 0.25,
+    'weekly_solver_name': 'GUROBI',
+    'weekly_time_limit': 300,
+    'daily_solver_name': 'GUROBI',
+    'daily_time_limit': 600,
+    'solver_seed': 0,
+}
+ARCHITECTURE_CASES = [
+    {'id': 'ajustado_h01', 'arquivo': 'input_asis_ajustado.xlsx', 'semanas': 1},
+    {'id': 'ajustado_h02', 'arquivo': 'input_asis_ajustado.xlsx', 'semanas': 2},
+    {'id': 'ajustado_h04', 'arquivo': 'input_asis_ajustado.xlsx', 'semanas': 4},
+    {'id': 'ajustado_h08', 'arquivo': 'input_asis_ajustado.xlsx', 'semanas': 8},
+    {'id': 'ajustado_h13', 'arquivo': 'input_asis_ajustado.xlsx', 'semanas': 13},
+    {'id': 'micro', 'arquivo': 'instance_micro_P2_M3_T8.xlsx', 'semanas': 8},
+    {'id': 'pequeno', 'arquivo': 'instance_pequeno_P4_M6_T13.xlsx', 'semanas': 13},
+    {'id': 'medio', 'arquivo': 'instance_medio_P8_M12_T13.xlsx', 'semanas': 13},
+    {'id': 'grande', 'arquivo': 'instance_grande_P12_M20_T26.xlsx', 'semanas': 13},
+    {'id': 'real', 'arquivo': 'instance_real_P17_M28_T26.xlsx', 'semanas': 13},
+]
+ARCHITECTURE_QUICK_CASES = ['micro', 'pequeno', 'ajustado_h01']
+
 LEVEL_COLUMNS = ['status', 'segundos', 'work', 'nos', 'iteracoes', 'variaveis', 'binarias', 'restricoes',
                  'nao_zeros', 'gap_max', 'bateu_limite', 'objetivos', 'limitantes', 'gaps', 'custo_total']
 

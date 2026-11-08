@@ -195,6 +195,7 @@ Latex balloon production combines calendar-driven seasonal demand, fixed mouldin
   \item[CLSP] \textit{Capacitated Lot Sizing Problem}
   \item[CSLP] \textit{Continuous Setup Lotsizing Problem}
   \item[DLSP] \textit{Discrete Lotsizing and Scheduling Problem}
+  \item[FO] \textit{Fix-and-optimize}
   \item[GLSP] \textit{General Lotsizing and Scheduling Problem}
   \item[KPSS] Teste de Kwiatkowski, Phillips, Schmidt e Shin
   \item[MAPE] \textit{Mean Absolute Percentage Error}
@@ -203,6 +204,7 @@ Latex balloon production combines calendar-driven seasonal demand, fixed mouldin
   \item[MTO] \textit{Make-to-order}
   \item[MTS] \textit{Make-to-stock}
   \item[PLSP] \textit{Proportional Lotsizing and Scheduling Problem}
+  \item[RF] \textit{Relax-and-fix}
   \item[RLS] \textit{Recursive Least Squares}
   \item[SKU] \textit{Stock Keeping Unit}
   \item[WACC] \textit{Weighted Average Cost of Capital}
@@ -269,6 +271,7 @@ A Seção~\ref{sec:revisao} posiciona o problema na literatura de planejamento h
 \label{sec:revisao}
 
 \section{Planejamento hierárquico de produção}
+\label{sec:planejamento_hierarquico}
 
 O planejamento de produção organiza-se em níveis de decisão com horizontes e granularidades distintos: estratégico, tático e operacional \cite{anthony1965}. Decisões de nível superior fixam metas e restrições para o nível inferior; o nível inferior devolve ao superior o que de fato foi executado, fechando o ciclo.
 
@@ -292,6 +295,8 @@ Esse padrão é a base dos sistemas avançados de planejamento (\textit{Advanced
     \fonte{Adaptado de \citeonline{schneeweiss2003}.}
 \end{wrapfigure}
 O mecanismo que liga os níveis é de duas vias. \citeonline{bitranhaashax1981,bitranhaashax1982} formalizam a desagregação em horizonte rolante: o plano agregado é resolvido para todo o horizonte, a primeira fatia é desagregada em famílias e itens sob restrições de consistência que obrigam a soma dos itens a reproduzir a meta agregada, e o realizado retorna ao nível superior na execução seguinte. \citeonline{schneeweiss2003} nomeia a contrapartida teórica desse arranjo: o nível superior só decide bem se carregar uma \textit{anticipation function}, um modelo aproximado da reação do nível inferior às instruções que recebe; sem ela, o plano agregado propaga inviabilidade para baixo em vez de restringi-la. A Figura~\ref{fig:coordenacao_schneeweiss} resume o esquema.
+
+A alternativa à hierarquia é o modelo integrado, chamado também de monolítico, que decide todos os níveis numa única formulação. \citeonline{vogel2017} comparam as duas abordagens entre o planejamento agregado e o plano mestre: o modelo integrado costuma ser descartado pelo porte e pela dificuldade de resolução, mas, nesses dois níveis, é resolvível e supera o hierárquico em todas as instâncias testadas. A comparação depende, portanto, da granularidade dos níveis integrados.
 
 \section{Problemas de dimensionamento de lotes}
 \label{sec:problemas_lotsizing}
@@ -491,7 +496,7 @@ Nos dois tipos, a cadeia leva as formas em fila única e circula continuamente p
 \end{wrapfigure}
 A disposição em fila única distingue essa máquina das que mergulham no tanque uma placa com uma matriz de formas (Figura~\ref{fig:cadeia_placa}). Na cadeia, cada forma passa isolada por cada etapa e é vista de frente, sem outras formas atrás dela, o que dá estabilidade ao processo e permite inspecionar a linha balão a balão. A cadeia explica também a natureza dos dois \textit{setups}: trocar a cor é trocar o composto do tanque, com a limpeza do circuito, e trocar o formato é remontar o conjunto de formas da cadeia.
 
-A troca de forma entre balões de formatos diferentes é o \textit{setup} longo: consome parcela relevante de um turno de oito horas, dos três que a fábrica opera por dia. Por isso é feita na virada de turno, quando a máquina já está parando, e se repete com intervalos de dias, não de turnos.
+A troca de forma entre balões de formatos diferentes é o \textit{setup} longo: consome parcela relevante de um turno de oito horas, dos três que a fábrica opera por dia, sete dias por semana. Por isso é feita na virada de turno, quando a máquina já está parando, e se repete com intervalos de dias, não de turnos.
 
 A troca de cor é mais curta e ocorre dentro do turno, entre corridas do mesmo balão, mas é direcional e nem sempre possível. Passar de um tom claro para um escuro exige pouca limpeza; o caminho inverso exige muito mais, e alguns pares só se sucedem depois de uma limpeza completa do circuito, por risco de contaminação do composto. A fábrica mantém essa informação como uma matriz de tempos entre pares de cor, com células vazias marcando as transições que exigem limpeza completa.
 
@@ -671,7 +676,7 @@ A Figura~\ref{fig:previsao_referencia_arvore} mostra a cascata nos três níveis
 
 O problema é desagregado em três níveis encadeados, cada um com a sua escala de tempo e de produto: o nível semanal, por balão, sobre todo o horizonte; o nível operacional, por SKU, nos turnos das primeiras semanas; e o sequenciamento, nas posições de cada turno. Cada nível decide só o que o de cima deixou em aberto e passa ao de baixo o que este precisa para decidir. Os dois primeiros são modelos de otimização com a mesma estrutura de objetivo e de restrições e os mesmos parâmetros de custo; o terceiro é uma heurística. Na matriz da Figura~\ref{fig:matriz_stadtler}, os três ocupam, respectivamente, o planejamento mestre, o planejamento da produção e a programação.
 
-As três escalas de tempo são encaixadas, e cada uma responde a um fenômeno físico do processo, não a conveniência de modelagem. Separá-las em níveis, em vez de resolvê-las num único modelo sobre todo o horizonte, é o que mantém o problema tratável: com cada corrida indexada por turno e posição em todas as semanas, o número de combinações da Seção~\ref{sec:problema} cresceria além do que um resolvedor explora no tempo de uma revisão do plano.
+As três escalas de tempo são encaixadas, e cada uma responde a um fenômeno físico do processo, não a conveniência de modelagem. Separá-las em níveis, em vez de resolvê-las num modelo integrado sobre todo o horizonte (Seção~\ref{sec:planejamento_hierarquico}), é o que mantém o problema tratável: com cada corrida indexada por turno e posição em todas as semanas, o número de combinações da Seção~\ref{sec:problema} cresceria além do que um resolvedor explora no tempo de uma revisão do plano.
 
 A semana é a escala do plano tático. É o intervalo em que a fábrica revisa o plano (Seção~\ref{sec:planejamento_tatico}) e em que a demanda é comercialmente estável o bastante para ser tratada como dado. O horizonte cobre um número de semanas suficiente para conter a subida sazonal, porque antecipar produção contra o pico é uma decisão que só existe se o modelo enxerga o pico.
 
@@ -1015,6 +1020,103 @@ O histórico da fábrica (Seção~\ref{sec:dados_historicos}) não chega a dois 
 \end{table}
 
 O modelo erra 15,1\% por balão, com viés de $-4{,}0$\%, contra 21,0\% e $-12{,}9$\% da previsão praticada (Tabela~\ref{tab:previsao_fabrica}). A suavização exponencial simples tem erro equivalente, 15,2\%, o que é esperado: sem sazonalidade estimável, o modelo se reduz a um nível que se atualiza a cada mês, o mesmo princípio. O ganho sobre a prática atual está sobretudo no viés, o erro que a cobertura de estoque não corrige, reduzido a menos de um terço. Esse MAPE por balão é o parâmetro do estoque mínimo da Equação~\eqref{eq:estoque_minimo}, de modo que a redução do erro se converte diretamente em menos estoque de cobertura.
+
+\section{Esforço computacional}
+\label{sec:resultado_esforco}
+
+Os experimentos respondem a três perguntas: se a desagregação em três níveis (Seção~\ref{sec:arquitetura}) é o que torna o problema tratável diante do modelo integrado (Seção~\ref{sec:planejamento_hierarquico}), como cada característica da instância afeta o esforço de resolução e quanto as técnicas de aceleração reduzem esse esforço em cada uma das duas abordagens.
+
+\subsection{Instâncias}
+
+As seis instâncias estão na Tabela~\ref{tab:instancias}, em que pares são as combinações compatíveis de máquina e balão. A da fábrica usa os dados reais de produtividade, estoque, custo e demanda e completa de forma sintética o que a operação não registra: o \textit{mix} de cores, a carteira, as matrizes de troca, o lote mínimo e quais máquinas são de duas cores. As cinco sintéticas têm a mesma estrutura em porte crescente, até a de porte real, do tamanho da fábrica. Todas seguem o calendário da Seção~\ref{sec:maquinas} e detalham em turnos a primeira semana.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Porte das instâncias dos experimentos.}
+\label{tab:instancias}
+\input{dados/esforco/tabela_instancias.tex}
+\fonte{Elaborado pelo autor (2026).}
+\end{table}
+
+\subsection{Tamanho dos modelos}
+
+O modelo integrado decide numa só formulação o lote, a forma e a ordem das cores em todos os turnos do horizonte, com a cor indexada por posição no turno, tantas posições quanto o maior número de cores de um balão, sob os estágios lexicográficos de \eqref{eq:obj_semanal}. O seu tamanho não depende da técnica de resolução. Na fábrica com 13 semanas, ele tem 2.235.324 variáveis binárias, mais de 70 vezes a soma dos níveis semanal e operacional, e só a sua montagem exigiria, por estimativa, 29~GB de memória (Tabela~\ref{tab:tamanho_fabrica}).
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Tamanho dos modelos na instância da fábrica, com 13 semanas.}
+\label{tab:tamanho_fabrica}
+\input{dados/esforco/tabela_tamanho_fabrica.tex}
+\fonte{Elaborado pelo autor (2026).}
+\end{table}
+
+O modelo integrado cresce em proporção exata ao horizonte, de 171.948 binárias com uma semana para 2.235.324 com 13, porque cada semana acrescenta 21 turnos com todas as posições de cor. O nível operacional, ao contrário, detalha uma semana qualquer que seja o horizonte. Nas instâncias sintéticas o modelo integrado tem de 12 a 39 vezes as binárias dos dois níveis somados (Tabela~\ref{tab:tamanho_sinteticas}).
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Variáveis binárias dos modelos nas instâncias sintéticas.}
+\label{tab:tamanho_sinteticas}
+\input{dados/esforco/tabela_tamanho_sinteticas.tex}
+\fonte{Elaborado pelo autor (2026).}
+\end{table}
+
+\subsection{Técnicas de resolução}
+
+As técnicas comparadas estão no Quadro~\ref{tab:tecnicas}. A resolução direta entrega cada modelo ao resolvedor como formulado e é a referência. A resolução semana a semana só se aplica ao modelo integrado, que é resolvido uma semana por vez, a partir do estado da anterior. As três decomposições combinam \textit{relax-and-fix} (RF) \cite{pochetwolsey2006} e \textit{fix-and-optimize} (FO) \cite{helbersahling2010}: o RF resolve as binárias em blocos, com o bloco corrente inteiro, os anteriores fixados e os seguintes relaxados, e o FO reotimiza depois cada bloco com o restante fixado. O pré-processamento e as duas soluções iniciais não mudam o problema, só a busca; a solução inicial por prioridade vem de subestágios por urgência da carteira e por classe ABC de demanda. As soluções de todas as técnicas são avaliadas pela mesma função objetivo.
+
+\begin{quadro}[htbp]
+\small
+\caption{Técnicas de resolução comparadas.}
+\label{tab:tecnicas}
+\begin{tabularx}{\linewidth}{@{}L{5.2cm}R@{}}
+\toprule
+Técnica & Como resolve \\
+\midrule
+Resolução direta & Cada modelo vai ao resolvedor como formulado. \\
+Semana a semana & Cada semana com o estado da anterior, sem enxergar as seguintes. \\
+RF-FO por tempo & Blocos de semanas; no nível operacional, de dias. \\
+RF-FO por máquina & Blocos de máquinas, da mais carregada para a menos carregada. \\
+RF-FO por produto & Blocos de balões, em ordem decrescente de demanda. \\
+Pré-processamento & Retira as variáveis de valor forçado ou dominado. \\
+Solução inicial & Heurística gulosa constrói a partida do primeiro estágio. \\
+Solução inicial por prioridade & Subestágios por urgência e classe ABC dão a partida. \\
+\bottomrule
+\end{tabularx}
+\fonte{Elaborado pelo autor (2026).}
+\end{quadro}
+
+\subsection{Desenho dos experimentos}
+
+O desenho parte da instância da fábrica e varia um fator por vez, com os demais no valor da fábrica (Quadro~\ref{tab:fatores}). Três pares de fatores são cruzados em fatoriais completos de $4 \times 4$ níveis: máquinas e demanda, cores por balão e tempos de \textit{setup}, estoque inicial e demanda. Nos fatores que retiram elementos da instância, o subconjunto de cada nível é sorteado três vezes, com cada nível contido no seguinte, e a instância da fábrica é resolvida com cinco sementes do resolvedor, o que separa o efeito do fator da variação da própria busca.
+
+\begin{quadro}[htbp]
+\small
+\caption{Fatores do experimento, com os níveis e o valor na instância da fábrica.}
+\label{tab:fatores}
+\begin{tabularx}{\linewidth}{@{}L{6.6cm}RL{1.6cm}@{}}
+\toprule
+Fator & Níveis & Fábrica \\
+\midrule
+Máquinas ativas & 1, 2, 4, 7, 10, 14, 20, 28 & 28 \\
+Balões & 1, 2, 4, 6, 9, 12, 15, 17 & 17 \\
+Cores por balão & 1, 2, 3, 4, 5, todas & Todas \\
+Pares máquina-balão (\% dos atuais) & 25, 50, 75, 100, 150, 200 & 100 \\
+Demanda (× a real) & 0,25; 0,5; 0,75; 1; 1,25; 1,5; 2 & 1 \\
+Estoque inicial (× o real) & 0; 0,25; 0,5; 1; 1,5; 2; 3 & 1 \\
+Capacidade (× a real) & 0,5; 0,75; 1; 1,25; 1,5 & 1 \\
+Tempos de \textit{setup} (× os reais) & 0; 0,5; 1; 1,5; 2; 3 & 1 \\
+Máquinas de duas cores (\% do parque) & 0, 25, 50, 75, 100 & 25 \\
+Horizonte (semanas) & 4, 8, 13, 26, 52 & 13 \\
+Semanas detalhadas em turnos & 1, 2 & 1 \\
+\bottomrule
+\end{tabularx}
+\fonte{Elaborado pelo autor (2026).}
+\end{quadro}
+
+O resolvedor é o Gurobi 13, com duas \textit{threads} e os limites de tempo da operação: 300~s no nível semanal, 600~s no operacional e a soma, 900~s, no modelo integrado. O esforço é medido pelo tempo de solução, em segundos, e pelo número de nós do \textit{branch-and-bound}.
 
 
 \postextual

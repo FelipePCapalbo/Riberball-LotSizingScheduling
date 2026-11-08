@@ -9,6 +9,7 @@ from datetime import datetime
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_OUTPUT_ROOT = os.path.join(ROOT_DIR, 'experimentos', 'esforco_computacional')
+QUICK_TIME_LIMIT = 30
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--codigo', default=ROOT_DIR)
@@ -26,36 +27,9 @@ sys.path.insert(0, str_code_directory)
 
 from processing.data import load_instance
 from processing.settings import DEFAULT_SETTINGS
-from experiment_common import LEVEL_COLUMNS, open_environment, summarize_level
+from experiment_common import (ARCHITECTURE_CASES, ARCHITECTURE_QUICK_CASES, ARCHITECTURE_SETTINGS, LEVEL_COLUMNS,
+                               open_environment, summarize_level)
 
-SETTINGS_OVERRIDES = {
-    'start_week': '2024-01-01',
-    'frozen_weeks': 1,
-    'shifts_per_day': 3,
-    'hours_per_shift': 8,
-    'working_days_per_week': 7,
-    'warehouse_capacity_kg': None,
-    'annual_holding_rate': 0.25,
-    'weekly_solver_name': 'GUROBI',
-    'weekly_time_limit': 300,
-    'daily_solver_name': 'GUROBI',
-    'daily_time_limit': 600,
-    'solver_seed': 0,
-}
-QUICK_TIME_LIMIT = 30
-CASES = [
-    {'id': 'ajustado_h01', 'arquivo': 'input_asis_ajustado.xlsx', 'semanas': 1},
-    {'id': 'ajustado_h02', 'arquivo': 'input_asis_ajustado.xlsx', 'semanas': 2},
-    {'id': 'ajustado_h04', 'arquivo': 'input_asis_ajustado.xlsx', 'semanas': 4},
-    {'id': 'ajustado_h08', 'arquivo': 'input_asis_ajustado.xlsx', 'semanas': 8},
-    {'id': 'ajustado_h13', 'arquivo': 'input_asis_ajustado.xlsx', 'semanas': 13},
-    {'id': 'micro', 'arquivo': 'instance_micro_P2_M3_T8.xlsx', 'semanas': 8},
-    {'id': 'pequeno', 'arquivo': 'instance_pequeno_P4_M6_T13.xlsx', 'semanas': 13},
-    {'id': 'medio', 'arquivo': 'instance_medio_P8_M12_T13.xlsx', 'semanas': 13},
-    {'id': 'grande', 'arquivo': 'instance_grande_P12_M20_T26.xlsx', 'semanas': 13},
-    {'id': 'real', 'arquivo': 'instance_real_P17_M28_T26.xlsx', 'semanas': 13},
-]
-QUICK_CASES = ['micro', 'pequeno', 'ajustado_h01']
 
 str_architecture = dict_arguments['arquitetura']
 str_variant = dict_arguments['variante']
@@ -77,8 +51,8 @@ os.makedirs(str_solutions_directory, exist_ok=True)
 os.makedirs(str_logs_directory, exist_ok=True)
 
 dict_base_settings = dict(DEFAULT_SETTINGS)
-for str_key in SETTINGS_OVERRIDES:
-    dict_base_settings[str_key] = SETTINGS_OVERRIDES[str_key]
+for str_key in ARCHITECTURE_SETTINGS:
+    dict_base_settings[str_key] = ARCHITECTURE_SETTINGS[str_key]
 dict_base_settings['threads'] = dict_arguments['threads']
 if bool_quick:
     dict_base_settings['weekly_time_limit'] = QUICK_TIME_LIMIT
@@ -88,13 +62,13 @@ dict_base_settings['monolithic_time_limit'] = (dict_base_settings['weekly_time_l
                                                + dict_base_settings['daily_time_limit'])
 
 list_cases = []
-for dict_case in CASES:
-    if not bool_quick or dict_case['id'] in QUICK_CASES:
+for dict_case in ARCHITECTURE_CASES:
+    if not bool_quick or dict_case['id'] in ARCHITECTURE_QUICK_CASES:
         list_cases.append(dict_case)
 
 with open(os.path.join(str_run_directory, 'plano.json'), 'w', encoding='utf-8') as file_plan:
     json.dump({'bateria': 'arquitetura', 'arquitetura': str_architecture, 'tecnica': dict_arguments['tecnica'],
-               'parametros': SETTINGS_OVERRIDES, 'casos': list_cases}, file_plan, indent=2, ensure_ascii=False)
+               'parametros': ARCHITECTURE_SETTINGS, 'casos': list_cases}, file_plan, indent=2, ensure_ascii=False)
 
 str_environment_path = os.path.join(str_run_directory, 'ambiente.json')
 dict_environment = open_environment(str_environment_path, str_code_directory, str_variant, bool_quick,
