@@ -43,9 +43,9 @@
 \foreach \filho in {cca,ccb} {
   \draw[ligacao] (pc.east) -- (\filho.outer west);
 }
-\node[rotulonivel] (nivelum) at (2.875, 1.62) {Nível global\\$Y_t$};
-\node[rotulonivel] (niveldois) at (8.275, 1.62) {Nível de categoria\\$Y_{ft}$};
+\node[rotulonivel] (nivelum) at (2.875, 1.62) {Nível global\\$y_{0t}$};
+\node[rotulonivel] (niveldois) at (8.275, 1.62) {Nível de categoria\\$y_{ft}$};
 \node[rotulonivel] (niveltres) at (13.675, 1.62) {Nível de departamento\\$y_{it}$};
-\draw[ligacao] (nivelum.east) -- node[rotulonivel, font=\scriptsize, above=1pt] {$\hat{\beta}^{(0)}$\\como \textit{prior}} (niveldois.west);
-\draw[ligacao] (niveldois.east) -- node[rotulonivel, font=\scriptsize, above=1pt] {$\hat{\beta}^{(1)}_{f}$\\como \textit{prior}} (niveltres.west);
+\draw[ligacao] (nivelum.east) -- node[rotulonivel, font=\scriptsize, above=1pt] {$\hat{\beta}_{0a}$\\como \textit{prior}} (niveldois.west);
+\draw[ligacao] (niveldois.east) -- node[rotulonivel, font=\scriptsize, above=1pt] {$\hat{\beta}_{fa}$\\como \textit{prior}} (niveltres.west);
 \end{tikzpicture}
