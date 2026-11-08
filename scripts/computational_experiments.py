@@ -28,7 +28,7 @@ SETTINGS_OVERRIDES = {
     'frozen_weeks': 1,
     'shifts_per_day': 3,
     'hours_per_shift': 8,
-    'working_days_per_week': 6,
+    'working_days_per_week': 7,
     'warehouse_capacity_kg': None,
     'annual_holding_rate': 0.25,
     'weekly_solver_name': 'GUROBI',
