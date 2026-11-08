@@ -169,14 +169,14 @@
 
 \setlength{\absparsep}{18pt}
 \begin{resumo}
-A produção de balões de látex combina demanda sazonal de calendário, capacidade de moldagem fixa e dois \textit{setups} de escalas distintas: a troca de forma, intervenção mecânica que consome parcela relevante de um turno, e a troca de cor, dependente de sequência e direcional. Este trabalho formula o dimensionamento e sequenciamento de lotes dessa indústria em dois níveis encadeados. O nível semanal é um problema de dimensionamento de lotes capacitado em máquinas paralelas não relacionadas, agregado por balão, que separa a demanda em carteira, cujo atraso é transportado, e previsão líquida da carteira, cuja falta é venda perdida, sobre um estoque único limitado pela capacidade do armazém e protegido por um estoque mínimo nos itens produzidos para estoque. O nível operacional detalha as primeiras semanas do horizonte em turnos, decide a forma montada em cada máquina e as corridas de cada SKU, e recebe do nível semanal uma única informação, a meta de estoque ao fim de cada semana, cobrada como restrição suave. Os dois modelos compartilham a estrutura de objetivo, resolvida em ordem lexicográfica com travas exatas entre estágios: atraso da carteira, venda perdida, violação da meta de estoque e, por fim, custo de \textit{setup} e de carregamento. A ordem das cores dentro de cada turno é decidida por uma heurística de sequenciamento, com cada restrição operacional escrita como equação nomeada, que ocupa a capacidade ociosa deixada pela reserva conservadora de tempo de troca de cor e antecipa produção já planejada sem acrescentar trocas. A previsão de demanda vem de um modelo econométrico hierárquico \textit{top-down}, avaliado fora da amostra pelo erro percentual absoluto médio e pelo viés. [RESULTADOS A ESCREVER]
+A produção de balões de látex combina demanda sazonal de calendário, capacidade de moldagem fixa e dois \textit{setups} de escalas distintas: a troca de forma, intervenção mecânica que consome parcela relevante de um turno, e a troca de cor, dependente de sequência e direcional. Este trabalho desagrega o dimensionamento e sequenciamento de lotes dessa indústria em três níveis encadeados: semana, turno e posição dentro do turno. O nível semanal é um problema de dimensionamento de lotes capacitado em máquinas paralelas não relacionadas, agregado por balão, que separa a demanda em carteira, cujo atraso é transportado, e previsão líquida da carteira, cuja falta é venda perdida, sobre um estoque único limitado pela capacidade do armazém e protegido por um estoque mínimo nos itens produzidos para estoque. O nível operacional detalha as primeiras semanas do horizonte em turnos, decide a forma montada em cada máquina e as corridas de cada SKU, e recebe do nível semanal uma única informação, a meta de estoque ao fim de cada semana, cobrada como restrição suave. Os dois modelos compartilham a estrutura de objetivo, resolvida em ordem lexicográfica com travas exatas entre estágios: atraso da carteira, venda perdida, violação da meta de estoque e, por fim, custo de \textit{setup} e de carregamento. O terceiro nível, a ordem das cores dentro de cada turno, é decidido por uma heurística de sequenciamento, com cada restrição operacional escrita como equação nomeada, que ocupa a capacidade ociosa deixada pela reserva conservadora de tempo de troca de cor e antecipa produção já planejada sem acrescentar trocas. A previsão de demanda vem de um modelo econométrico hierárquico \textit{top-down}, avaliado fora da amostra pelo erro percentual absoluto médio e pelo viés. [RESULTADOS A ESCREVER]
 
 \textbf{Palavras-chave}: dimensionamento de lotes; sequenciamento da produção; planejamento hierárquico; programação inteira mista; balões de látex.
 \end{resumo}
 
 \begin{resumo}[Abstract]
 \begin{otherlanguage*}{english}
-Latex balloon production combines calendar-driven seasonal demand, fixed moulding capacity and two setups of different scales: the form change, a mechanical intervention that takes a substantial share of a shift, and the colour change, which is sequence-dependent and directional. This work formulates the lot sizing and scheduling problem of this industry in two linked levels. The weekly level is a capacitated lot sizing problem on unrelated parallel machines, aggregated by balloon, that splits demand into firm orders, whose backlog is carried forward, and forecast net of orders, whose shortage is a lost sale, over a single inventory bounded by warehouse capacity and protected by a minimum stock for make-to-stock items. The operational level details the first weeks of the horizon by shift, decides the form mounted on each machine and the runs of each SKU, and receives a single piece of information from the weekly level, the inventory target at the end of each week, enforced as a soft constraint. Both models share the objective structure, solved in lexicographic order with exact locks between stages: order backlog, lost sales, inventory target violation and, finally, setup and holding cost. The colour sequence within each shift is decided by a sequencing heuristic, with each operational constraint written as a named equation, which fills the idle capacity left by the conservative colour changeover reserve and brings forward already planned production without adding changeovers. Demand forecasts come from a top-down hierarchical econometric model, evaluated out of sample by the mean absolute percentage error and the bias. [RESULTS TO BE WRITTEN]
+Latex balloon production combines calendar-driven seasonal demand, fixed moulding capacity and two setups of different scales: the form change, a mechanical intervention that takes a substantial share of a shift, and the colour change, which is sequence-dependent and directional. This work disaggregates the lot sizing and scheduling problem of this industry into three linked levels: week, shift and position within the shift. The weekly level is a capacitated lot sizing problem on unrelated parallel machines, aggregated by balloon, that splits demand into firm orders, whose backlog is carried forward, and forecast net of orders, whose shortage is a lost sale, over a single inventory bounded by warehouse capacity and protected by a minimum stock for make-to-stock items. The operational level details the first weeks of the horizon by shift, decides the form mounted on each machine and the runs of each SKU, and receives a single piece of information from the weekly level, the inventory target at the end of each week, enforced as a soft constraint. Both models share the objective structure, solved in lexicographic order with exact locks between stages: order backlog, lost sales, inventory target violation and, finally, setup and holding cost. The third level, the colour sequence within each shift, is decided by a sequencing heuristic, with each operational constraint written as a named equation, which fills the idle capacity left by the conservative colour changeover reserve and brings forward already planned production without adding changeovers. Demand forecasts come from a top-down hierarchical econometric model, evaluated out of sample by the mean absolute percentage error and the bias. [RESULTS TO BE WRITTEN]
 
 \textbf{Keywords}: lot sizing; production scheduling; hierarchical planning; mixed-integer programming; latex balloons.
 \end{otherlanguage*}
@@ -237,7 +237,7 @@ A capacidade não acompanha essa sazonalidade. O parque de máquinas de moldagem
 
 \subsection{Dificuldade mecânica}
 
-A tecnologia de processo limita o alcance dessa antecipação. A moldagem opera em fluxo contínuo a partir de um composto fluido mantido em tanques, e o ponto de diferenciação do produto está na pigmentação: até ali o composto é genérico, e depois dela está comprometido com uma cor. Trocar a cor em uma máquina exige limpeza do circuito e trocar o formato exige remontar o conjunto de formas, de modo que toda mudança de item consome tempo de \textit{setup}, horas de capacidade que não geram produto.
+A tecnologia de processo limita o alcance dessa antecipação. A moldagem opera em fluxo contínuo a partir de um composto fluido mantido em tanques, e o ponto de diferenciação do produto está na pigmentação: até ali o composto é genérico, e depois dela está comprometido com uma cor. Toda mudança de item numa máquina, de cor ou de formato, consome tempo de \textit{setup}, horas de capacidade que não geram produto.
 
 É o tempo de \textit{setup} que impede seguir a demanda SKU a SKU e impõe a produção em lotes, sob o compromisso corrente entre capacidade consumida em preparação e capital imobilizado em estoque. O que particulariza o caso dos balões é a estrutura desse \textit{setup}: a troca de cor é dependente de sequência e direcional, enquanto a troca de forma é uma intervenção mecânica de ordem de grandeza superior, decidida em cadência mais lenta. Com \textit{setup} dependente de sequência, dimensionar o lote deixa de ser separável de sequenciá-lo, e o problema é de dimensionamento e sequenciamento de lotes (\textit{lot sizing and scheduling}).
 
@@ -247,12 +247,12 @@ A essa dificuldade mecânica soma-se uma dificuldade de decisão, que vem do aco
 
 Esse acoplamento exige um critério explícito de prioridade entre consequências de natureza distinta. Sem ele não há como comparar a antecipação de um lote com o atraso de um pedido, nem quantificar a capacidade que uma sequência de cores devolve à produção.
 
-As decisões resultantes não compartilham a mesma cadência. Quanto produzir de cada balão, em que máquina e em que semana é decisão revisada semanalmente, sobre um horizonte que precisa conter a subida sazonal; em que turno e em que ordem as cores entram em cada máquina é decisão da semana corrente, condicionada à carteira já existente. Separar essas duas cadências, e definir o que a primeira entrega à segunda, é o problema de planejamento formalizado na Seção~\ref{sec:modelo_semanal} e na Seção~\ref{sec:modelo_turno}.
+As decisões resultantes não compartilham a mesma escala. Quanto produzir de cada balão, em que máquina e em que semana é decisão revisada semanalmente, sobre um horizonte que precisa conter a subida sazonal; em que turno cada máquina produz cada cor é decisão da semana corrente, condicionada à carteira já existente; e em que ordem as cores entram em cada turno é decisão do próprio turno, porque é a ordem que define a troca paga. Separar essas três escalas, e definir o que cada uma entrega à seguinte, é a desagregação formalizada na Seção~\ref{sec:arquitetura}.
 
 \section{Objetivos}
 \label{sec:objetivo}
 
-O objetivo deste trabalho é formular e resolver o dimensionamento e sequenciamento de lotes de uma indústria de balões de látex em dois níveis encadeados, um semanal e um por turno, com a demanda separada em carteira e previsão e o atendimento priorizado sobre o custo.
+O objetivo deste trabalho é formular e resolver o dimensionamento e sequenciamento de lotes de uma indústria de balões de látex, desagregado em três níveis encadeados, semanal, por turno e de sequência dentro do turno, com a demanda separada em carteira e previsão e o atendimento priorizado sobre o custo.
 
 Para isso, o trabalho caracteriza a demanda e constrói um modelo hierárquico para prevê-la, formula o nível semanal como um problema de dimensionamento de lotes capacitado em máquinas paralelas, formula o nível por turno, que aloca formas e corridas de cor sob a meta de estoque recebida do nível semanal, e ordena as corridas de cada turno por uma heurística de sequenciamento.
 
@@ -262,7 +262,7 @@ O planejamento praticado hoje na fábrica funciona, mas é feito sem automatiza�
 
 \section{Organização do trabalho}
 
-A Seção~\ref{sec:revisao} posiciona o problema na literatura de planejamento hierárquico, de dimensionamento e sequenciamento de lotes, de produção contra pedido e para estoque e de previsão hierárquica de demanda. A Seção~\ref{sec:processo} descreve o processo produtivo e o planejamento praticado em cada nível. A Seção~\ref{sec:modelo_demanda} caracteriza a demanda, e a Seção~\ref{sec:previsao} apresenta o modelo de previsão, a medida do seu erro e a sua avaliação numa base pública de referência. A Seção~\ref{sec:modelo_otimizacao} formaliza a arquitetura em dois níveis, as premissas, os dois modelos de otimização e o sequenciamento das corridas, e a Seção~\ref{sec:resultados} reporta os resultados obtidos com os dados da fábrica.
+A Seção~\ref{sec:revisao} posiciona o problema na literatura de planejamento hierárquico, de dimensionamento e sequenciamento de lotes, de produção contra pedido e para estoque e de previsão hierárquica de demanda. A Seção~\ref{sec:processo} descreve o processo produtivo e o planejamento praticado em cada nível. A Seção~\ref{sec:modelo_demanda} caracteriza a demanda, e a Seção~\ref{sec:previsao} apresenta o modelo de previsão, a medida do seu erro e a sua avaliação numa base pública de referência. A Seção~\ref{sec:modelo_otimizacao} formaliza a desagregação em três níveis, as premissas, os dois modelos de otimização e o sequenciamento das corridas, e a Seção~\ref{sec:resultados} reporta os resultados obtidos com os dados da fábrica.
 
 
 \chapter{Revisão de literatura}
@@ -349,57 +349,20 @@ As formulações das subseções anteriores se distinguem por três atributos: o
 \small
 \caption{Classes de problemas de dimensionamento de lotes citadas neste trabalho, por estrutura de período e de sequência.}
 \label{tab:classes_lotsizing}
-\begin{tabularx}{\linewidth}{@{}L{1.3cm}L{3.2cm}L{3.4cm}R@{}}
+\begin{tabularx}{\linewidth}{@{}L{1.3cm}L{4.5cm}L{3.9cm}R@{}}
 \toprule
 Classe & \textit{Bucket} & Itens por período & Sequência \\
 \midrule
-CLSP & Grande & Vários & Não definida dentro do período. \\
-DLSP & Pequeno & Um, ocupando toda a capacidade & Dada pela sucessão dos períodos. \\
-CSLP & Pequeno & Um, com capacidade parcial & Dada pela sucessão dos períodos. \\
-PLSP & Pequeno & Até dois & Dada pela sucessão dos períodos. \\
-CLSD & Grande & Vários & Decidida, com \textit{setup} dependente de sequência. \\
-GLSP & Grande, dividido em microperíodos & Um por microperíodo & Decidida pela ordem dos microperíodos. \\
+CLSP & Grande & Vários & Não definida no período. \\
+DLSP & Pequeno & Um, capacidade cheia & Sucessão dos períodos. \\
+CSLP & Pequeno & Um, capacidade parcial & Sucessão dos períodos. \\
+PLSP & Pequeno & Até dois & Sucessão dos períodos. \\
+CLSD & Grande & Vários & Decidida no período. \\
+GLSP & Grande, em microperíodos & Um por microperíodo & Ordem dos microperíodos. \\
 \bottomrule
 \end{tabularx}
 \fonte{Elaborado pelo autor (2026).}
 \end{quadro}
-
-\section{Produção contra pedido e produção para estoque}
-\label{sec:mto_mts}
-
-O CLSP canônico trata a demanda de um item como classe única. Quando parte dela é carteira e parte é previsão, essa agregação apaga a diferença entre uma falta de consequência contratual e uma falta que é venda não realizada, justamente onde essa diferença decide a alocação de capacidade escassa.
-
-A literatura trata a combinação de carteira e previsão como produção híbrida, que combina produção contra pedido (\textit{make-to-order}, MTO) e produção para estoque (\textit{make-to-stock}, MTS) sobre o mesmo recurso. \citeonline{soman2004} organizam o problema nesses termos: parte do \textit{mix} é produzida contra pedido, parte contra previsão, e a decisão de quais itens vão para cada regime antecede o planejamento de capacidade. \citeonline{meyr2009} formaliza a consequência para o nível de serviço: quando a capacidade não cobre toda a demanda, a quantidade disponível é alocada entre classes de cliente com prioridades distintas, e a prioridade se expressa como diferença de penalidade, não como restrição rígida. \citeonline{slotnick2011} revisa a literatura de aceitação de pedidos, onde a mesma pergunta aparece invertida, a de qual pedido recusar ou atrasar quando não cabe tudo, e cataloga as formas de penalização usadas.
-
-Do lado MTO, a falta é atraso. No CLSP de \citeonline{belofilho2014}, apresentado na Seção~\ref{sec:preservacao_setup}, a falta é tratada por \textit{backlogging}: a demanda não atendida no período é transportada adiante, permanece devida e é penalizada enquanto persiste, sem que isso impeça a preservação do estado da máquina entre períodos.
-
-Do lado MTS, a falta é demanda não atendida, que não se transporta. \citeonline{absi2008} formulam o CLSP multi-item com tempos de \textit{setup} em que a demanda pode ser total ou parcialmente perdida a um custo unitário de falta, e \citeonline{absi2009} acrescentam o estoque de segurança, tratado como meta cuja violação é penalizada e não como restrição rígida. Nos dois trabalhos a falta é uma variável de folga do balanço de estoque, limitada pela demanda do período.
-
-[A ESCREVER: modelos MTS que consideram estoque de segurança e atraso de pedidos.]
-
-\section{Previsão hierárquica de demanda}
-\label{sec:revisao_previsao}
-
-Quando os itens se organizam numa hierarquia de agregação, a previsão pode ser feita no nível de baixo e somada (\textit{bottom-up}), no nível de cima e desagregada (\textit{top-down}) ou num nível intermediário. \citeonline{grosssohl1990} comparam vinte e um métodos para desagregar a previsão de uma linha de produtos entre os seus itens e encontram nas médias simples das proporções históricas os mais eficazes. \citeonline{athanasopoulos2009} mostram, na demanda de turismo doméstico da Austrália, que a desagregação pelas proporções previstas compete com abordagens mais elaboradas, e \citeonline{hyndman2011} propõem prever todos os níveis de forma independente e reconciliá-los por regressão, o que originou a literatura de reconciliação revisada por \citeonline{athanasopoulos2024}.
-
-Uma vertente mais próxima deste trabalho não desagrega a previsão, e sim a sazonalidade. \citeonline{withycombe1989} estima os índices sazonais sobre a soma de uma linha de produtos e os aplica a cada item, com redução de 2\,\% a 20\,\% no erro quadrático médio das linhas estudadas. \citeonline{dekker2004} usam a demanda de um nível de agregação superior para estimar a sazonalidade dos itens de dois atacadistas holandeses, e \citeonline{chenboylan2007,chenboylan2008} estabelecem regras para escolher entre o índice do grupo e o índice individual, que favorecem o grupo quando a sazonalidade dos itens é semelhante e as séries individuais são ruidosas.
-
-Entre o índice do grupo e o individual há uma solução intermediária, o encolhimento (\textit{shrinkage}). \citeonline{bunnvassilopoulos1999} aplicam estimadores do tipo de Stein que puxam o índice de cada item na direção do índice do grupo e os avaliam em vendas de varejo. O mecanismo vem da estimação bayesiana do modelo linear: \citeonline{lindleysmith1972} mostram que, quando os coeficientes de vários grupos são permutáveis, o estimador bayesiano aproxima cada um da média comum, e \citeonline{hoerlkennard1970} chegam a uma penalização da mesma forma pela regressão \textit{ridge}. \citeonline{ma2016} levam a ideia de emprestar informação da categoria ao varejo com dados de alta dimensão, em regressões por SKU que incorporam as promoções da própria categoria e das vizinhas.
-
-A estimação recursiva de mínimos quadrados nasceu de um problema de cálculo. Nos trabalhos de 1821 a 1826 sobre a combinação de observações, Gauss já mostrava como corrigir a estimativa de mínimos quadrados quando chega uma nova observação, sem resolver de novo as equações normais, o que poupava o cálculo manual a cada medição \cite{young2011}. A recursão ficou esquecida por mais de um século, até \citeonline{plackett1950} redescobri-la, com a atualização das estimativas e da soma de quadrados residual a cada observação que dá nome ao método (\textit{Recursive Least Squares}, RLS). \citeonline{kalman1960} estende a recursão a estados que evoluem no tempo, a partir de problemas de filtragem e predição de sinais em sistemas dinâmicos, e o RLS passa a ser o caso particular do filtro de Kalman com coeficientes constantes.
-
-Com a computação digital, o RLS tornou-se a ferramenta das áreas que precisam atualizar um modelo enquanto os dados chegam. No controle adaptativo, \citeonline{astromwittenmark1973} combinam o estimador recursivo com uma lei de controle de variância mínima nos reguladores autoajustáveis, e \citeonline{ljungsoderstrom1983} consolidam a identificação recursiva de sistemas; em processamento de sinais, o RLS é um dos algoritmos centrais da filtragem adaptativa \cite{haykin2014}; e, na econometria, os resíduos recursivos de \citeonline{brown1975} são a base dos testes de estabilidade dos coeficientes de uma regressão ao longo do tempo. Na previsão, \citeonline{harvey1989} organiza os modelos estruturais de séries temporais, em que nível, tendência e sazonalidade são componentes estocásticos estimados pelo filtro de Kalman; o modelo de nível local, em que o nível segue um passeio aleatório, é o mais simples da família e equivale à suavização exponencial simples.
-
-\section{Custo de manter estoque}
-\label{sec:custo_estoque}
-
-O custo de manter estoque não é um parâmetro de conveniência: é a contrapartida financeira do capital imobilizado e dos recursos consumidos para guardar o produto. \citeonline{lalondelambert1975} decompõem esse custo em quatro componentes, que são o custo de capital, o custo de serviço (seguro e impostos), o custo de espaço de armazenagem e o custo de risco (obsolescência, avaria, furto), e propõem a metodologia pela qual uma empresa calcula a própria taxa em vez de adotar um número de mercado.
-
-A ordem de grandeza dessa taxa é estável na literatura. \citeonline{stocklambert2001} consolidam a regra prática de aproximadamente 25\,\% do valor do estoque ao ano. \citeonline{richardson1995} reporta uma faixa mais larga, de 25\,\% a 55\,\%, com a decomposição por faixa que explica a dispersão: o custo do dinheiro responde por 6\,\% a 12\,\% e a obsolescência por outros 6\,\% a 12\,\%, de modo que setores com giro lento ou produto perecível se deslocam para o topo da faixa. \citeonline{timme2003} argumentam que o componente de capital é sistematicamente subestimado e defendem o custo médio ponderado de capital (\textit{Weighted Average Cost of Capital}, WACC) como sua medida correta, com a partição típica de cerca de 15\,\% de capital e 10\,\% de custos não financeiros.
-
-A forma operacional é a mesma em toda essa literatura: \citeonline{silver1998} definem o custo de manter uma unidade por unidade de tempo como $h = r\,v$, com $r$ a taxa de carregamento anual e $v$ o valor unitário do item, entendido como o custo variável acumulado até o estágio onde o estoque é mantido e não como o preço de venda, porque é esse o capital efetivamente parado. Adotar $r$ como percentual fixo do valor não é isento de crítica: \citeonline{berling2008} mostra, por custeio baseado em atividades, situações em que essa aproximação eleva o custo real em mais de 15\,\%, e \citeonline{azzi2014} documentam, em dez empresas, o quanto a taxa varia com o sistema de armazenagem empregado. \citeonline{castellanoglock2021} tratam do passo seguinte, que é o que interessa a um modelo de \textit{lot sizing}: como converter a taxa anual para o \textit{bucket} do modelo sem introduzir inconsistência na formulação de custo médio.
-
-[A ESCREVER: outras formas de justificar a precificação do estoque.]
 
 \section{Aplicações em indústria de processo}
 
@@ -415,18 +378,55 @@ Uma via alternativa para o dimensionamento e sequenciamento integrados evita inf
 
 A indústria de bebidas é a aplicação mais estudada e mais próxima estruturalmente do problema dos balões: xarope preparado num tanque, envasado em seguida em diferentes sabores e tamanhos. \citeonline{ferreira2009,ferreira2010} modelam esse problema de dois estágios, o preparo do xarope e o envase, com \textit{setups} dependentes de sequência e de tempo, comparando estratégias de \textit{relax-and-fix}; \citeonline{toledo2012} resolvem a mesma classe de problema com algoritmos meméticos. A analogia com os balões é direta: composto pigmentado é o xarope, moldagem é o envase.
 
-A indústria têxtil de fiação oferece uma analogia ainda mais próxima, porque acrescenta uma restrição de sincronização que a de bebidas não tem. \citeonline{camargo2014} tratam um problema de dois estágios em que uma mistura de fibras (\textit{fiber blend}) alimenta múltiplas máquinas de fiação em paralelo; na formulação MSGLSP (\textit{Multi-Stage General Lot-sizing and Scheduling Problem}) que adotam, de \citeonline{camargo2012}, todas as máquinas ativas num mesmo microperíodo devem processar fios da mesma família de mistura, sincronizadas por uma variável binária de qualidade. Essa restrição, de haver só uma mistura disponível por vez e de todas as máquinas do segundo estágio precisarem respeitá-la, é exatamente o que emergiria se a pigmentação do composto de látex fosse modelada como etapa própria, com múltiplas moldagens em paralelo consumindo o mesmo composto pigmentado corrente. Duas diferenças, porém, mantêm o problema dos balões fora dessa formulação: os autores tratam a troca de mistura como \textit{setup} nulo (o oposto da troca de forma dos balões, que é o \textit{setup} caro) e tratam a demanda como classe única com atraso (\textit{backorder}), sem distinguir carteira de previsão.
+A indústria têxtil de fiação oferece uma analogia ainda mais próxima, porque acrescenta uma restrição de sincronização que a de bebidas não tem. \citeonline{camargo2014} tratam um problema de dois estágios em que uma mistura de fibras (\textit{fiber blend}) alimenta múltiplas máquinas de fiação em paralelo; na formulação MSGLSP (\textit{Multi-Stage General Lot-sizing and Scheduling Problem}) que adotam, de \citeonline{camargo2012}, todas as máquinas ativas num mesmo microperíodo devem processar fios da mesma família de mistura, sincronizadas por uma variável binária de qualidade. É a restrição que emergiria nos balões se a pigmentação fosse modelada como etapa própria, com várias moldagens em paralelo consumindo o mesmo composto pigmentado. Duas diferenças, porém, mantêm o problema dos balões fora dessa formulação: os autores tratam a troca de mistura como \textit{setup} nulo (o oposto da troca de forma dos balões, que é o \textit{setup} caro) e tratam a demanda como classe única com atraso (\textit{backorder}), sem distinguir carteira de previsão.
 
-Dois estudos de caso publicados em embalagens são os análogos mais próximos do ponto de vista do chão de fábrica. \citeonline{marinelli2007} tratam uma empresa de embalagens com máquinas paralelas e \textit{buffers} compartilhados, dimensionando lotes e sequenciando sob capacidade; \citeonline{almadalobo2007} formulam o caso da embalagem de vidro com \textit{setups} dependentes de máquina e de sequência, apresentando duas formulações com carryover de \textit{setup}, uma compacta e outra mais forte. Nenhum dos dois separa carteira de previsão nem cobra custo de estoque: a aproximação é de estrutura produtiva, não de estrutura de demanda.
+Dois estudos de caso publicados em embalagens são os análogos mais próximos do ponto de vista do chão de fábrica. \citeonline{marinelli2007} tratam uma empresa de embalagens com máquinas paralelas e \textit{buffers} compartilhados, dimensionando lotes e sequenciando sob capacidade; \citeonline{almadalobo2007} formulam o caso da embalagem de vidro com \textit{setups} dependentes de máquina e de sequência, apresentando duas formulações com \textit{carryover} de \textit{setup}, uma compacta e outra mais forte. Nenhum dos dois separa carteira de previsão nem cobra custo de estoque: a aproximação é de estrutura produtiva, não de estrutura de demanda.
+
+\section{Produção contra pedido e produção para estoque}
+\label{sec:mto_mts}
+
+O CLSP canônico trata a demanda de um item como classe única. Quando parte dela é carteira e parte é previsão, essa agregação apaga a diferença entre uma falta de consequência contratual e uma falta que é venda não realizada, justamente onde essa diferença decide a alocação de capacidade escassa.
+
+A literatura trata a combinação de carteira e previsão como produção híbrida, que combina produção contra pedido (\textit{make-to-order}, MTO) e produção para estoque (\textit{make-to-stock}, MTS) sobre o mesmo recurso. \citeonline{soman2004} organizam o problema nesses termos: parte do \textit{mix} é produzida contra pedido, parte contra previsão, e a decisão de quais itens vão para cada regime antecede o planejamento de capacidade. \citeonline{meyr2009} formaliza a consequência para o nível de serviço: quando a capacidade não cobre toda a demanda, a quantidade disponível é alocada entre classes de cliente com prioridades distintas, e a prioridade se expressa como diferença de penalidade, não como restrição rígida. \citeonline{slotnick2011} revisa a literatura de aceitação de pedidos, onde a mesma pergunta aparece invertida, a de qual pedido recusar ou atrasar quando não cabe tudo, e cataloga as formas de penalização usadas.
+
+Do lado MTO, a falta é atraso. No CLSP de \citeonline{belofilho2014}, apresentado na Seção~\ref{sec:preservacao_setup}, a falta é tratada por \textit{backlogging}: a demanda não atendida no período é transportada adiante, permanece devida e é penalizada enquanto persiste, sem que isso impeça a preservação do estado da máquina entre períodos.
+
+Do lado MTS, a falta é demanda não atendida, que não se transporta. \citeonline{absi2008} formulam o CLSP multi-item com tempos de \textit{setup} em que a demanda pode ser total ou parcialmente perdida a um custo unitário de falta, e \citeonline{absi2009} acrescentam o estoque de segurança, tratado como meta cuja violação é penalizada e não como restrição rígida. Nos dois trabalhos a falta é uma variável de folga do balanço de estoque, limitada pela demanda do período.
+
+[A ESCREVER: modelos MTS que consideram estoque de segurança e atraso de pedidos.]
+
+\section{Custo de manter estoque}
+\label{sec:custo_estoque}
+
+O custo de manter estoque não é um parâmetro de conveniência: é a contrapartida financeira do capital imobilizado e dos recursos consumidos para guardar o produto. \citeonline{lalondelambert1975} decompõem esse custo em quatro componentes, que são o custo de capital, o custo de serviço (seguro e impostos), o custo de espaço de armazenagem e o custo de risco (obsolescência, avaria, furto), e propõem a metodologia pela qual uma empresa calcula a própria taxa em vez de adotar um número de mercado.
+
+A ordem de grandeza dessa taxa é estável na literatura. \citeonline{stocklambert2001} consolidam a regra prática de aproximadamente 25\,\% do valor do estoque ao ano. \citeonline{richardson1995} reporta uma faixa mais larga, de 25\,\% a 55\,\%, com a decomposição por faixa que explica a dispersão: o custo do dinheiro responde por 6\,\% a 12\,\% e a obsolescência por outros 6\,\% a 12\,\%, de modo que setores com giro lento ou produto perecível se deslocam para o topo da faixa. \citeonline{timme2003} argumentam que o componente de capital é sistematicamente subestimado e defendem o custo médio ponderado de capital (\textit{Weighted Average Cost of Capital}, WACC) como sua medida correta, com a partição típica de cerca de 15\,\% de capital e 10\,\% de custos não financeiros.
+
+A forma operacional é a mesma em toda essa literatura: \citeonline{silver1998} definem o custo de manter uma unidade por unidade de tempo como $h = r\,v$, com $r$ a taxa de carregamento anual e $v$ o valor unitário do item, entendido como o custo variável acumulado até o estágio onde o estoque é mantido e não como o preço de venda, porque é esse o capital efetivamente parado. Adotar $r$ como percentual fixo do valor não é isento de crítica: \citeonline{berling2008} mostra, por custeio baseado em atividades, situações em que essa aproximação eleva o custo real em mais de 15\,\%, e \citeonline{azzi2014} documentam, em dez empresas, o quanto a taxa varia com o sistema de armazenagem empregado. \citeonline{castellanoglock2021} tratam do passo seguinte, que é o que interessa a um modelo de \textit{lot sizing}: como converter a taxa anual para o \textit{bucket} do modelo sem introduzir inconsistência na formulação de custo médio.
+
+[A ESCREVER: outras formas de justificar a precificação do estoque.]
+
+\section{Previsão hierárquica de demanda}
+\label{sec:revisao_previsao}
+
+Quando os itens se organizam numa hierarquia de agregação, a previsão pode ser feita no nível de baixo e somada (\textit{bottom-up}), no nível de cima e desagregada (\textit{top-down}) ou num nível intermediário. \citeonline{grosssohl1990} comparam vinte e um métodos para desagregar a previsão de uma linha de produtos entre os seus itens e encontram nas médias simples das proporções históricas os mais eficazes. \citeonline{athanasopoulos2009} mostram, na demanda de turismo doméstico da Austrália, que a desagregação pelas proporções previstas compete com abordagens mais elaboradas, e \citeonline{hyndman2011} propõem prever todos os níveis de forma independente e reconciliá-los por regressão, o que originou a literatura de reconciliação revisada por \citeonline{athanasopoulos2024}.
+
+Uma vertente mais próxima deste trabalho não desagrega a previsão, e sim a sazonalidade. \citeonline{withycombe1989} estima os índices sazonais sobre a soma de uma linha de produtos e os aplica a cada item, com redução de 2\,\% a 20\,\% no erro quadrático médio das linhas estudadas. \citeonline{dekker2004} usam a demanda de um nível de agregação superior para estimar a sazonalidade dos itens de dois atacadistas holandeses, e \citeonline{chenboylan2007,chenboylan2008} estabelecem regras para escolher entre o índice do grupo e o índice individual, que favorecem o grupo quando a sazonalidade dos itens é semelhante e as séries individuais são ruidosas.
+
+Entre o índice do grupo e o individual há uma solução intermediária, o encolhimento (\textit{shrinkage}). \citeonline{bunnvassilopoulos1999} aplicam estimadores do tipo de Stein que puxam o índice de cada item na direção do índice do grupo e os avaliam em vendas de varejo. O mecanismo vem da estimação bayesiana do modelo linear: \citeonline{lindleysmith1972} mostram que, quando os coeficientes de vários grupos são permutáveis, o estimador bayesiano aproxima cada um da média comum, e \citeonline{hoerlkennard1970} chegam a uma penalização da mesma forma pela regressão \textit{ridge}. \citeonline{ma2016} levam a ideia de emprestar informação da categoria ao varejo com dados de alta dimensão, em regressões por SKU que incorporam as promoções da própria categoria e das vizinhas.
+
+A estimação recursiva de mínimos quadrados nasceu de um problema de cálculo. Nos trabalhos de 1821 a 1826 sobre a combinação de observações, Gauss já mostrava como corrigir a estimativa de mínimos quadrados quando chega uma nova observação, sem resolver de novo as equações normais, o que poupava o cálculo manual a cada medição \cite{young2011}. A recursão ficou esquecida por mais de um século, até \citeonline{plackett1950} redescobri-la, com a atualização das estimativas e da soma de quadrados residual a cada observação que dá nome ao método (\textit{Recursive Least Squares}, RLS). \citeonline{kalman1960} estende a recursão a estados que evoluem no tempo, a partir de problemas de filtragem e predição de sinais em sistemas dinâmicos, e o RLS passa a ser o caso particular do filtro de Kalman com coeficientes constantes.
+
+Com a computação digital, o RLS tornou-se a ferramenta das áreas que atualizam um modelo enquanto os dados chegam: os reguladores autoajustáveis do controle adaptativo \cite{astromwittenmark1973}, a identificação recursiva de sistemas \cite{ljungsoderstrom1983}, a filtragem adaptativa \cite{haykin2014} e os testes de estabilidade dos coeficientes de uma regressão por resíduos recursivos \cite{brown1975}. Na previsão, \citeonline{harvey1989} organiza os modelos estruturais de séries temporais, em que nível, tendência e sazonalidade são componentes estocásticos estimados pelo filtro de Kalman; o modelo de nível local, em que o nível segue um passeio aleatório, é o mais simples da família e equivale à suavização exponencial simples.
 
 \section{Posicionamento do trabalho}
 \label{sec:posicionamento}
 
-A correspondência família$\to$item de Hax e Meal mapeia diretamente o problema dos balões: formato e acabamento definem a família decidida no nível tático; a cor é o item desagregado no nível operacional. Essa fronteira não é uma escolha arbitrária de modelagem, e sim o reflexo da separação entre os dois \textit{setups} descritos na Seção~\ref{sec:problema}: a troca de forma, custosa e decidida com semanas de antecedência, e a troca de cor, uma limpeza decidida dentro do turno.
+A correspondência família$\to$item de Hax e Meal mapeia diretamente o problema dos balões: formato e acabamento definem a família decidida no nível tático; a cor é o item desagregado no nível operacional. Essa fronteira não é uma escolha arbitrária de modelagem, e sim o reflexo da separação entre os dois \textit{setups} descritos na Seção~\ref{sec:problema}.
 
 Nos termos do Quadro~\ref{tab:classes_lotsizing} e da Figura~\ref{fig:classes_lotsizing}, o nível semanal é um CLSP, porque a sequência dentro da semana não é decidida nele. Ele opera em máquinas paralelas não relacionadas, com produtividade distinta por par máquina-balão e compatibilidades próprias, e a ele se somam lote mínimo, custo de estoque explícito e duas classes de demanda com faltas de natureza distinta. É essa combinação que distingue o problema do CLSP canônico.
 
-O nível por turno é um CLSP no \textit{bucket} de turno, com \textit{carryover} do estado da máquina, a forma e a cor montadas, que atravessa turnos e mesmo turnos ociosos, e com \textit{crossover} da troca de forma, que pode exceder as horas disponíveis no turno (Figura~\ref{fig:carryover_crossover}). A ordem das cores, que no \textit{block planning} segue uma sequência fixa do claro para o escuro, é decidida à parte, por heurística sobre a matriz de tempos de troca, porque a troca de cor é dependente de sequência e direcional (Seção~\ref{sec:problema}); é a decomposição entre quantidade e sequência comum às aplicações em indústria de processo.
+O nível por turno é um CLSP no \textit{bucket} de turno, com \textit{carryover} do estado da máquina, a forma e a cor montadas, que atravessa turnos e mesmo turnos ociosos, e com \textit{crossover} da troca de forma, que pode exceder as horas disponíveis no turno (Figura~\ref{fig:carryover_crossover}). A ordem das cores, que no \textit{block planning} segue uma sequência fixa do claro para o escuro, é decidida à parte, por heurística sobre a matriz de tempos de troca, porque a troca de cor é direcional (Seção~\ref{sec:problema}); é a decomposição entre quantidade e sequência comum às aplicações em indústria de processo.
 
 O que não se encontra pronto na literatura de produção contra pedido e para estoque é a combinação das duas classes de demanda no mesmo modelo, sobre um estoque único, com a falta discriminada por classe e disputando a mesma capacidade. Essa é a forma adotada no nível semanal, na Seção~\ref{sec:modelo_semanal}.
 
@@ -491,7 +491,7 @@ Nos dois tipos, a cadeia leva as formas em fila única e circula continuamente p
 \end{wrapfigure}
 A disposição em fila única distingue essa máquina das que mergulham no tanque uma placa com uma matriz de formas (Figura~\ref{fig:cadeia_placa}). Na cadeia, cada forma passa isolada por cada etapa e é vista de frente, sem outras formas atrás dela, o que dá estabilidade ao processo e permite inspecionar a linha balão a balão. A cadeia explica também a natureza dos dois \textit{setups}: trocar a cor é trocar o composto do tanque, com a limpeza do circuito, e trocar o formato é remontar o conjunto de formas da cadeia.
 
-As trocas de formas entre balões de diferentes formatos configuram longos tempos de \textit{setup}: no limite mínimo, ocorrem entre turnos de trabalho, mas na prática se dão com intervalos de dias, dado o alto custo de tempo envolvido. A fábrica opera em três turnos diários, e a troca de forma consome parcela relevante de um turno de oito horas: na prática ela é feita na virada, quando a máquina já está parando.
+A troca de forma entre balões de formatos diferentes é o \textit{setup} longo: consome parcela relevante de um turno de oito horas, dos três que a fábrica opera por dia. Por isso é feita na virada de turno, quando a máquina já está parando, e se repete com intervalos de dias, não de turnos.
 
 A troca de cor é mais curta e ocorre dentro do turno, entre corridas do mesmo balão, mas é direcional e nem sempre possível. Passar de um tom claro para um escuro exige pouca limpeza; o caminho inverso exige muito mais, e alguns pares só se sucedem depois de uma limpeza completa do circuito, por risco de contaminação do composto. A fábrica mantém essa informação como uma matriz de tempos entre pares de cor, com células vazias marcando as transições que exigem limpeza completa.
 
@@ -504,7 +504,7 @@ O planejamento tático determina o que, onde, quando e quanto produzir, balancea
 
 Uma regra usual para dimensionar esse estoque é a cobertura: o planejador fixa quantos períodos de demanda futura o estoque de cada balão deve cobrir, e a diferença entre o alvo e o saldo orienta se a produção do período repõe ou consome estoque.
 
-O plano de produção é elaborado em periodicidade semanal, com revisões eventuais conforme a necessidade operacional. É nesse nível que se decidem as trocas de forma, pela duração descrita na Seção~\ref{sec:maquinas}, e a forma montada em cada máquina fixa os balões que ela produz nas semanas seguintes.
+O plano de produção é elaborado em periodicidade semanal, com revisões eventuais conforme a necessidade operacional. É nesse nível que se decidem as trocas de forma, pela duração descrita na Seção~\ref{sec:maquinas}.
 
 A dificuldade desse nível é de horizonte e de volume. A produção de uma semana só se justifica pelo pico que ela antecipa, semanas adiante, e cada par de máquina e balão acrescenta uma decisão binária de preparação por semana.
 
@@ -513,9 +513,7 @@ A dificuldade desse nível é de horizonte e de volume. A produção de uma sema
 \section{Planejamento operacional}
 \label{sec:planejamento_operacional}
 
-O planejamento operacional desdobra o plano tático no curto prazo. Enquanto o nível tático decide quanto produzir de cada balão, o operacional decide em que turno, em que máquina e em que ordem; é nele que a cor aparece, porque é a cor que determina a limpeza entre uma corrida e a seguinte.
-
-A unidade de decisão é o turno, a escala em que a forma montada se mantém (Seção~\ref{sec:maquinas}). O conjunto de decisões do nível operacional fica assim definido: quais operações cada máquina executa em cada turno, em que sequência, e em que quantidade.
+O planejamento operacional desdobra o plano tático no curto prazo. Enquanto o nível tático decide quanto produzir de cada balão, o operacional decide em que turno, em que máquina e em que ordem; é nele que a cor aparece, porque é a cor que determina a limpeza entre uma corrida e a seguinte. A unidade de decisão é o turno, a escala em que a forma montada se mantém (Seção~\ref{sec:maquinas}).
 
 A dificuldade desse nível é de sequência. O número de ordens possíveis cresce fatorialmente com as cores de um turno, e a direção da troca faz com que duas ordens das mesmas cores consumam capacidades diferentes.
 
@@ -528,7 +526,7 @@ A dificuldade desse nível é de sequência. O número de ordens possíveis cres
 \section{Natureza da demanda}
 \label{sec:natureza_demanda}
 
-O calendário de eventos que concentra o consumo (Seção~\ref{sec:mercado}) sugere uma série de demanda dominada por componente determinística, e não por um nível estacionário com ruído. Sob essa hipótese, verificada pelos testes da Seção~\ref{sec:caracterizacao_serie}, o esforço de previsão se desloca do patamar agregado para a datação e a composição de cada pico.
+O calendário de eventos que concentra o consumo (Seção~\ref{sec:mercado}) sugere uma série de demanda dominada por componente determinística, e não por um nível estacionário com ruído. Sob essa hipótese, verificada pelos testes da Seção~\ref{sec:dados_historicos}, o esforço de previsão se desloca do patamar agregado para a datação e a composição de cada pico.
 
 Esse padrão produz dois efeitos que se resolvem por decisões distintas. No agregado, a demanda alterna janelas que excedem a capacidade instalada e janelas que a subutilizam. No \textit{mix}, a composição do volume entre balões e entre cores muda de um evento para outro, de modo que um mesmo total pode corresponder a um conjunto inteiramente diferente de SKU. O primeiro efeito é de capacidade, o segundo é de alocação de máquina, e nenhum dos dois se resolve pela decisão que resolve o outro.
 
@@ -541,17 +539,12 @@ Essa assimetria governa também o dimensionamento do estoque. O nível adequado 
 
 As duas classes não coincidem com os regimes de produção da Seção~\ref{sec:mto_mts}. O regime é atributo do SKU e decide quem carrega a parcela de cobertura: os SKU produzidos para estoque (MTS) mantêm estoque contra o erro de previsão, os demais (MTO) só têm estoque como carteira antecipada, e um SKU MTS também recebe pedidos em carteira.
 
-\section{Dados históricos}
+\section{Histórico de vendas}
 \label{sec:dados_historicos}
 
 O histórico de vendas é o faturamento mensal da fábrica, em quilogramas, por balão, de janeiro de 2024 a maio de 2025: 17 meses, pouco mais de um ciclo anual. São 17 balões em 14 formatos, dos quais três têm dois acabamentos e os demais um só. O histórico admite assim três níveis de agregação, o total da fábrica, o formato e o balão.
 
-\section{Caracterização da série}
-\label{sec:caracterizacao_serie}
-
-Três propriedades da série de vendas condicionam a forma do modelo de previsão, e cada uma é verificada por teste antes da estimação. A tendência é testada pelo teste de Mann-Kendall \cite{mann1945} e a sazonalidade pelo teste de Kruskal-Wallis entre os meses do ano \cite{kruskalwallis1952}. A estacionariedade é testada pelo par formado pelo teste de Dickey-Fuller \cite{dickeyfuller1979}, cuja hipótese nula é a raiz unitária, e pelo teste KPSS \cite{kwiatkowski1992}, cuja hipótese nula é a estacionariedade.
-
-Os dois testes de estacionariedade são lidos em conjunto. As hipóteses nulas opostas separam a série estacionária da série com raiz unitária e identificam o caso em que os dados não permitem decidir. Os três testes são aplicados nos mesmos níveis de agregação em que os coeficientes são estimados.
+Três propriedades dessa série condicionam a forma do modelo de previsão, e cada uma é verificada por teste antes da estimação. A tendência é testada pelo teste de Mann-Kendall \cite{mann1945} e a sazonalidade pelo teste de Kruskal-Wallis entre os meses do ano \cite{kruskalwallis1952}. A estacionariedade é testada pelo par formado pelo teste de Dickey-Fuller \cite{dickeyfuller1979}, cuja hipótese nula é a raiz unitária, e pelo teste KPSS \cite{kwiatkowski1992}, cuja hipótese nula é a estacionariedade, lidos em conjunto. Os testes são aplicados nos três níveis de agregação.
 
 [RESULTADOS DOS TESTES A ESCREVER]
 
@@ -562,9 +555,7 @@ Os dois testes de estacionariedade são lidos em conjunto. As hipóteses nulas o
 \section{Modelo de previsão}
 \label{sec:modelo_previsao}
 
-A previsão é a entrada de que dependem a alocação das máquinas e, por consequência, as decisões de estoque. A modelagem proposta neste trabalho baseia-se em uma abordagem econométrica hierárquica \textit{top-down}, cuja origem é revisada na Seção~\ref{sec:revisao_previsao}. O objetivo é isolar os efeitos exógenos e sazonais em níveis agregados de histórico de vendas, onde o sinal estatístico é mais forte e o ruído é menor, e repassar esse aprendizado para os níveis mais granulares na forma de coeficientes \textit{a priori}.
-
-O modelo extrai características (\textit{features}) exógenas e temporais através de múltiplos níveis de agregação e estima, em cada série, um nível que acompanha o patamar das vendas. O \textit{forecast} final é a recombinação desse nível com os efeitos sazonais projetados.
+O modelo de previsão é econométrico, hierárquico e \textit{top-down}, na linha revisada na Seção~\ref{sec:revisao_previsao}. Os efeitos exógenos e sazonais (\textit{features}) são estimados nos níveis agregados do histórico de vendas, onde o sinal é mais forte e o ruído menor, e repassados aos níveis mais granulares como coeficientes \textit{a priori}. Cada série tem ainda um nível próprio, que acompanha o patamar das vendas, e a previsão é a recombinação desse nível com os efeitos sazonais projetados.
 
 \begin{notacao}{Conjuntos}
 $T$ & Períodos históricos.\\
@@ -572,74 +563,47 @@ $T^{\mathrm{v}} \subseteq T$ & Períodos de validação, retirados da estimaçã
 $I$ & Balões, combinações de formato e acabamento.\\
 $F$ & Formatos.\\
 $I_f \subseteq I$ & Balões do formato $f$.\\
+$U$ & Séries da hierarquia, $\{0\} \cup F \cup I$, com $0$ a série total.\\
 $A$ & \textit{Features} exógenas e sazonais.\\
 \end{notacao}
 
 \begin{notacao}{Parâmetros}
-$y_{it}$ & Demanda observada do balão $i$ no período $t$ (kg).\\
-$Y_{ft}$ & Demanda observada do formato $f$ no período $t$ (kg).\\
-$Y_{t}$ & Demanda observada total no período $t$ (kg).\\
+$y_{ut}$ & Demanda observada da série $u$ no período $t$ (kg).\\
 $X_{at}$ & Valor da \textit{feature} $a$ no período $t$.\\
+$\bar{\beta}_{ua}$ & \textit{Prior} do coeficiente da \textit{feature} $a$ na série $u$.\\
 $\lambda$ & Penalização na transferência de coeficientes entre níveis.\\
-$\sigma^{2}$ & Variância do passo do nível entre períodos consecutivos, escolhida por série.\\
+$\sigma^{2}$ & Variância do passo do nível entre períodos.\\
 $h$ & Horizonte de previsão, em períodos.\\
 \end{notacao}
 
 \begin{notacao}{Variáveis}
-$\beta^{(0)}_{a}$ & Coeficiente global da \textit{feature} $a$.\\
-$\beta^{(1)}_{fa}$ & Coeficiente do formato $f$ para a \textit{feature} $a$.\\
-$\beta^{(2)}_{ia}$ & Coeficiente do balão $i$ para a \textit{feature} $a$.\\
-$\hat{\beta}$ & Coeficiente já estimado no nível de agregação anterior.\\
-$\ell^{(0)}_{t}$ & Nível global no período $t$, em escala logarítmica.\\
-$\ell^{(1)}_{ft}$ & Nível do formato $f$ no período $t$, em escala logarítmica.\\
-$\ell^{(2)}_{it}$ & Nível do balão $i$ no período $t$, em escala logarítmica.\\
+$\beta_{ua}$ & Coeficiente da \textit{feature} $a$ na série $u$.\\
+$\ell_{ut}$ & Nível da série $u$ no período $t$, em escala logarítmica.\\
 $\hat{d}_{i,t+h}$ & Previsão do balão $i$ para o período $t+h$ (kg).\\
 \end{notacao}
 
 
-A extração dos efeitos sazonais e exógenos é feita em cascata. O modelo utiliza uma formulação log-linear (multiplicativa) em detrimento de uma abordagem aditiva devido à natureza da propagação da demanda, dominada pela componente sazonal verificada na Seção~\ref{sec:caracterizacao_serie}. Em eventos de forte sazonalidade (final de ano, por exemplo), a demanda agregada pode triplicar. A transformação logarítmica permite que esse comportamento atue como um fator multiplicativo percentual, sendo repassado de forma coerente e proporcional para os níveis inferiores. Caso um modelo aditivo fosse empregado, um incremento absoluto capturado no nível global (um aumento sazonal de 10.000 kg, por exemplo) perderia o sentido ao ser cascateado para uma combinação específica de formato e acabamento, cuja escala natural de vendas é substancialmente menor. Ademais, a modelagem multiplicativa previne intrinsecamente a projeção de demandas negativas.
+A formulação é log-linear, multiplicativa, porque a demanda é dominada pela componente sazonal (Seção~\ref{sec:dados_historicos}) e, num evento como o fim de ano, o agregado pode triplicar. Em escala logarítmica esse efeito é um fator percentual, que passa proporcionalmente aos níveis de baixo; num modelo aditivo, um incremento absoluto estimado no total, de 10.000 kg por exemplo, perderia o sentido num balão de escala muito menor. A forma multiplicativa também não projeta demanda negativa.
 
 Para a estimação destes parâmetros, utiliza-se o algoritmo RLS (Seção~\ref{sec:revisao_previsao}), que atualiza os coeficientes incrementalmente a cada nova observação minimizando o erro quadrático acumulado. Os coeficientes sazonais acumulam todo o histórico, enquanto o nível de cada série segue um passeio aleatório de variância $\sigma^{2}$, de modo que uma mudança de patamar das vendas passa ao nível sem esperar que a média de todo o histórico a absorva. O valor de $\sigma^{2}$ é o que minimiza, em cada série, o erro da previsão um período à frente dentro de $T$.
 
 Os coeficientes sazonais só são estimados quando $T$ cobre ao menos dois ciclos anuais. Com um único ciclo, cada mês é observado uma vez, e o seu coeficiente confunde o efeito do mês com a variação de patamar daquele ano; nesse caso $A$ fica vazio e a previsão se reduz ao nível.
 
-A estimação inicial, no nível global, ocorre sobre a demanda total consolidada, com \textit{prior} nulo para os coeficientes, o que atribui efeito zero a um mês sem evidência contrária:
+A estimação é feita em cascata, do total ao balão, e o acento circunflexo marca o valor estimado. Cada série herda como \textit{prior} os coeficientes da série de cima: $\bar{\beta}_{0a} = 0$, o que atribui efeito zero a um mês sem evidência contrária, $\bar{\beta}_{fa} = \hat{\beta}_{0a}$ para $f \in F$ e $\bar{\beta}_{ia} = \hat{\beta}_{fa}$ para $i \in I_f$. O termo em $\lambda$ penaliza o desvio em relação a esse \textit{prior}:
 \begin{ceqn}
 \begin{equation}
 \begin{aligned}
-\left( \hat{\ell}^{(0)}, \hat{\beta}^{(0)} \right) = \arg\min_{\ell, \beta} \Bigg( & \sum_{t \in T} \left( \ln(Y_t) - \ell_{t} - \sum_{a \in A} \beta_{a} X_{at} \right)^2 \\
-& + \frac{1}{\sigma^{2}} \sum_{t \in T} \left( \ell_{t} - \ell_{t-1} \right)^2 + \lambda \sum_{a \in A} \beta_{a}^{2} \Bigg)
+\left( \hat{\ell}_{u}, \hat{\beta}_{u} \right) = \arg\min_{\ell_{u}, \beta_{u}} \Bigg( & \sum_{t \in T} \left( \ln(y_{ut}) - \ell_{ut} - \sum_{a \in A} \beta_{ua} X_{at} \right)^2 \\
+& + \frac{1}{\sigma^{2}} \sum_{t \in T} \left( \ell_{ut} - \ell_{u,t-1} \right)^2 + \lambda \sum_{a \in A} \left( \beta_{ua} - \bar{\beta}_{ua} \right)^2 \Bigg) \quad \forall u \in U
 \end{aligned}
-\label{eq:demanda_nivel0}
+\label{eq:demanda_cascata}
 \end{equation}
 \end{ceqn}
 
-No nível de formato, os coeficientes globais $\hat{\beta}^{(0)}_a$ atuam como \textit{priors} para a estimação, e o termo de regularização $\lambda$ penaliza desvios do comportamento global:
+A previsão para um período futuro $t+h$, com $t$ o último período de $T$, parte do nível corrente do balão e aplica os efeitos esperados:
 \begin{ceqn}
 \begin{equation}
-\begin{aligned}
-\left( \hat{\ell}^{(1)}_{f}, \hat{\beta}^{(1)}_{f} \right) = \arg\min_{\ell, \beta} \Bigg( & \sum_{t \in T} \left( \ln(Y_{ft}) - \ell_{t} - \sum_{a \in A} \beta_{a} X_{at} \right)^2 \\
-& + \frac{1}{\sigma^{2}} \sum_{t \in T} \left( \ell_{t} - \ell_{t-1} \right)^2 + \lambda \sum_{a \in A} \left( \beta_{a} - \hat{\beta}^{(0)}_a \right)^2 \Bigg) \quad \forall f \in F
-\end{aligned}
-\label{eq:demanda_nivel1}
-\end{equation}
-\end{ceqn}
-
-No nível de formato-acabamento, por fim, os coeficientes do formato respectivo atuam como \textit{priors} para o balão específico:
-\begin{ceqn}
-\begin{equation}
-\begin{aligned}
-\left( \hat{\ell}^{(2)}_{i}, \hat{\beta}^{(2)}_{i} \right) = \arg\min_{\ell, \beta} \Bigg( & \sum_{t \in T} \left( \ln(y_{it}) - \ell_{t} - \sum_{a \in A} \beta_{a} X_{at} \right)^2 \\
-& + \frac{1}{\sigma^{2}} \sum_{t \in T} \left( \ell_{t} - \ell_{t-1} \right)^2 + \lambda \sum_{a \in A} \left( \beta_{a} - \hat{\beta}^{(1)}_{f,a} \right)^2 \Bigg) \quad \forall f \in F,\; i \in I_f
-\end{aligned}
-\label{eq:demanda_nivel2}
-\end{equation}
-\end{ceqn}
-
-O \textit{forecast} para um período futuro $t+h$, com $t$ o último período de $T$, parte do nível corrente do balão e aplica os efeitos esperados:
-\begin{ceqn}
-\begin{equation}
-\hat{d}_{i,t+h} = \exp \left( \hat{\ell}^{(2)}_{it} + \sum_{a \in A} \hat{\beta}^{(2)}_{ia} X_{a,t+h} \right) \quad \forall i \in I
+\hat{d}_{i,t+h} = \exp \left( \hat{\ell}_{it} + \sum_{a \in A} \hat{\beta}_{ia} X_{a,t+h} \right) \quad \forall i \in I
 \label{eq:forecast_final}
 \end{equation}
 \end{ceqn}
@@ -656,6 +620,7 @@ O erro da previsão é medido fora da amostra, sobre o conjunto $T^{\mathrm{v}}$
 \label{eq:mape}
 \end{equation}
 \end{ceqn}
+O MAPE não é definido em períodos de demanda nula, que são excluídos de $T^{\mathrm{v}}$ no cálculo por balão.
 
 O viés (\textit{bias}) mede a direção do erro, como fração da demanda realizada:
 \begin{ceqn}
@@ -665,7 +630,7 @@ O viés (\textit{bias}) mede a direção do erro, como fração da demanda reali
 \end{equation}
 \end{ceqn}
 
-As duas métricas respondem a perguntas distintas do planejamento. O MAPE dimensiona a parcela de cobertura do estoque (Seção~\ref{sec:carteira_previsao}), porque mede quanto a demanda se afasta da previsão em qualquer direção. O viés indica erro sistemático, que a cobertura não corrige: viés positivo imobiliza capital em estoque que não gira, e viés negativo converte previsão em demanda não atendida. O MAPE não é definido em períodos de demanda nula, que são excluídos de $T^{\mathrm{v}}$ no cálculo por balão.
+As duas métricas respondem a perguntas distintas do planejamento. O MAPE dimensiona a parcela de cobertura do estoque (Seção~\ref{sec:carteira_previsao}), porque mede quanto a demanda se afasta da previsão em qualquer direção. O viés indica erro sistemático, que a cobertura não corrige: viés positivo imobiliza capital em estoque que não gira, e viés negativo converte previsão em demanda não atendida.
 
 A medida segue uma origem rolante \cite{tashman2000}: para cada período de $T^{\mathrm{v}}$, o modelo é estimado com os períodos anteriores a ele e prevê só esse período, com $h = 1$, e a origem avança um período. O valor de $\lambda$ é o de menor MAPE numa janela anterior a $T^{\mathrm{v}}$, avaliada pelo mesmo protocolo, de modo que nenhum período de validação participa da escolha. Os resultados reportam a média de $\mathrm{MAPE}_{i}$ e de $\mathrm{Bias}_{i}$ entre as séries.
 
@@ -701,12 +666,12 @@ A Figura~\ref{fig:previsao_referencia_arvore} mostra a cascata nos três níveis
 \chapter{Modelo de otimização}
 \label{sec:modelo_otimizacao}
 
-\section{Arquitetura em dois níveis}
+\section{Desagregação em três níveis}
 \label{sec:arquitetura}
 
-O problema é resolvido em dois níveis encadeados. O nível semanal decide, para todo o horizonte de planejamento, quanto produzir de cada balão em cada máquina e em cada semana, arbitrando entre carteira e previsão. O nível operacional recebe desse plano uma única informação, a meta de estoque ao fim de cada semana detalhada, e decide, para essas semanas congeladas, o que cada máquina produz em cada turno; a ordem das corridas dentro de cada turno é decidida em seguida, por uma heurística de sequenciamento. Os dois níveis compartilham a estrutura de objetivo e de restrições e os parâmetros de custo; diferem no \textit{bucket} de tempo e no nível de agregação do produto. Na matriz da Figura~\ref{fig:matriz_stadtler}, o nível semanal ocupa o planejamento mestre, o nível por turno o planejamento da produção, e o sequenciamento a programação.
+O problema é desagregado em três níveis encadeados, cada um com a sua escala de tempo e de produto: o nível semanal, por balão, sobre todo o horizonte; o nível operacional, por SKU, nos turnos das primeiras semanas; e o sequenciamento, nas posições de cada turno. Cada nível decide só o que o de cima deixou em aberto e passa ao de baixo o que este precisa para decidir. Os dois primeiros são modelos de otimização com a mesma estrutura de objetivo e de restrições e os mesmos parâmetros de custo; o terceiro é uma heurística. Na matriz da Figura~\ref{fig:matriz_stadtler}, os três ocupam, respectivamente, o planejamento mestre, o planejamento da produção e a programação.
 
-As decisões se distribuem por três escalas de tempo encaixadas, e a escolha de cada uma responde a um fenômeno físico do processo, não a conveniência de modelagem.
+As três escalas de tempo são encaixadas, e cada uma responde a um fenômeno físico do processo, não a conveniência de modelagem. Separá-las em níveis, em vez de resolvê-las num único modelo sobre todo o horizonte, é o que mantém o problema tratável: com cada corrida indexada por turno e posição em todas as semanas, o número de combinações da Seção~\ref{sec:problema} cresceria além do que um resolvedor explora no tempo de uma revisão do plano.
 
 A semana é a escala do plano tático. É o intervalo em que a fábrica revisa o plano (Seção~\ref{sec:planejamento_tatico}) e em que a demanda é comercialmente estável o bastante para ser tratada como dado. O horizonte cobre um número de semanas suficiente para conter a subida sazonal, porque antecipar produção contra o pico é uma decisão que só existe se o modelo enxerga o pico.
 
@@ -714,11 +679,11 @@ O turno é a escala do plano operacional. É a menor unidade em que a fábrica o
 
 A posição dentro do turno é a escala da sequência. Cada turno comporta um número pequeno de corridas de cor, porque o lote mínimo e o tempo de limpeza limitam quantas cabem, e a ordem entre elas é o que determina qual \textit{setup} de cor é pago. Não há escala abaixo dessa: o sequenciamento não decide instantes, decide a ordem.
 
-A Figura~\ref{fig:arquitetura_niveis} resume a arquitetura. O nível semanal cobre todo o horizonte, por balão, e decide o lote de cada balão em cada máquina e semana, as formas a preparar e o estoque e as faltas de carteira e de previsão. O nível operacional abre as semanas detalhadas em turnos, por SKU, e decide a forma montada em cada máquina e turno, com a troca que pode atravessar turnos, e o lote de cada SKU em cada lado, com uma reserva de troca de cor por corrida; só a carteira entra nele como demanda. O sequenciamento recebe a forma montada, os lotes e as trocas de forma pendentes, e decide em cada turno e lado a ordem das corridas, a troca de cor efetiva e a antecipação de produção já planejada.
+A Figura~\ref{fig:arquitetura_niveis} resume a desagregação. O nível semanal decide o lote de cada balão em cada máquina e semana, as formas a preparar e o estoque e as faltas de carteira e de previsão. O nível operacional decide a forma montada em cada máquina e turno, com a troca que pode atravessar turnos, e o lote de cada SKU em cada lado, com uma reserva de troca de cor por corrida; só a carteira entra nele como demanda. O sequenciamento recebe a forma montada, os lotes e as trocas de forma pendentes, e decide em cada turno e lado a ordem das corridas, a troca de cor efetiva e a antecipação de produção já planejada.
 
 \begin{figure}[H]
     \centering
-    \caption{Arquitetura de decisão em três níveis}
+    \caption{Desagregação da decisão em três níveis}
     \label{fig:arquitetura_niveis}
     \includegraphics[page=5]{figuras/figuras.pdf}
     \fonte{Elaborado pelo autor (2026).}
@@ -726,7 +691,7 @@ A Figura~\ref{fig:arquitetura_niveis} resume a arquitetura. O nível semanal cob
 
 O que desce da semana para o turno é uma única grandeza: a meta de estoque de cada balão ao fim de cada semana detalhada, cobrada como restrição suave em \eqref{eq:meta_semana}. O que sobe de volta, na revisão seguinte, é o estado real: estoque, carteira consumida e a configuração em que cada máquina ficou. Nos termos da Figura~\ref{fig:coordenacao_schneeweiss}, a meta de estoque é a instrução, o estado real é a reação, e a estrutura de restrições que o nível semanal compartilha com o operacional é a sua antecipação.
 
-A escolha é deliberada e se opõe à alternativa de fixar as janelas de produção. Passar do nível semanal a alocação máquina-balão já resolvida garantiria consistência automática entre os planos, mas ao custo de tornar o nível operacional incapaz de reagir: qualquer prazo da carteira que não coubesse na janela herdada viraria atraso, sem possibilidade de realocar. Com a meta de estoque como único vínculo, o nível operacional decide livremente máquina, turno e sequência, e a consistência com o plano semanal é cobrada pelo estado terminal em vez de pelo caminho. É o esquema de metas com folga penalizada que \citeonline{bitranhaashax1981} formalizam para a desagregação em horizonte rolante, e a violação $g_{it}$ é o que impede que uma meta inatingível propague inviabilidade para o nível de baixo, no sentido apontado por \citeonline{schneeweiss2003}.
+A escolha é deliberada e se opõe à alternativa de fixar as janelas de produção. Passar do nível semanal a alocação máquina-balão já resolvida garantiria consistência automática entre os planos, mas ao custo de tornar o nível operacional incapaz de reagir: qualquer prazo da carteira que não coubesse na janela herdada viraria atraso, sem possibilidade de realocar. Com a meta de estoque como único vínculo, o nível operacional decide livremente máquina, turno e sequência, e a consistência com o plano semanal é cobrada pelo estado terminal em vez de pelo caminho. É o esquema de metas com folga penalizada que \citeonline{bitranhaashax1981} formalizam para a desagregação em horizonte rolante, e a folga da meta é o que impede que uma meta inatingível propague inviabilidade para o nível de baixo, no sentido apontado por \citeonline{schneeweiss2003}.
 
 \section{Premissas}
 \label{sec:premissas}
@@ -743,29 +708,29 @@ A perecibilidade do látex não é modelada. O recebimento diário e a capacidad
 
 \section{Notação comum}
 
-Os índices são fixos nos dois modelos: $i$ para balão (formato e acabamento, sem cor), $j$ para máquina, $\ell$ para lado de cor da máquina, $t$ para semana, $s$ para turno e $k$ para SKU-cor, isto é, a combinação de balão e cor. O SKU herda os parâmetros do balão a que pertence, por meio do subconjunto $K_i$ definido adiante.
+Os índices são fixos nos dois modelos: $i$ para balão (formato e acabamento, sem cor), $j$ para máquina, $\ell$ para lado de cor da máquina, $t$ para semana, $s$ para turno e $k$ para SKU, a combinação de balão e cor. O índice $\ell$ de lado não tem relação com o nível $\ell_{ut}$ do modelo de previsão.
 
 \begin{notacao}{Parâmetros}
 $m_{i}$ & Margem de contribuição do balão $i$ (R\$/kg).\\
-$h_{i}$ & Custo de manter o balão $i$ em estoque por uma semana, Seção~\ref{sec:custo_estoque} (R\$/kg).\\
+$h_{i}$ & Custo de manter o balão $i$ em estoque por uma semana (R\$/kg).\\
 $c_{j}$ & Custo do \textit{setup} da máquina $j$ por hora (R\$/h).\\
-$n_{j}$ & Número de lados de cor da máquina $j$: 1 na máquina de uma cor e 2 na de duas cores.\\
+$n_{j}$ & Número de lados de cor da máquina $j$, 1 ou 2.\\
 $p_{ij}$ & Produtividade do balão $i$ em cada lado da máquina $j$ (kg/h).\\
 $q_{i}$ & Lote mínimo do balão $i$ (kg).\\
 \end{notacao}
 
 Os três parâmetros de custo são distintos por construção. A venda que deixa de acontecer custa a margem $m_i$; o estoque parado custa $h_i$, que remunera o capital imobilizado; e o \textit{setup} custa as horas de máquina e equipe que consome, com a energia e o composto descartado, medidas por $c_j$. O custo de oportunidade das horas de \textit{setup} não entra na função objetivo: essas horas já reduzem a capacidade disponível na restrição correspondente, e a produção que deixa de ocorrer reaparece como falta penalizada; cobrá-la também no objetivo contaria a mesma perda duas vezes.
 
-O custo $h_i$ segue a forma $h = r\,v$ da Seção~\ref{sec:custo_estoque}, com conversão linear para a semana, $h_i = (\theta/52)\,v_i$, em que $\theta$ é a taxa anual e $v_i$ o valor unitário do balão, e é cobrado sobre o estoque de fechamento da semana, como no CLSP. A taxa $\theta$ é parâmetro de entrada, declarado e sujeito a análise de sensibilidade, não constante embutida.
+O custo $h_i$ segue a forma $h = r\,v$ da Seção~\ref{sec:custo_estoque}, com a taxa anual $r$ convertida linearmente para a semana, $h_i = r\,v_i/52$, sujeita a análise de sensibilidade, e é cobrado sobre o estoque de fechamento da semana, como no CLSP.
 
 \section{Modelo semanal}
 \label{sec:modelo_semanal}
 
-O nível semanal é um problema de dimensionamento de lotes capacitado em máquinas paralelas não relacionadas. O índice de dia não existe neste nível: a ordem de produção dentro da semana é decisão do nível operacional, e o \textit{setup} é cobrado por ativação de par balão-máquina na semana, independente de sequência.
+O nível semanal é o CLSP em máquinas paralelas não relacionadas da Seção~\ref{sec:posicionamento}, com o \textit{setup} cobrado por ativação de par balão-máquina na semana, independente de sequência.
 
 O produto deste nível é o balão, sem cor, por duas razões. A troca de forma é o \textit{setup} que consome capacidade na escala da semana, enquanto a troca de cor só existe dentro do turno; e a previsão agregada por balão tem erro relativo menor que a soma das previsões por cor, porque os desvios entre cores se compensam. A cor e o destino de cada quilograma, estoque ou carteira, ficam para o nível operacional, que conhece a carteira por SKU. As duas razões são hipóteses do desenho, testáveis sobre os dados: a primeira pela comparação entre as matrizes de troca de forma e de cor, a segunda pelo MAPE da Equação~\eqref{eq:mape} calculado nos dois níveis.
 
-A demanda entra nas duas classes da Seção~\ref{sec:carteira_previsao}, sobre um estoque único. A carteira $d_{it}$ é a parcela confirmada; a previsão entra líquida da carteira, $f_{it} = \max(0, \hat{d}_{it} - d_{it})$, com $\hat{d}_{it}$ a previsão da Seção~\ref{sec:modelo_previsao}. Como a carteira consome a previsão em toda semana, sem fronteira, $f_{it}$ tende a zero nas semanas próximas e predomina nas distantes.
+A demanda entra nas duas classes da Seção~\ref{sec:carteira_previsao}. A carteira $d_{it}$ é a parcela confirmada; a previsão entra líquida da carteira, $f_{it} = \max(0, \hat{d}_{it} - d_{it})$, com $\hat{d}_{it}$ a previsão da Seção~\ref{sec:modelo_previsao}, de modo que a carteira consome a previsão em toda semana, sem fronteira.
 
 \begin{notacao}{Conjuntos}
 $T$ & Semanas do horizonte de planejamento.\\
@@ -777,17 +742,17 @@ $J_{i} \subseteq J$ & Máquinas compatíveis com o balão $i$.\\
 \begin{notacao}{Parâmetros}
 $d_{it}$ & Carteira do balão $i$ com vencimento na semana $t$ (kg).\\
 $f_{it}$ & Previsão do balão $i$ na semana $t$, líquida da carteira (kg).\\
-$\bar{d}_{i}$ & Previsão semanal média dos SKU do balão $i$ produzidos para estoque (kg).\\
+$\bar{d}_{i}$ & Previsão semanal média dos SKU MTS do balão $i$ (kg).\\
 $\underline{I}_{i}$ & Estoque mínimo do balão $i$ (kg).\\
 $\Omega$ & Capacidade do armazém (kg).\\
 $\kappa_{jt}$ & Horas produtivas de cada lado da máquina $j$ na semana $t$ (h).\\
 $\tau_{i}$ & Tempo de \textit{setup} do balão $i$ por preparação semanal, $\tau_{i} = \tau^{\mathrm{F}}_{i} + \tau^{\mathrm{C}}_{i}$ (h).\\
 $\tau^{\mathrm{F}}_{i}, \tau^{\mathrm{C}}_{i}$ & Parcelas de forma e de cor de $\tau_{i}$ (h).\\
-$I_{i0}, b_{i0}$ & Estoque e carteira em atraso do balão $i$ no início do horizonte (kg).\\
+$I_{i0}, b_{i0}$ & Estoque e carteira em atraso iniciais do balão $i$ (kg).\\
 \end{notacao}
 
 \begin{notacao}{Variáveis}
-$x_{ijt} \ge 0$ & Quantidade do balão $i$ produzida na máquina $j$ na semana $t$ (kg).\\
+$x_{ijt} \ge 0$ & Produção do balão $i$ na máquina $j$ na semana $t$ (kg).\\
 $y_{ijt} \in \{0,1\}$ & 1 se o balão $i$ é preparado na máquina $j$ na semana $t$.\\
 $I_{it} \ge 0$ & Estoque do balão $i$ ao fim da semana $t$ (kg).\\
 $b_{it} \ge 0$ & Carteira do balão $i$ em atraso ao fim da semana $t$ (kg).\\
@@ -835,7 +800,7 @@ q_{i}\, y_{ijt} \le x_{ijt} &\le M_{ijt}\, y_{ijt}
     && \forall\, i \in I,\; j \in J_i,\; t \in T \label{eq:lote_minimo}
 \end{align}
 
-A função objetivo \eqref{eq:obj_semanal} ordena as faltas pela consequência: o atraso da carteira, pedido firme descumprido que continua devido; a venda perdida, estimativa não atendida; a violação do estoque mínimo, risco de falta futura; e só então o custo de \textit{setup} e de carregamento, este sobre o estoque ao fim de cada semana. A ordem é imposta por estágios, e não por pesos, porque nenhuma economia de \textit{setup} justifica atrasar um pedido firme. Dentro de cada estágio as faltas são valoradas à margem $m_i$, o que decide qual balão absorve a falta quando a capacidade não cobre todos. Cada estágio $e$ é resolvido com os anteriores travados no valor alcançado $Z^{S*}_{e'}$. A solução de um estágio satisfaz essas travas, de modo que o estágio seguinte é sempre viável e não troca atendimento por custo:
+A função objetivo \eqref{eq:obj_semanal} ordena as faltas pela consequência (Seção~\ref{sec:carteira_previsao}): o atraso da carteira, a venda perdida, a violação do estoque mínimo, que é risco de falta futura, e só então o custo de \textit{setup} e de carregamento. A ordem é imposta por estágios, e não por pesos, porque nenhuma economia de \textit{setup} justifica atrasar um pedido firme. Dentro de cada estágio as faltas são valoradas à margem $m_i$, o que decide qual balão absorve a falta quando a capacidade não cobre todos. Cada estágio $e$ é resolvido com os anteriores travados no valor alcançado $Z^{S*}_{e'}$. A solução de um estágio satisfaz essas travas, de modo que o estágio seguinte é sempre viável e não troca atendimento por custo:
 \begin{ceqn}
 \begin{equation}
 Z^{S}_{e'} \le Z^{S*}_{e'} \quad \forall\, e' < e
@@ -843,13 +808,15 @@ Z^{S}_{e'} \le Z^{S*}_{e'} \quad \forall\, e' < e
 \end{equation}
 \end{ceqn}
 
-O balanço \eqref{eq:balanco} tem entradas à esquerda e saídas à direita, sobre um estoque único: o modelo decide quanto existe de cada balão, não a que pedido ou a que cor vai cada quilograma. O atraso anterior $b_{i,t-1}$ reaparece do lado da demanda e permanece devido; a venda perdida $l_{it}$ fecha a conta da semana, limitada à previsão líquida por \eqref{eq:folga_limite}, e não é transportada. Nenhuma falta é proibida, e o modelo permanece viável sob qualquer capacidade.
+O balanço \eqref{eq:balanco} tem entradas à esquerda e saídas à direita. O atraso anterior $b_{i,t-1}$ reaparece do lado da demanda e permanece devido; a venda perdida $l_{it}$ fecha a conta da semana, limitada à previsão líquida por \eqref{eq:folga_limite}, e não é transportada. Nenhuma falta é proibida, e o modelo permanece viável sob qualquer capacidade.
 
 O estoque mínimo \eqref{eq:piso_estoque} é meta suave: a violação $g_{it}$ é admitida e cobrada no terceiro estágio, de modo que a capacidade só é gasta em estoque de segurança depois de atendidas carteira e previsão. É o estoque de segurança como meta penalizada de \citeonline{absi2009}, restrito aos balões produzidos para estoque; nos demais, $\underline{I}_i = 0$ e a restrição é inativa. O mínimo não é a regra de cobertura da Seção~\ref{sec:planejamento_tatico}: cobre só o erro da semana de reposição, e o estoque acima dele continua decidido pelo custo, porque o modelo enxerga a demanda de todo o horizonte e antecipa produção quando a capacidade aperta.
 
 A capacidade do armazém \eqref{eq:capacidade_armazem} limita o estoque total, e sua composição é decisão do modelo: quando falta espaço, os estágios decidem o que guardar, atendimento antes de estoque mínimo e, dentro do estágio, a maior margem $m_i$. Como as metas que descem ao nível operacional são estoques do próprio plano semanal, elas já cabem no armazém.
 
-A capacidade \eqref{eq:capacidade_semanal} converte a produção em horas pela produtividade e soma as horas de \textit{setup} de cada par ativado, tudo contra as horas disponíveis. As horas são contadas por lado de cor: a máquina de duas cores tem $2\,\kappa_{jt}$ horas-lado e produz com $p_{ij}$ em cada lado. A troca de forma interrompe a cadeia inteira e consome os $n_j$ lados, enquanto cada corrida de cor ocupa só o lado do seu tanque; por isso a forma pesa $n_j\,\tau^{\mathrm{F}}_i$ e a cor $\tau^{\mathrm{C}}_i$. Com $n_j = 1$ a restrição é a da máquina de uma cor. O lote mínimo \eqref{eq:lote_minimo} liga produção e preparação: produzir exige preparar a máquina, e preparar exige produzir ao menos $q_i$. O limitante $M_{ijt}$ é tomado como o menor valor válido entre a capacidade da máquina na semana, $n_j\,p_{ij}\,\kappa_{jt}$, e a soma da carteira ainda devida, da previsão remanescente e do estoque mínimo do balão; um $M$ frouxo degradaria a relaxação linear e, com ela, o desempenho do \textit{branch-and-bound} \cite{jansdegraeve2008}.
+A capacidade \eqref{eq:capacidade_semanal} converte a produção em horas pela produtividade e soma as horas de \textit{setup} de cada par ativado, tudo contra as horas disponíveis. As horas são contadas por lado de cor: a máquina de duas cores tem $2\,\kappa_{jt}$ horas-lado e produz com $p_{ij}$ em cada lado. A troca de forma interrompe a cadeia inteira e consome os $n_j$ lados, enquanto cada corrida de cor ocupa só o lado do seu tanque; por isso a forma pesa $n_j\,\tau^{\mathrm{F}}_i$ e a cor $\tau^{\mathrm{C}}_i$. Com $n_j = 1$ a restrição é a da máquina de uma cor.
+
+O lote mínimo \eqref{eq:lote_minimo} tem a forma padrão da Seção~\ref{sec:problemas_lotsizing}: produzir exige preparar a máquina, e preparar exige produzir ao menos $q_i$. O limitante $M_{ijt}$ é o menor valor válido, o mínimo entre a capacidade da máquina na semana, $n_j\,p_{ij}\,\kappa_{jt}$, e a soma da carteira ainda devida, da previsão remanescente e do estoque mínimo do balão.
 
 \section{Modelo operacional por turno}
 \label{sec:modelo_turno}
@@ -874,18 +841,18 @@ $\tau^{\mathrm{F}}_{i'i}$ & Tempo de troca da forma do balão $i'$ para a do bal
 $\bar{\tau}^{\mathrm{F}}$ & Maior tempo de troca de forma (h).\\
 $\tau^{\mathrm{C}}_{kk'}$ & Tempo de troca da cor do SKU $k$ para a do SKU $k'$ (h).\\
 $\bar{\tau}^{\mathrm{C}}_{k}$ & Tempo reservado por corrida do SKU $k$ (h).\\
-$I_{k0}, b_{k0}$ & Estoque e carteira em atraso do SKU $k$ no início do horizonte operacional (kg).\\
-$y_{ij0}$ & 1 se a forma do balão $i$ está montada na máquina $j$ no início do horizonte operacional.\\
+$I_{k0}, b_{k0}$ & Estoque e carteira em atraso iniciais do SKU $k$ (kg).\\
+$y_{ij0}$ & 1 se a forma do balão $i$ está montada na máquina $j$ no turno 0.\\
 \end{notacao}
 
 \begin{notacao}{Variáveis}
-$x_{kj\ell s} \ge 0$ & Quantidade do SKU $k$ produzida no lado $\ell$ da máquina $j$ no turno $s$ (kg).\\
+$x_{kj\ell s} \ge 0$ & Produção do SKU $k$ no lado $\ell$ da máquina $j$ no turno $s$ (kg).\\
 $y_{ijs} \in \{0,1\}$ & 1 se a forma do balão $i$ está montada na máquina $j$ no turno $s$.\\
 $y^{\mathrm{C}}_{kj\ell s} \in \{0,1\}$ & 1 se o SKU $k$ tem corrida no lado $\ell$ da máquina $j$ no turno $s$.\\
-$z_{i'ijs} \in [0,1]$ & 1 se a forma passa do balão $i'$ para o balão $i$ na máquina $j$ na abertura do turno $s$.\\
+$z_{i'ijs} \in [0,1]$ & 1 se a forma da máquina $j$ passa do balão $i'$ ao $i$ no turno $s$.\\
 $I_{ks} \ge 0$ & Estoque do SKU $k$ ao fim do turno $s$ (kg).\\
 $b_{ks} \ge 0$ & Carteira do SKU $k$ em atraso ao fim do turno $s$ (kg).\\
-$w_{js} \ge 0$ & Horas de troca de forma pendentes na máquina $j$ ao fim do turno $s$, com $w_{j0} = 0$ (h).\\
+$w_{js} \ge 0$ & Troca de forma pendente na máquina $j$ ao fim do turno $s$ (h).\\
 $g_{it} \ge 0$ & Violação da meta de estoque do balão $i$ ao fim da semana $t$ (kg).\\
 \end{notacao}
 
@@ -939,15 +906,13 @@ y^{\mathrm{C}}_{kj\ell s} &\le y_{ijs}
 
 O objetivo perde a venda perdida. Os estágios de \eqref{eq:obj_turno} são os de \eqref{eq:obj_semanal}, com a mesma trava \eqref{eq:trava}, sem o segundo: a previsão não entra neste nível, porque chega embutida na meta $\hat{I}_{it}$, e a carteira por SKU é a única demanda. O \textit{setup} é cobrado pelos tempos de troca de forma da matriz e pela reserva de cor de cada corrida, em vez do tempo médio $\tau_i$, e o carregamento semanal $h_k$ é rateado pelos turnos de cada semana.
 
-O balanço perde a previsão. A equação \eqref{eq:balanco_turno} é \eqref{eq:balanco} por SKU e turno, sem $f$ e $l$; o atraso da carteira é transportado de um turno ao seguinte.
+O balanço perde a previsão. A equação \eqref{eq:balanco_turno} é \eqref{eq:balanco} por SKU e turno, sem $f$ e $l$; o atraso da carteira é transportado de um turno ao seguinte. O armazém \eqref{eq:capacidade_armazem_turno} é \eqref{eq:capacidade_armazem} por SKU e turno.
 
 O estoque mínimo vira meta de fim de semana. A restrição \eqref{eq:meta_semana} exige no último turno de cada semana detalhada o estoque que o plano semanal previu para aquela semana, incluída a antecipação sazonal que ele decidiu. O nível operacional não enxerga o horizonte que justifica esse estoque, e a meta é o que o leva a produzir para ele; com a meta já coberta, a produção das semanas seguintes cai. Para balão sem SKU produzido para estoque a meta é nula: o estoque desse balão só existe como carteira antecipada. A meta é por balão: o modelo escolhe em que cores formá-la, e é nesse ponto que o equilíbrio entre estoque e carteira de cada SKU, deixado em aberto pelo nível semanal, é decidido.
 
-O armazém é o mesmo. A restrição \eqref{eq:capacidade_armazem_turno} é \eqref{eq:capacidade_armazem} por SKU e turno.
+A capacidade separa os dois \textit{setups}. Em \eqref{eq:capacidade_turno} a troca de forma entra pelas horas executadas no turno e a troca de cor pela reserva $\bar{\tau}^{\mathrm{C}}_k$ de cada corrida ativa. Como em \eqref{eq:capacidade_semanal}, a restrição vale por lado de cor e a troca de forma entra em todos os lados, porque a forma montada $y_{ijs}$ é uma só para a máquina. Como a reserva é o pior tempo de entrada na cor a partir de qualquer cor do mesmo balão, inclusive a herdada do turno anterior, qualquer ordem das corridas do turno cabe nas horas do turno. A restrição é dura: uma ordem de produção não atravessa a fronteira do turno. A troca de forma, ao contrário, pode atravessá-la: $w_{js}$ guarda as horas que faltam, a partir de $w_{j0} = 0$, \eqref{eq:troca_pendente} impede que o turno execute horas negativas, e \eqref{eq:troca_concluida} proíbe corridas enquanto a troca não termina. É o \textit{crossover} de \textit{setup} de \citeonline{belofilho2014}, sem o qual uma troca mais longa que o turno disponível nunca seria executada.
 
-A capacidade separa os dois \textit{setups}. Em \eqref{eq:capacidade_turno} a troca de forma entra pelas horas executadas no turno e a troca de cor pela reserva $\bar{\tau}^{\mathrm{C}}_k$ de cada corrida ativa. A restrição vale por lado de cor: na máquina de duas cores cada lado tem o seu tanque e as suas corridas, e uma troca de cor num lado não consome horas do outro. A troca de forma interrompe a cadeia inteira e entra nos dois lados, e a forma montada $y_{ijs}$ é uma só para a máquina. Como a reserva é o pior tempo de entrada na cor a partir de qualquer cor do mesmo balão, inclusive a herdada do turno anterior, qualquer ordem das corridas do turno cabe nas horas do turno. A restrição é dura: uma ordem de produção não atravessa a fronteira do turno. A troca de forma, ao contrário, pode atravessá-la: $w_{js}$ guarda as horas que faltam, \eqref{eq:troca_pendente} impede que o turno execute horas negativas, e \eqref{eq:troca_concluida} proíbe corridas enquanto a troca não termina. É o \textit{crossover} de \textit{setup} de \citeonline{belofilho2014}, sem o qual uma troca mais longa que o turno disponível nunca seria executada.
-
-O nível semanal desconta o \textit{setup} pela mesma regra, com a troca média de forma e uma corrida de cada cor do balão, de modo que os dois níveis enxergam a mesma capacidade:
+O nível semanal desconta o \textit{setup} pela mesma regra, com a troca média de forma e uma corrida de cada cor do balão, de modo que os dois modelos enxergam a mesma capacidade:
 \begin{ceqn}
 \begin{equation}
 \tau^{\mathrm{F}}_{i} = \frac{1}{|I|} \sum_{i' \in I} \tau^{\mathrm{F}}_{i'i}, \qquad \tau^{\mathrm{C}}_{i} = \sum_{k \in K_i} \bar{\tau}^{\mathrm{C}}_{k} \quad \forall\, i \in I
@@ -972,15 +937,16 @@ O modelo operacional fixa a forma montada em cada máquina e turno e a quantidad
     \fonte{Elaborado pelo autor (2026).}
 \end{figure}
 
-O subproblema é resolvido por heurística, turno a turno, em ordem cronológica. As equações a seguir são as condições que a solução respeita. Os valores fixados pelo modelo operacional levam acento circunflexo, como $\hat{x}_{kj\ell s}$, $\hat{y}_{ijs}$ e $\hat{w}_{js}$, com $\hat{y}_{ij0} = y_{ij0}$; o estoque $I_{ks}$ segue \eqref{eq:balanco_turno} com a produção após a antecipação; os demais símbolos são os das Seções~\ref{sec:modelo_semanal} e~\ref{sec:modelo_turno}.
+O subproblema é resolvido por heurística. As equações a seguir são as condições que a solução respeita. Os valores fixados pelo modelo operacional levam acento circunflexo, como $\hat{x}_{kj\ell s}$, $\hat{y}_{ijs}$ e $\hat{w}_{js}$, com $\hat{y}_{ij0} = y_{ij0}$; o estoque $I_{ks}$ segue \eqref{eq:balanco_turno} com a produção após a antecipação; os demais símbolos são os das Seções~\ref{sec:modelo_semanal} e~\ref{sec:modelo_turno}.
 
 \begin{notacao}{Conjuntos}
-$R_{j\ell s}$ & Corridas do lado $\ell$ da máquina $j$ no turno $s$, $\{k \in K : x_{kj\ell s} > 0\}$, com $\bar{n}_{j\ell s} = |R_{j\ell s}|$.\\
+$R_{j\ell s}$ & SKU com $x_{kj\ell s} > 0$ no lado $\ell$ da máquina $j$ no turno $s$.\\
+$\bar{n}_{j\ell s}$ & Número de corridas de $R_{j\ell s}$.\\
 \noalign{\vskip 6pt}\multicolumn{2}{@{}l}{\textbf{Parâmetros}}\\[2pt]
-$k_{j\ell 01}$ & SKU da cor montada no lado $\ell$ da máquina $j$ no início do horizonte operacional, única corrida do turno 0.\\
+$k_{j\ell 01}$ & SKU montado no lado $\ell$ da máquina $j$ no turno 0.\\
 \noalign{\vskip 6pt}\multicolumn{2}{@{}l}{\textbf{Variáveis}}\\[2pt]
-$x_{kj\ell s} \ge 0$ & Quantidade do SKU $k$ produzida no lado $\ell$ da máquina $j$ no turno $s$ (kg).\\
-$k_{j\ell sn}$ & SKU do lado $\ell$ da máquina $j$ no turno $s$ na posição $n = 1, \dots, \bar{n}_{j\ell s}$; $k_{j\ell s0}$ é o SKU de entrada.\\
+$x_{kj\ell s} \ge 0$ & Produção do SKU $k$ no lado $\ell$ da máquina $j$ no turno $s$ (kg).\\
+$k_{j\ell sn}$ & SKU na posição $n$ do lado $\ell$ da máquina $j$ no turno $s$.\\
 \end{notacao}
 
 \noindent\textbf{Minimizar, em ordem lexicográfica, $(Z^{\mathrm{Q}}_{1}, Z^{\mathrm{Q}}_{2})$}
@@ -1024,7 +990,7 @@ x_{kj\ell s} &\ge q_{k}
 
 O objetivo \eqref{eq:obj_sequenciamento} põe o bom sequenciamento antes da ocupação. O primeiro estágio minimiza o custo das trocas de cor efetivamente pagas; o segundo minimiza as horas de produção ponderadas pela ordem do turno, que caem quando a produção vem para mais cedo. Com essa ordem, a antecipação estende uma corrida de cor que já está no turno ou move uma corrida inteira, e nunca acrescenta troca de cor. O carregamento de poucos turnos não entra no objetivo.
 
-A entrada \eqref{eq:seq_entrada} herda a cor da última corrida do turno $s'$, o último anterior a $s$ com produção no mesmo lado da máquina, ou do turno 0, inclusive através de turnos ociosos, e fica vazia depois de uma troca de forma, que já prepara a máquina para a primeira cor do novo balão: $\tau^{\mathrm{C}}_{\varnothing k} = 0$. A capacidade \eqref{eq:seq_capacidade} usa os tempos de troca efetivos da sequência. A folga entre essa capacidade e a reserva \eqref{eq:capacidade_turno} do modelo operacional é a ociosidade que a antecipação ocupa. Como cada SKU tem uma única corrida por turno, as corridas de um mesmo SKU são contíguas por construção.
+As posições do turno são $n = 1, \dots, \bar{n}_{j\ell s}$, e a posição 0 é a entrada. A entrada \eqref{eq:seq_entrada} herda a cor da última corrida do turno $s'$, o último anterior a $s$ com produção no mesmo lado da máquina, ou do turno 0, cuja única corrida é $k_{j\ell 01}$, inclusive através de turnos ociosos, e fica vazia depois de uma troca de forma, que já prepara a primeira cor (Seção~\ref{sec:premissas}): $\tau^{\mathrm{C}}_{\varnothing k} = 0$. A capacidade \eqref{eq:seq_capacidade} usa os tempos de troca efetivos da sequência. A folga entre essa capacidade e a reserva \eqref{eq:capacidade_turno} do modelo operacional é a ociosidade que a antecipação ocupa. Como cada SKU tem uma única corrida por turno, as corridas de um mesmo SKU são contíguas por construção.
 
 A antecipação move apenas quantidade planejada e apenas para mais cedo. A forma \eqref{eq:seq_forma}, em que $[\hat{w}_{js} = 0]$ vale 1 quando a troca está concluída e 0 caso contrário, restringe a produção aos turnos em que a forma do balão está montada e pronta, em qualquer máquina compatível, e o lote mínimo \eqref{eq:seq_lote} vale para cada corrida resultante. A restrição \eqref{eq:seq_antecipacao} impede que a produção acumulada fique abaixo do plano em qualquer turno e vale com igualdade no último turno de $S$, o que preserva o total planejado; assim o estoque de cada turno nunca fica abaixo do plano operacional, o atraso não cresce e as metas de fim de semana não caem. O armazém \eqref{eq:seq_armazem} é a única restrição de estoque que a antecipação pode violar.
 
