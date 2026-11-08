@@ -1,0 +1,48 @@
+\definecolor{skubranco}{HTML}{F4F3EE}%
+\definecolor{skuamarelo}{HTML}{F2C94C}%
+\definecolor{skuvermelho}{HTML}{C8473A}%
+\begin{tikzpicture}[x=0.95cm,y=1cm,line cap=butt,
+    faixa/.style={font=\footnotesize,anchor=east,align=right,inner sep=1pt},
+    legenda/.style={font=\footnotesize,anchor=west,inner sep=1pt}]
+  \def\desAltura{0.55}
+  \tikzset{
+    reserva/.style={fill=gray!12,postaction={pattern=north east lines,pattern color=contorno!70}},
+    troca/.style={fill=contorno!55},
+    antecipada/.style={fill=bitcoin},
+  }
+  \newcommand{\desCorrida}[4]{%
+    \fill[#4] (#1,#3) rectangle (#2,#3+\desAltura);
+    \draw[contorno!70,line width=0.25pt] (#1,#3) rectangle (#2,#3+\desAltura);
+  }
+  \newcommand{\desTroca}[4]{%
+    \path[#4] (#1,#3) rectangle (#2,#3+\desAltura);
+  }
+  \def\desY{1.1}
+  \desTroca{0}{1.4}{\desY}{reserva}
+  \desCorrida{1.4}{3.6}{\desY}{skubranco}
+  \desTroca{3.6}{5.0}{\desY}{reserva}
+  \desCorrida{5.0}{7.4}{\desY}{skuvermelho}
+  \desTroca{7.4}{8.8}{\desY}{reserva}
+  \desCorrida{8.8}{10.8}{\desY}{skuamarelo}
+  \node[font=\footnotesize,text=contorno] at (11.4,\desY+0.5*\desAltura) {ociosa};
+  \draw[contorno,line width=0.5pt] (0,\desY) rectangle (12,\desY+\desAltura);
+  \node[faixa] at (-0.15,\desY+0.5*\desAltura) {reserva do\\modelo operacional};
+  \def\desY{0}
+  \desTroca{0}{0.3}{\desY}{troca}
+  \desCorrida{0.3}{2.5}{\desY}{skubranco}
+  \desTroca{2.5}{3.0}{\desY}{troca}
+  \desCorrida{3.0}{5.0}{\desY}{skuamarelo}
+  \desTroca{5.0}{5.6}{\desY}{troca}
+  \desCorrida{5.6}{8.0}{\desY}{skuvermelho}
+  \desTroca{8.0}{12}{\desY}{antecipada}
+  \draw[contorno,line width=0.5pt] (0,\desY) rectangle (12,\desY+\desAltura);
+  \node[faixa] at (-0.15,\desY+0.5*\desAltura) {sequência\\do claro ao escuro};
+  \node[font=\footnotesize,text=contorno,anchor=south] at (6,1.75) {um turno de uma máquina};
+  \def\desYl{-0.55}
+  \path[reserva] (0,\desYl) rectangle (0.45,\desYl-0.3);
+  \node[legenda] at (0.5,\desYl-0.15) {reserva de troca de cor};
+  \path[troca] (4.4,\desYl) rectangle (4.85,\desYl-0.3);
+  \node[legenda] at (4.9,\desYl-0.15) {troca efetiva};
+  \path[antecipada] (7.6,\desYl) rectangle (8.05,\desYl-0.3);
+  \node[legenda] at (8.1,\desYl-0.15) {produção antecipada};
+\end{tikzpicture}%

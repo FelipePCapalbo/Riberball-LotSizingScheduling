@@ -274,9 +274,24 @@ O planejamento de produção organiza-se em níveis de decisão com horizontes e
 
 \citeonline{haxmeal1975} formalizam esse esquema para produção multi-planta sob demanda sazonal: um plano agregado de estoque por família de produtos é obtido por programação linear e desagregado, em seguida, em programações detalhadas por item através de regras clássicas de controle de estoque. \citeonline{bitranhax1977} generalizam a proposta: o problema é particionado em subproblemas por nível, cada um resolvido por um procedimento próprio, com mecanismos explícitos de agregação (de baixo para cima) e desagregação (de cima para baixo) conectando os níveis.
 
-Esse padrão é a base dos sistemas avançados de planejamento (\textit{Advanced Planning Systems}); \citeonline{stadtler2005} descreve a \textit{Supply Chain Planning Matrix}, que posiciona módulos de planejamento por horizonte (longo, médio e curto prazo) e por função (produção, distribuição e vendas), sendo a referência corrente para separar decisão tática de decisão operacional.
+Esse padrão é a base dos sistemas avançados de planejamento (\textit{Advanced Planning Systems}); \citeonline{stadtler2005} descreve a \textit{Supply Chain Planning Matrix}, que posiciona módulos de planejamento por horizonte (longo, médio e curto prazo) e por função (produção, distribuição e vendas), sendo a referência corrente para separar decisão tática de decisão operacional. A Figura~\ref{fig:matriz_stadtler} mostra a matriz, com destaque para os módulos de que este trabalho trata.
 
-O mecanismo que liga os níveis é de duas vias. \citeonline{bitranhaashax1981,bitranhaashax1982} formalizam a desagregação em horizonte rolante: o plano agregado é resolvido para todo o horizonte, a primeira fatia é desagregada em famílias e itens sob restrições de consistência que obrigam a soma dos itens a reproduzir a meta agregada, e o realizado retorna ao nível superior na execução seguinte. \citeonline{schneeweiss2003} nomeia a contrapartida teórica desse arranjo: o nível superior só decide bem se carregar uma \textit{anticipation function}, um modelo aproximado da reação do nível inferior às instruções que recebe; sem ela, o plano agregado propaga inviabilidade para baixo em vez de restringi-la.
+\begin{figure}[H]
+    \centering
+    \caption{Matriz de planejamento da cadeia de suprimentos e os módulos tratados neste trabalho}
+    \label{fig:matriz_stadtler}
+    \includegraphics[page=11]{figuras/figuras.pdf}
+    \fonte{Adaptado de \citeonline{stadtler2005}.}
+\end{figure}
+
+\begin{wrapfigure}[14]{r}{0.45\textwidth}
+    \centering
+    \caption{Coordenação hierárquica com antecipação}
+    \label{fig:coordenacao_schneeweiss}
+    \includegraphics[page=12]{figuras/figuras.pdf}
+    \fonte{Adaptado de \citeonline{schneeweiss2003}.}
+\end{wrapfigure}
+O mecanismo que liga os níveis é de duas vias. \citeonline{bitranhaashax1981,bitranhaashax1982} formalizam a desagregação em horizonte rolante: o plano agregado é resolvido para todo o horizonte, a primeira fatia é desagregada em famílias e itens sob restrições de consistência que obrigam a soma dos itens a reproduzir a meta agregada, e o realizado retorna ao nível superior na execução seguinte. \citeonline{schneeweiss2003} nomeia a contrapartida teórica desse arranjo: o nível superior só decide bem se carregar uma \textit{anticipation function}, um modelo aproximado da reação do nível inferior às instruções que recebe; sem ela, o plano agregado propaga inviabilidade para baixo em vez de restringi-la. A Figura~\ref{fig:coordenacao_schneeweiss} resume o esquema.
 
 \section{Problemas de dimensionamento de lotes}
 \label{sec:problemas_lotsizing}
@@ -302,7 +317,14 @@ A escolha dentro dessa família não é indiferente. O DLSP, formalizado por \ci
 
 Um mecanismo central da literatura de dimensionamento e sequenciamento é o \textit{setup carryover}: a configuração da máquina persiste entre períodos consecutivos sem pagar novo \textit{setup}, desde que o mesmo item seja produzido em ambos. \citeonline{soxgao1999} introduzem o conceito para o CLSP; \citeonline{suriestadtler2003} formalizam a versão com lotes ligados (\textit{linked lot sizes}), permitindo que um lote atravesse a fronteira de dois períodos sem interrupção.
 
-O \textit{carryover} supõe que cada troca caiba num período. \citeonline{menezes2011} tratam o caso em que a troca é longa demais para isso, exigindo que o \textit{setup} atravesse a fronteira (\textit{crossover}), e \citeonline{belofilho2014} combinam \textit{carryover} e \textit{crossover} num CLSP com atraso de demanda.
+\begin{wrapfigure}[14]{r}{0.45\textwidth}
+    \centering
+    \caption{\textit{Carryover} e \textit{crossover} do \textit{setup}}
+    \label{fig:carryover_crossover}
+    \includegraphics[page=14]{figuras/figuras.pdf}
+    \fonte{Elaborado pelo autor (2026), com base em \citeonline{suriestadtler2003} e \citeonline{belofilho2014}.}
+\end{wrapfigure}
+O \textit{carryover} supõe que cada troca caiba num período. \citeonline{menezes2011} tratam o caso em que a troca é longa demais para isso, exigindo que o \textit{setup} atravesse a fronteira (\textit{crossover}), e \citeonline{belofilho2014} combinam \textit{carryover} e \textit{crossover} num CLSP com atraso de demanda. A Figura~\ref{fig:carryover_crossover} contrasta os dois mecanismos.
 
 \subsection{\textit{Setups} em duas escalas}
 
@@ -313,7 +335,15 @@ Quando o processo tem dois \textit{setups} de escalas diferentes, resta decidir 
 \subsection{Síntese das classes de problemas}
 \label{sec:classes_lotsizing}
 
-As formulações das subseções anteriores se distinguem por três atributos: o tamanho do \textit{bucket}, o número de itens admitidos por período e o tratamento da sequência de produção. O Quadro~\ref{tab:classes_lotsizing} as reúne nesses termos.
+As formulações das subseções anteriores se distinguem por três atributos: o tamanho do \textit{bucket}, o número de itens admitidos por período e o tratamento da sequência de produção. O Quadro~\ref{tab:classes_lotsizing} as reúne nesses termos, e a Figura~\ref{fig:classes_lotsizing} mostra a produção dos mesmos três itens em dois macroperíodos sob cada classe.
+
+\begin{figure}[H]
+    \centering
+    \caption{Estrutura de período das classes de dimensionamento de lotes}
+    \label{fig:classes_lotsizing}
+    \includegraphics[page=13]{figuras/figuras.pdf}
+    \fonte{Elaborado pelo autor (2026), com base em \citeonline{drexlkimms1997}.}
+\end{figure}
 
 \begin{quadro}[htbp]
 \small
@@ -373,7 +403,15 @@ A forma operacional é a mesma em toda essa literatura: \citeonline{silver1998} 
 
 \section{Aplicações em indústria de processo}
 
-Uma via alternativa para o dimensionamento e sequenciamento integrados evita inflar um único MILP (\textit{Mixed-Integer Linear Programming}, programação linear inteira mista): decompõe o problema em dois módulos, um de quantidade e outro de sequência, ou resolve a sequência por regra e não por otimização exata. Essa abordagem é comum em indústrias de processo com estrutura de dois estágios, onde um insumo intermediário é preparado numa etapa e diferenciado por sabor, cor ou aroma numa etapa seguinte.
+Uma via alternativa para o dimensionamento e sequenciamento integrados evita inflar um único MILP (\textit{Mixed-Integer Linear Programming}, programação linear inteira mista): decompõe o problema em dois módulos, um de quantidade e outro de sequência, ou resolve a sequência por regra e não por otimização exata. Essa abordagem é comum em indústrias de processo com estrutura de dois estágios, onde um insumo intermediário é preparado numa etapa e diferenciado por sabor, cor ou aroma numa etapa seguinte. A Figura~\ref{fig:dois_estagios} mostra essa estrutura nas duas aplicações tratadas a seguir e nos balões.
+
+\begin{figure}[H]
+    \centering
+    \caption{Estrutura de dois estágios em bebidas, fiação e balões de látex}
+    \label{fig:dois_estagios}
+    \includegraphics[page=15]{figuras/figuras.pdf}
+    \fonte{Elaborado pelo autor (2026), com base em \citeonline{ferreira2009} e \citeonline{camargo2014}.}
+\end{figure}
 
 A indústria de bebidas é a aplicação mais estudada e mais próxima estruturalmente do problema dos balões: xarope preparado num tanque, envasado em seguida em diferentes sabores e tamanhos. \citeonline{ferreira2009,ferreira2010} modelam esse problema de dois estágios, o preparo do xarope e o envase, com \textit{setups} dependentes de sequência e de tempo, comparando estratégias de \textit{relax-and-fix}; \citeonline{toledo2012} resolvem a mesma classe de problema com algoritmos meméticos. A analogia com os balões é direta: composto pigmentado é o xarope, moldagem é o envase.
 
@@ -386,9 +424,9 @@ Dois estudos de caso publicados em embalagens são os análogos mais próximos d
 
 A correspondência família$\to$item de Hax e Meal mapeia diretamente o problema dos balões: formato e acabamento definem a família decidida no nível tático; a cor é o item desagregado no nível operacional. Essa fronteira não é uma escolha arbitrária de modelagem, e sim o reflexo da separação entre os dois \textit{setups} descritos na Seção~\ref{sec:problema}: a troca de forma, custosa e decidida com semanas de antecedência, e a troca de cor, uma limpeza decidida dentro do turno.
 
-Nos termos do Quadro~\ref{tab:classes_lotsizing}, o nível semanal é um CLSP, porque a sequência dentro da semana não é decidida nele. Ele opera em máquinas paralelas não relacionadas, com produtividade distinta por par máquina-balão e compatibilidades próprias, e a ele se somam lote mínimo, custo de estoque explícito e duas classes de demanda com faltas de natureza distinta. É essa combinação que distingue o problema do CLSP canônico.
+Nos termos do Quadro~\ref{tab:classes_lotsizing} e da Figura~\ref{fig:classes_lotsizing}, o nível semanal é um CLSP, porque a sequência dentro da semana não é decidida nele. Ele opera em máquinas paralelas não relacionadas, com produtividade distinta por par máquina-balão e compatibilidades próprias, e a ele se somam lote mínimo, custo de estoque explícito e duas classes de demanda com faltas de natureza distinta. É essa combinação que distingue o problema do CLSP canônico.
 
-O nível por turno é um CLSP no \textit{bucket} de turno, com \textit{carryover} do estado da máquina, a forma e a cor montadas, que atravessa turnos e mesmo turnos ociosos, e com \textit{crossover} da troca de forma, que pode exceder as horas disponíveis no turno. A ordem das cores, que no \textit{block planning} segue uma sequência fixa do claro para o escuro, é decidida à parte, por heurística sobre a matriz de tempos de troca, porque a troca de cor é dependente de sequência e direcional (Seção~\ref{sec:problema}); é a decomposição entre quantidade e sequência comum às aplicações em indústria de processo.
+O nível por turno é um CLSP no \textit{bucket} de turno, com \textit{carryover} do estado da máquina, a forma e a cor montadas, que atravessa turnos e mesmo turnos ociosos, e com \textit{crossover} da troca de forma, que pode exceder as horas disponíveis no turno (Figura~\ref{fig:carryover_crossover}). A ordem das cores, que no \textit{block planning} segue uma sequência fixa do claro para o escuro, é decidida à parte, por heurística sobre a matriz de tempos de troca, porque a troca de cor é dependente de sequência e direcional (Seção~\ref{sec:problema}); é a decomposição entre quantidade e sequência comum às aplicações em indústria de processo.
 
 O que não se encontra pronto na literatura de produção contra pedido e para estoque é a combinação das duas classes de demanda no mesmo modelo, sobre um estoque único, com a falta discriminada por classe e disputando a mesma capacidade. Essa é a forma adotada no nível semanal, na Seção~\ref{sec:modelo_semanal}.
 
@@ -666,7 +704,7 @@ A Figura~\ref{fig:previsao_referencia_arvore} mostra a cascata nos três níveis
 \section{Arquitetura em dois níveis}
 \label{sec:arquitetura}
 
-O problema é resolvido em dois níveis encadeados. O nível semanal decide, para todo o horizonte de planejamento, quanto produzir de cada balão em cada máquina e em cada semana, arbitrando entre carteira e previsão. O nível operacional recebe desse plano uma única informação, a meta de estoque ao fim de cada semana detalhada, e decide, para essas semanas congeladas, o que cada máquina produz em cada turno; a ordem das corridas dentro de cada turno é decidida em seguida, por uma heurística de sequenciamento. Os dois níveis compartilham a estrutura de objetivo e de restrições e os parâmetros de custo; diferem no \textit{bucket} de tempo e no nível de agregação do produto.
+O problema é resolvido em dois níveis encadeados. O nível semanal decide, para todo o horizonte de planejamento, quanto produzir de cada balão em cada máquina e em cada semana, arbitrando entre carteira e previsão. O nível operacional recebe desse plano uma única informação, a meta de estoque ao fim de cada semana detalhada, e decide, para essas semanas congeladas, o que cada máquina produz em cada turno; a ordem das corridas dentro de cada turno é decidida em seguida, por uma heurística de sequenciamento. Os dois níveis compartilham a estrutura de objetivo e de restrições e os parâmetros de custo; diferem no \textit{bucket} de tempo e no nível de agregação do produto. Na matriz da Figura~\ref{fig:matriz_stadtler}, o nível semanal ocupa o planejamento mestre, o nível por turno o planejamento da produção, e o sequenciamento a programação.
 
 As decisões se distribuem por três escalas de tempo encaixadas, e a escolha de cada uma responde a um fenômeno físico do processo, não a conveniência de modelagem.
 
@@ -676,17 +714,17 @@ O turno é a escala do plano operacional. É a menor unidade em que a fábrica o
 
 A posição dentro do turno é a escala da sequência. Cada turno comporta um número pequeno de corridas de cor, porque o lote mínimo e o tempo de limpeza limitam quantas cabem, e a ordem entre elas é o que determina qual \textit{setup} de cor é pago. Não há escala abaixo dessa: o sequenciamento não decide instantes, decide a ordem.
 
-A Figura~\ref{fig:gantt_niveis} mostra as três escalas sobre as mesmas duas máquinas ao longo de uma semana. O nível semanal reserva a capacidade de cada balão sem ordená-la; o nível operacional distribui essa produção pelos turnos, com a forma montada e a reserva conservadora de cada troca de cor; o sequenciamento ordena as cores, paga só a troca efetiva e usa a capacidade liberada para antecipar produção já planejada, o que encerra a produção mais cedo.
+A Figura~\ref{fig:arquitetura_niveis} resume a arquitetura. O nível semanal cobre todo o horizonte, por balão, e decide o lote de cada balão em cada máquina e semana, as formas a preparar e o estoque e as faltas de carteira e de previsão. O nível operacional abre as semanas detalhadas em turnos, por SKU, e decide a forma montada em cada máquina e turno, com a troca que pode atravessar turnos, e o lote de cada SKU em cada lado, com uma reserva de troca de cor por corrida; só a carteira entra nele como demanda. O sequenciamento recebe a forma montada, os lotes e as trocas de forma pendentes, e decide em cada turno e lado a ordem das corridas, a troca de cor efetiva e a antecipação de produção já planejada.
 
 \begin{figure}[H]
     \centering
-    \caption{Alocação da produção em cada nível de decisão}
-    \label{fig:gantt_niveis}
+    \caption{Arquitetura de decisão em três níveis}
+    \label{fig:arquitetura_niveis}
     \includegraphics[page=5]{figuras/figuras.pdf}
     \fonte{Elaborado pelo autor (2026).}
 \end{figure}
 
-O que desce da semana para o turno é uma única grandeza: a meta de estoque de cada balão ao fim de cada semana detalhada, cobrada como restrição suave em \eqref{eq:meta_semana}. O que sobe de volta, na revisão seguinte, é o estado real: estoque, carteira consumida e a configuração em que cada máquina ficou.
+O que desce da semana para o turno é uma única grandeza: a meta de estoque de cada balão ao fim de cada semana detalhada, cobrada como restrição suave em \eqref{eq:meta_semana}. O que sobe de volta, na revisão seguinte, é o estado real: estoque, carteira consumida e a configuração em que cada máquina ficou. Nos termos da Figura~\ref{fig:coordenacao_schneeweiss}, a meta de estoque é a instrução, o estado real é a reação, e a estrutura de restrições que o nível semanal compartilha com o operacional é a sua antecipação.
 
 A escolha é deliberada e se opõe à alternativa de fixar as janelas de produção. Passar do nível semanal a alocação máquina-balão já resolvida garantiria consistência automática entre os planos, mas ao custo de tornar o nível operacional incapaz de reagir: qualquer prazo da carteira que não coubesse na janela herdada viraria atraso, sem possibilidade de realocar. Com a meta de estoque como único vínculo, o nível operacional decide livremente máquina, turno e sequência, e a consistência com o plano semanal é cobrada pelo estado terminal em vez de pelo caminho. É o esquema de metas com folga penalizada que \citeonline{bitranhaashax1981} formalizam para a desagregação em horizonte rolante, e a violação $g_{it}$ é o que impede que uma meta inatingível propague inviabilidade para o nível de baixo, no sentido apontado por \citeonline{schneeweiss2003}.
 
@@ -924,7 +962,15 @@ A forma é estado. As restrições \eqref{eq:forma_saida} e \eqref{eq:forma_entr
 \section{Sequenciamento por turno}
 \label{sec:sequenciamento}
 
-O modelo operacional fixa a forma montada em cada máquina e turno e a quantidade de cada SKU em cada lado, mas não a ordem das corridas, que é decidida para cada lado de cor. Como reserva para cada corrida o pior tempo de entrada na cor, a sequência real paga menos que a reserva e deixa horas ociosas no turno. O sequenciamento ordena as corridas de cada turno e ocupa essas horas com produção já planejada para turnos futuros, como no painel (c) da Figura~\ref{fig:gantt_niveis}.
+O modelo operacional fixa a forma montada em cada máquina e turno e a quantidade de cada SKU em cada lado, mas não a ordem das corridas, que é decidida para cada lado de cor. Como reserva para cada corrida o pior tempo de entrada na cor, a sequência real paga menos que a reserva e deixa horas ociosas no turno. O sequenciamento ordena as corridas de cada turno e ocupa essas horas com produção já planejada para turnos futuros, como na Figura~\ref{fig:ganho_sequenciamento}.
+
+\begin{figure}[H]
+    \centering
+    \caption{Reserva de troca do modelo operacional e sequência das corridas num turno}
+    \label{fig:ganho_sequenciamento}
+    \includegraphics[page=16]{figuras/figuras.pdf}
+    \fonte{Elaborado pelo autor (2026).}
+\end{figure}
 
 O subproblema é resolvido por heurística, turno a turno, em ordem cronológica. As equações a seguir são as condições que a solução respeita. Os valores fixados pelo modelo operacional levam acento circunflexo, como $\hat{x}_{kj\ell s}$, $\hat{y}_{ijs}$ e $\hat{w}_{js}$, com $\hat{y}_{ij0} = y_{ij0}$; o estoque $I_{ks}$ segue \eqref{eq:balanco_turno} com a produção após a antecipação; os demais símbolos são os das Seções~\ref{sec:modelo_semanal} e~\ref{sec:modelo_turno}.
 

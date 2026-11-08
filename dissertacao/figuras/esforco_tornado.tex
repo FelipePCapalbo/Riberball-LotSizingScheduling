@@ -1,24 +1,18 @@
-\pgfplotstableread{dados/esforco/tornado.csv}\tabelaesforcotornado%
 \begin{tikzpicture}%
 \begin{groupplot}[
-  group style={group size=2 by 1, horizontal sep=0.4cm, yticklabels at=edge left},
+  group style={group size=2 by 1, horizontal sep=0.6cm},
   width=0.5\textwidth, height=7.2cm,
-  ymin=-0.7, ymax=10.7,
-  ytick={0,1,2,3,4,5,6,7,8,9,10},
-  yticklabels from table={\tabelaesforcotornado}{rotulo},
-  y tick label style={font=\scriptsize},
+  xmode=log, xmin=0.1, xmax=1000,
+  xtick={0.1,1,10,100,1000}, xticklabels={{0,1},1,10,100,1000},
+  ymin=0, ymax=1, ytick=\empty,
   xmajorgrids, ymajorgrids=false,
-  xlabel={$\log_{10}$ do trabalho relativo à base},
+  tick label style={font=\scriptsize},
+  label style={font=\scriptsize},
+  xlabel={tempo de solução (s)},
 ]
 \nextgroupplot[title={Plano semanal}]
-\draw[correal, line width=0.6pt] (axis cs:0,-0.7) -- (axis cs:0,10.7);
-\addplot[corfrioa, only marks, mark=none, error bars/.cd, x dir=both, x explicit,
-  error bar style={line width=5pt, corfrioa}, error mark=none]
-  table[x=semanal_centro, y=posicao, x error=semanal_meia]{\tabelaesforcotornado};
+\node[font=\scriptsize, text=contorno, align=center] at (rel axis cs:0.5,0.5) {aguardando a\\bateria completa};
 \nextgroupplot[title={Programação por turno}]
-\draw[correal, line width=0.6pt] (axis cs:0,-0.7) -- (axis cs:0,10.7);
-\addplot[corproposto, only marks, mark=none, error bars/.cd, x dir=both, x explicit,
-  error bar style={line width=5pt, corproposto}, error mark=none]
-  table[x=diario_centro, y=posicao, x error=diario_meia]{\tabelaesforcotornado};
+\node[font=\scriptsize, text=contorno, align=center] at (rel axis cs:0.5,0.5) {aguardando a\\bateria completa};
 \end{groupplot}%
 \end{tikzpicture}%

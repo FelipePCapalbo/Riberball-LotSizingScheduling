@@ -1,34 +1,33 @@
-\pgfplotstableread{dados/esforco/ruido_base.csv}\tabelaesforcoruido%
-\pgfplotstablegetelem{1}{work_min}\of\tabelaesforcoruido\let\ruidodiariomin\pgfplotsretval%
-\pgfplotstablegetelem{1}{work_max}\of\tabelaesforcoruido\let\ruidodiariomax\pgfplotsretval%
 \newcommand{\painelesforco}[3]{%
   \nextgroupplot[title={#2}, xlabel={#3}]
-  \pgfonlayer{axis background}
-  \fill[coravaliacao] ({rel axis cs:0,0}|-{axis cs:0,\ruidodiariomin}) rectangle ({rel axis cs:1,0}|-{axis cs:0,\ruidodiariomax});
-  \endpgfonlayer
-  \addplot[serie fria a] table[x=nivel, y=semanal_work]{dados/esforco/ofat_#1.csv};
-  \addplot[serie proposta] table[x=nivel, y=diario_work]{dados/esforco/ofat_#1.csv};
-  \addplot[only marks, mark=x, mark size=3pt, correal, line width=0.8pt] table[x=nivel, y=diario_limite]{dados/esforco/ofat_#1.csv};
-  \addplot[only marks, mark=*, mark size=2pt, correal] table[x=nivel, y=diario_work, restrict expr to domain={\thisrow{base}}{1:1}]{dados/esforco/ofat_#1.csv};
+  \draw[corfrioa, line width=0.5pt, dash pattern=on 2pt off 1.5pt] ({rel axis cs:0,0}|-{axis cs:0,300}) -- ({rel axis cs:1,0}|-{axis cs:0,300});
+  \draw[corproposto, line width=0.5pt, dash pattern=on 2pt off 1.5pt] ({rel axis cs:0,0}|-{axis cs:0,600}) -- ({rel axis cs:1,0}|-{axis cs:0,600});
+  \addplot[serie fria a] table[x=nivel, y=semanal_segundos]{dados/esforco/ofat_#1.csv};
+  \addplot[serie proposta] table[x=nivel, y=diario_segundos]{dados/esforco/ofat_#1.csv};
+  \addplot[only marks, mark=*, mark size=2pt, correal] table[x=nivel, y=diario_segundos, restrict expr to domain={\thisrow{base}}{1:1}]{dados/esforco/ofat_#1.csv};
 }%
 \begin{tikzpicture}%
 \begin{groupplot}[
-  group style={group size=3 by 4, horizontal sep=1.1cm, vertical sep=1.6cm},
+  group style={group size=3 by 4, horizontal sep=1.3cm, vertical sep=1.6cm, ylabels at=edge left},
   width=0.36\textwidth, height=3.6cm,
-  ymode=log,
+  ymode=log, ymin=0.1, ymax=2000,
+  ytick={0.1,1,10,100,1000}, yticklabels={{0,1},1,10,100,1000},
+  ylabel={tempo de solução (s)},
   tick label style={font=\scriptsize},
-  xlabel style={font=\scriptsize, yshift=0.8ex},
+  label style={font=\scriptsize},
+  xlabel style={yshift=0.8ex},
+  unbounded coords=discard,
 ]
 \painelesforco{maquinas}{Máquinas ativas}{máquinas}
 \painelesforco{baloes}{Balões}{balões}
-\painelesforco{cores}{Cores por balão}{cores}
-\painelesforco{flexibilidade}{Flexibilidade}{fração dos pares}
-\painelesforco{demanda}{Demanda}{multiplicador}
-\painelesforco{estoque}{Estoque inicial}{multiplicador}
-\painelesforco{capacidade}{Capacidade}{multiplicador}
-\painelesforco{setup}{Tempos de setup}{multiplicador}
-\painelesforco{duas_cores}{Duas cores}{fração das máquinas}
-\painelesforco{horizonte}{Horizonte semanal}{semanas}
-\painelesforco{congeladas}{Semanas congeladas}{semanas}
+\painelesforco{cores}{Cores por balão}{cores por balão}
+\painelesforco{flexibilidade}{Flexibilidade}{pares máquina-balão compatíveis (fração)}
+\painelesforco{demanda}{Demanda}{demanda ($\times$ a real)}
+\painelesforco{estoque}{Estoque inicial}{estoque inicial ($\times$ o real)}
+\painelesforco{capacidade}{Capacidade}{capacidade ($\times$ a real)}
+\painelesforco{setup}{Tempos de setup}{tempo de setup ($\times$ o real)}
+\painelesforco{duas_cores}{Duas cores}{máquinas de duas cores (fração)}
+\painelesforco{horizonte}{Horizonte semanal}{horizonte (semanas)}
+\painelesforco{congeladas}{Semanas detalhadas}{semanas detalhadas}
 \end{groupplot}%
 \end{tikzpicture}%

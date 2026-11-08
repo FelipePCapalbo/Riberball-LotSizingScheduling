@@ -1,20 +1,19 @@
-\pgfplotsset{colormap={esforco}{color(0)=(white) color(1)=(bitcoin)}}%
-\newcommand{\gradeesforco}[6]{%
-  \nextgroupplot[title={#2}, xlabel={#3}, ylabel={#4}, xticklabels={#5}, yticklabels={#6}]
-  \addplot[matrix plot*, mesh/cols=4, point meta=explicit] table[x=i, y=j, meta=diario_log_work]{dados/esforco/#1.csv};
+\newcommand{\gradeesforco}[5]{%
+  \nextgroupplot[title={#1}, xlabel={#2}, ylabel={#3}, xticklabels={#4}, yticklabels={#5}]
+  \node[font=\scriptsize, text=contorno, align=center] at (rel axis cs:0.5,0.5) {aguardando a\\bateria completa};
 }%
 \begin{tikzpicture}%
 \begin{groupplot}[
   group style={group size=3 by 1, horizontal sep=1.6cm},
   width=0.36\textwidth, height=0.36\textwidth,
-  colormap name=esforco,
+  xmin=-0.5, xmax=3.5, ymin=-0.5, ymax=3.5,
   xtick={0,1,2,3}, ytick={0,1,2,3},
   ymajorgrids=false, enlargelimits=false,
   tick label style={font=\scriptsize},
-  point meta min=0,
+  label style={font=\scriptsize},
 ]
-\gradeesforco{grade_1_maquinas_demanda}{Máquinas $\times$ demanda}{máquinas}{demanda}{4,10,20,28}{{0,5},{1},{1,5},{2}}
-\gradeesforco{grade_2_cores_setup}{Cores $\times$ setup}{cores por balão}{setup}{1,3,5,7}{{0,5},{1},{2},{3}}
-\gradeesforco{grade_3_estoque_demanda}{Estoque $\times$ demanda}{estoque}{demanda}{{0},{0,5},{1},{2}}{{0,5},{1},{1,5},{2}}
+\gradeesforco{Máquinas $\times$ demanda}{máquinas}{demanda ($\times$ a real)}{4,10,20,28}{{0,5},{1},{1,5},{2}}
+\gradeesforco{Cores $\times$ setup}{cores por balão}{tempo de setup ($\times$ o real)}{1,3,5,7}{{0,5},{1},{2},{3}}
+\gradeesforco{Estoque $\times$ demanda}{estoque inicial ($\times$ o real)}{demanda ($\times$ a real)}{{0},{0,5},{1},{2}}{{0,5},{1},{1,5},{2}}
 \end{groupplot}%
 \end{tikzpicture}%

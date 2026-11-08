@@ -1,0 +1,13 @@
+\begin{tikzpicture}[line cap=round,
+    nivel/.style={rectangle,draw=contorno,line width=0.5pt,fill=white,minimum width=4.2cm,font=\footnotesize,align=center},
+    ligacao/.style={-{Stealth[length=2mm]},draw=contorno,line width=0.6pt},
+    rotuloseta/.style={font=\footnotesize,text=contorno,inner sep=2pt}]
+  \node[nivel,minimum height=2.0cm] (superior) at (0,2.7) {};
+  \node[font=\footnotesize,anchor=north] at ([yshift=-3pt]superior.north) {nível superior};
+  \node[rectangle,draw=bitcoin,line width=0.8pt,dash pattern=on 3pt off 2pt,fill=bitcoin!12,minimum width=3.2cm,minimum height=0.85cm,font=\footnotesize,align=center] (antecipado) at (0,2.35) {modelo antecipado\\do nível de base};
+  \node[nivel,minimum height=1.0cm] (base) at (0,0) {nível de base};
+  \draw[ligacao] ([xshift=-1.5cm]superior.south) -- node[rotuloseta,anchor=east] {instrução} ([xshift=-1.5cm]base.north);
+  \draw[ligacao] ([xshift=1.5cm]base.north) -- node[rotuloseta,anchor=west] {reação} ([xshift=1.5cm]superior.south);
+  \draw[-{Stealth[length=2mm]},draw=bitcoin,line width=0.8pt,dash pattern=on 3pt off 2pt] (base.north) -- node[rotuloseta,anchor=west,text=bitcoin!85!black,align=left,pos=0.45] {} (antecipado.south);
+  \node[rotuloseta,text=bitcoin!85!black,fill=white,inner sep=1pt] at (0,1.15) {antecipação};
+\end{tikzpicture}%

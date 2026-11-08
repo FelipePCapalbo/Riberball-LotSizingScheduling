@@ -1,0 +1,31 @@
+\begin{tikzpicture}[line cap=round,
+    modulo/.style={rectangle,rounded corners=1.5pt,draw=contorno,line width=0.5pt,fill=white,align=center,font=\footnotesize,inner sep=2pt,anchor=south west},
+    modulotrabalho/.style={modulo,draw=bitcoin,line width=1.1pt,fill=bitcoin!12},
+    cabecalho/.style={font=\footnotesize,text=contorno,inner sep=1pt}]
+  \newcommand{\desEscopo}[1]{\\[-1pt]{\scriptsize\color{bitcoin!85!black}#1}}
+  \def\desColuna{3.3}
+  \def\desVao{0.16}
+  \pgfmathsetmacro\desPasso{\desColuna+\desVao}
+  \pgfmathsetmacro\desLarguraTotal{4*\desColuna+3*\desVao}
+  \pgfmathsetmacro\desLarguraMestre{3*\desColuna+2*\desVao}
+  \foreach \desI/\desTexto in {0/suprimento,1/produção,2/distribuição,3/vendas} {
+    \node[cabecalho,anchor=south] at (\desI*\desPasso+0.5*\desColuna,5.2) {\desTexto};
+  }
+  \foreach \desY/\desTexto in {4.7/{longo\\prazo},3.45/{médio\\prazo},1.3/{curto\\prazo}} {
+    \node[cabecalho,anchor=east,align=right] at (-0.2,\desY) {\desTexto};
+  }
+  \foreach \desY in {4.2,2.7} {
+    \draw[contorno!35,line width=0.3pt,dash pattern=on 1.5pt off 1.5pt] (-1.5,\desY) -- (\desLarguraTotal,\desY);
+  }
+  \node[modulo,minimum width=\desLarguraTotal cm,minimum height=0.8cm] at (0,4.3) {Planejamento estratégico da rede};
+  \node[modulotrabalho,minimum width=\desLarguraMestre cm,minimum height=1.3cm] at (0,2.8) {Planejamento mestre\desEscopo{nível semanal}};
+  \node[modulotrabalho,minimum width=\desColuna cm,minimum height=2.75cm] at (3*\desPasso,1.35) {Planejamento\\da demanda\desEscopo{previsão hierárquica}};
+  \node[modulo,minimum width=\desColuna cm,minimum height=2.6cm] at (0,0) {Compras e\\planejamento\\de materiais};
+  \node[modulotrabalho,minimum width=\desColuna cm,minimum height=1.25cm] at (\desPasso,1.35) {Planejamento\\da produção\desEscopo{nível por turno}};
+  \node[modulotrabalho,minimum width=\desColuna cm,minimum height=1.25cm] at (\desPasso,0) {Programação\desEscopo{sequenciamento}};
+  \node[modulo,minimum width=\desColuna cm,minimum height=1.25cm] at (2*\desPasso,1.35) {Planejamento\\da distribuição};
+  \node[modulo,minimum width=\desColuna cm,minimum height=1.25cm] at (2*\desPasso,0) {Planejamento\\do transporte};
+  \node[modulo,minimum width=\desColuna cm,minimum height=1.25cm] at (3*\desPasso,0) {Atendimento\\da demanda};
+  \draw[-{Stealth[length=2mm]},draw=contorno,line width=0.6pt] (0,-0.35) -- (\desLarguraTotal,-0.35);
+  \node[cabecalho,anchor=north] at (0.5*\desLarguraTotal,-0.42) {fluxo de materiais};
+\end{tikzpicture}%

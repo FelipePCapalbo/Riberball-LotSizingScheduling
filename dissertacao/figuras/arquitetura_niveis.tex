@@ -1,0 +1,73 @@
+\definecolor{skubranco}{HTML}{F4F3EE}%
+\definecolor{skuamarelo}{HTML}{F2C94C}%
+\definecolor{skuvermelho}{HTML}{C8473A}%
+\begin{tikzpicture}[line cap=butt,
+    nivel/.style={rectangle,draw=contorno,line width=0.5pt,fill=white,minimum width=2.9cm,text width=2.75cm,minimum height=1.6cm,align=left,inner sep=3pt,anchor=west,font=\scriptsize,text=contorno},
+    cabecalho/.style={font=\footnotesize,text=contorno,anchor=south west,inner sep=0pt},
+    escala/.style={font=\scriptsize,text=contorno,anchor=south west,inner sep=0pt},
+    decide/.style={font=\footnotesize,align=left,anchor=west,text width=5.3cm,inner sep=0pt},
+    desce/.style={-{Stealth[length=2.2mm]},draw=bitcoin,line width=1pt},
+    passa/.style={font=\scriptsize,align=left,anchor=west,text width=5.0cm,text=bitcoin!85!black,inner sep=0pt,xshift=0.22cm},
+    ampliacao/.style={fill=gray!10,draw=contorno!40,line width=0.3pt}]
+  \newcommand{\desCaixaNivel}[5]{%
+    \node[nivel] at (0,#1) {{\footnotesize\color{black}#2}\\[2pt]#3\\#4\\#5};
+  }
+  \def\desXb{3.25}
+  \def\desLargura{5.6}
+  \def\desXc{9.25}
+  \def\desAltura{0.42}
+  \def\desYa{6.0}
+  \def\desYb{3.0}
+  \def\desYc{0}
+  \pgfmathsetmacro\desXfim{\desXb+\desLargura}
+  \pgfmathsetmacro\desSemana{\desLargura/8}
+  \pgfmathsetmacro\desTurno{\desLargura/42}
+  \pgfmathsetmacro\desDetalhe{\desXb+2*\desSemana}
+  \pgfmathsetmacro\desTurnoA{\desXb+4*\desTurno}
+  \pgfmathsetmacro\desTurnoB{\desXb+5*\desTurno}
+  \node[cabecalho] at (0,7.15) {nível};
+  \node[cabecalho] at (\desXb,7.15) {escala de tempo};
+  \node[cabecalho] at (\desXc,7.15) {o que decide};
+  \desCaixaNivel{\desYa}{Nível semanal}{MILP lexicográfico}{produto: balão}{demanda: carteira e previsão}
+  \desCaixaNivel{\desYb}{Nível operacional}{MILP lexicográfico}{produto: SKU}{demanda: carteira}
+  \desCaixaNivel{\desYc}{Sequenciamento}{heurística}{produto: SKU}{por turno e lado}
+  \path[ampliacao] (\desXb,\desYa-0.5*\desAltura) -- (\desDetalhe,\desYa-0.5*\desAltura) -- (\desXfim,\desYb+0.5*\desAltura) -- (\desXb,\desYb+0.5*\desAltura) -- cycle;
+  \path[ampliacao] (\desTurnoA,\desYb-0.5*\desAltura) -- (\desTurnoB,\desYb-0.5*\desAltura) -- (\desXfim,\desYc+0.5*\desAltura) -- (\desXb,\desYc+0.5*\desAltura) -- cycle;
+  \node[escala] at (\desXb,\desYa+0.5*\desAltura+0.08) {semanas do horizonte};
+  \foreach \desI in {0,...,7} {
+    \draw[contorno,line width=0.5pt,fill=white] (\desXb+\desI*\desSemana,\desYa-0.5*\desAltura) rectangle ++(\desSemana,\desAltura);
+  }
+  \fill[bitcoin!12] (\desXb,\desYa-0.5*\desAltura) rectangle (\desDetalhe,\desYa+0.5*\desAltura);
+  \draw[contorno,line width=0.5pt] (\desXb+\desSemana,\desYa-0.5*\desAltura) -- ++(0,\desAltura);
+  \draw[bitcoin,line width=1.1pt] (\desXb,\desYa-0.5*\desAltura) rectangle (\desDetalhe,\desYa+0.5*\desAltura);
+  \node[font=\scriptsize,text=bitcoin!85!black,anchor=north west,inner sep=0pt] at (\desXb,\desYa-0.5*\desAltura-0.08) {semanas detalhadas};
+  \node[escala] at (\desXb,\desYb+0.5*\desAltura+0.08) {turnos das semanas detalhadas};
+  \foreach \desI in {0,...,41} {
+    \draw[contorno!60,line width=0.25pt,fill=white] (\desXb+\desI*\desTurno,\desYb-0.5*\desAltura) rectangle ++(\desTurno,\desAltura);
+  }
+  \foreach \desI in {3,6,9,12,15,18,24,27,30,33,36,39} {
+    \draw[contorno,line width=0.5pt] (\desXb+\desI*\desTurno,\desYb-0.5*\desAltura) -- ++(0,\desAltura);
+  }
+  \draw[contorno,line width=1.1pt] (\desXb+21*\desTurno,\desYb-0.5*\desAltura-0.06) -- ++(0,\desAltura+0.12);
+  \draw[contorno,line width=0.5pt] (\desXb,\desYb-0.5*\desAltura) rectangle (\desXfim,\desYb+0.5*\desAltura);
+  \draw[bitcoin,line width=1.1pt] (\desTurnoA,\desYb-0.5*\desAltura) rectangle (\desTurnoB,\desYb+0.5*\desAltura);
+  \node[escala] at (\desXb,\desYc+0.5*\desAltura+0.08) {corridas de um lado de cor, num turno};
+  \pgfmathsetmacro\desTroca{0.14}
+  \pgfmathsetmacro\desCorrida{(\desLargura-2*\desTroca)/3}
+  \foreach \desI/\desCor in {0/skubranco,1/skuamarelo,2/skuvermelho} {
+    \pgfmathsetmacro\desInicio{\desXb+\desI*(\desCorrida+\desTroca)}
+    \pgfmathtruncatemacro\desOrdem{\desI+1}
+    \draw[contorno,line width=0.4pt,fill=\desCor] (\desInicio,\desYc-0.5*\desAltura) rectangle ++(\desCorrida,\desAltura);
+    \node[font=\scriptsize] at (\desInicio+0.5*\desCorrida,\desYc) {\desOrdem};
+    \ifnum\desI<2
+      \fill[contorno!55] (\desInicio+\desCorrida,\desYc-0.5*\desAltura) rectangle ++(\desTroca,\desAltura);
+    \fi
+  }
+  \node[decide] (decideA) at (\desXc,\desYa) {lote por balão, máquina e semana\\formas a preparar\\estoque e faltas};
+  \node[decide] (decideB) at (\desXc,\desYb) {forma por máquina e turno\\lote por SKU e lado\\reserva de troca de cor};
+  \node[decide] (decideC) at (\desXc,\desYc) {ordem das corridas\\troca de cor efetiva\\antecipação da produção};
+  \draw[desce] ([xshift=0.15cm,yshift=-5pt]decideA.south west) -- node[passa] {meta de estoque por balão e semana} ([xshift=0.15cm,yshift=5pt]decideB.north west);
+  \draw[desce] ([xshift=0.15cm,yshift=-5pt]decideB.south west) -- node[passa] {forma montada\\lote por SKU e lado\\trocas de forma pendentes} ([xshift=0.15cm,yshift=5pt]decideC.north west);
+  \draw[-{Stealth[length=2.2mm]},draw=contorno,line width=0.6pt,dash pattern=on 3pt off 2pt] (-0.12,\desYc) -- (-0.4,\desYc) -- (-0.4,\desYa) -- (-0.12,\desYa);
+  \node[font=\scriptsize,text=contorno,rotate=90,align=center,anchor=south] at (-0.45,{0.5*(\desYa+\desYc)}) {estado real: estoque, atraso e forma montada};
+\end{tikzpicture}%

@@ -1,0 +1,40 @@
+\begin{tikzpicture}[x=0.78cm,y=1cm,line cap=butt,
+    item/.style={font=\scriptsize,inner sep=0pt,text=white},
+    titulofaixa/.style={font=\footnotesize,anchor=south west,inner sep=0pt},
+    nota/.style={font=\scriptsize,text=bitcoin!85!black,align=center,inner sep=1pt}]
+  \colorlet{itema}{bitcoin}
+  \colorlet{itemb}{segundacor!75!white}
+  \def\desAltura{0.5}
+  \newcommand{\desLote}[4]{%
+    \fill[item#4] (#1,#3) rectangle (#2,#3+\desAltura);
+    \node[item] at ({0.5*(#1+#2)},#3+0.5*\desAltura) {\MakeUppercase{#4}};
+  }
+  \newcommand{\desSetup}[3]{%
+    \fill[gray!12] (#1,#3) rectangle (#2,#3+\desAltura);
+    \fill[pattern=north east lines,pattern color=contorno!70] (#1,#3) rectangle (#2,#3+\desAltura);
+  }
+  \newcommand{\desMoldura}[1]{%
+    \draw[contorno,line width=0.5pt] (0,#1) rectangle (8,#1+\desAltura);
+  }
+  \def\desY{1.55}
+  \node[titulofaixa] at (0,\desY+\desAltura+0.12) {(a) \textit{carryover}};
+  \desLote{0}{1.3}{\desY}{b}
+  \desSetup{1.3}{1.9}{\desY}
+  \desLote{1.9}{4}{\desY}{a}
+  \desLote{4}{6.3}{\desY}{a}
+  \desMoldura{\desY}
+  \node[nota,anchor=south] at (5.6,\desY+\desAltura+0.08) {mesmo item,\\sem novo \textit{setup}};
+  \def\desY{0}
+  \node[titulofaixa] at (0,\desY+\desAltura+0.12) {(b) \textit{crossover}};
+  \desLote{0}{2.6}{\desY}{b}
+  \desSetup{2.6}{4}{\desY}
+  \desSetup{4}{5.1}{\desY}
+  \desLote{5.1}{8}{\desY}{a}
+  \desMoldura{\desY}
+  \draw[bitcoin,line width=0.6pt] (2.65,-0.1) -- (2.65,-0.18) -- (5.05,-0.18) -- (5.05,-0.1);
+  \node[nota,anchor=north] at (3.85,-0.22) {\textit{setup} atravessa a fronteira};
+  \draw[contorno,line width=1pt] (4,-0.08) -- (4,\desY+\desAltura+0.08);
+  \draw[contorno,line width=1pt] (4,1.47) -- (4,1.55+\desAltura+0.08);
+  \node[font=\footnotesize,text=contorno] at (2,-0.95) {período $t$};
+  \node[font=\footnotesize,text=contorno] at (6,-0.95) {período $t+1$};
+\end{tikzpicture}%

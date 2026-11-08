@@ -125,3 +125,28 @@ Ideias de planos anteriores, mantidas para o usuário revisar. Nenhuma está no 
    - restrição de equipe;
    - precedências entre máquinas.
 6. Dados reais: conversão da demanda mensal para semanal e calendário real de paradas. Hoje estão no `TODO.md`.
+7. Modelo monolítico, para provar a decisão de arquitetura (registrado em 2026-11-07, ainda sem início).
+   - Objetivo: mostrar que resolver tudo num modelo só, indexado por operação em todo o horizonte, explode
+     combinatoriamente.
+   - Experimentos: as mesmas melhorias da versão hierárquica aplicadas também ao monolítico, numa matriz técnica ×
+     arquitetura sobre as mesmas instâncias e os mesmos limites de tempo. As melhorias são relax-and-fix por
+     tempo, máquina e produto, warm start sequencial, pré-processamento e estágios do objetivo.
+   - Pré-requisito: o desenho algébrico completo do monolítico. O experimento só começa depois dele. A sessão
+     `implementar-modelos-operacional-semanal` foi avisada de que o pedido está suspenso e removeu a worktree e a branch
+     `exp/monolitico`, que estavam vazias. Ela guarda um plano como ponto de partida:
+     - número de posições de cor igual ao máximo de cores do balão;
+     - experimentos de tamanho;
+     - resolução inteira, desagregada semana a semana e por relax-and-fix por semana;
+     - qualidade avaliada na função objetivo do monolítico.
+   - Linha de desenho, a validar com o usuário: o monolítico não é um modelo novo, e sim o modelo por turno da
+     Seção 6.5 estendido ao horizonte inteiro $T$. Muda pouco em relação à 6.5:
+     - a previsão e a venda perdida do nível semanal voltam ao balanço, agora por SKU;
+     - o estoque mínimo da 6.4 substitui a meta de fim de semana $\hat{I}_{it}$;
+     - a reserva de cor $\bar{\tau}^{\mathrm{C}}_k$ dá lugar à troca de cor dependente de sequência, por
+       posições dentro do turno, como nos microperíodos do GLSP de Meyr (2000) e de Fleischmann e Meyr (1997).
+     Forma como fluxo entre turnos, *crossover*, lote mínimo, armazém e estágios lexicográficos ficam como estão.
+     No texto, isso cabe num parágrafo de diferenças e em duas ou três equações, sem nova formulação completa.
+   - Referências já na bibliografia: `meyr2000` e `fleischmannmeyr1997` (posições no turno), `haase1996` e
+     `almadalobo2007` (alternativa CLSD), `ferreira2009` (relax-and-fix em lot sizing e sequenciamento),
+     `bitranhaashax1981` (hierárquico contra monolítico). A acrescentar, se o fix-and-optimize entrar: Helber e
+     Sahling (2010), a confirmar no original.

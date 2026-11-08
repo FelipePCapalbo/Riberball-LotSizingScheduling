@@ -1,0 +1,68 @@
+\begin{tikzpicture}[x=1.45cm,y=1cm,line cap=butt,
+    classe/.style={font=\footnotesize,anchor=east,inner sep=1pt},
+    item/.style={font=\scriptsize,inner sep=0pt}]
+  \colorlet{itema}{bitcoin}
+  \colorlet{itemb}{segundacor!75!white}
+  \colorlet{itemc}{estrutura!80!black}
+  \def\desAltura{0.5}
+  \newcommand{\desLote}[4]{%
+    \fill[item#4] (#1,#3) rectangle (#2,#3+\desAltura);
+    \pgfmathparse{(#2-#1)>0.45 ? 1 : 0}%
+    \ifnum\pgfmathresult=1
+      \node[item,text=white] at ({0.5*(#1+#2)},#3+0.5*\desAltura) {\MakeUppercase{#4}};
+    \fi
+  }
+  \newcommand{\desFaixa}[4]{%
+    \fill[item#4] (#1,#2) rectangle (#1+4,#2+#3);
+  }
+  \newcommand{\desMicro}[1]{%
+    \foreach \desX in {1,2,3,5,6,7} {
+      \draw[contorno!40,line width=0.3pt] (\desX,#1) -- (\desX,#1+\desAltura);
+    }
+  }
+  \newcommand{\desVariavel}[2]{%
+    \foreach \desX in {#2} {
+      \draw[contorno,line width=0.5pt,dash pattern=on 1.5pt off 1pt] (\desX,#1-0.08) -- (\desX,#1+\desAltura+0.08);
+    }
+  }
+  \newcommand{\desMoldura}[2]{%
+    \draw[contorno,line width=0.5pt] (0,#1) rectangle (8,#1+\desAltura);
+    \draw[contorno,line width=1pt] (4,#1-0.08) -- (4,#1+\desAltura+0.08);
+    \node[classe] at (-0.12,#1+0.5*\desAltura) {#2};
+  }
+  \def\desY{4.5}
+  \fill[itema] (0,\desY) rectangle (4,\desY+0.45*\desAltura);
+  \fill[itemb] (0,\desY+0.45*\desAltura) rectangle (4,\desY+0.8*\desAltura);
+  \fill[itemc] (4,\desY) rectangle (8,\desY+0.45*\desAltura);
+  \fill[itemb] (4,\desY+0.45*\desAltura) rectangle (8,\desY+0.65*\desAltura);
+  \fill[itema] (4,\desY+0.65*\desAltura) rectangle (8,\desY+0.95*\desAltura);
+  \desMoldura{\desY}{CLSP}
+  \def\desY{3.6}
+  \desLote{0}{1}{\desY}{a}\desLote{1}{2}{\desY}{a}\desLote{2}{3}{\desY}{b}\desLote{3}{4}{\desY}{b}
+  \desLote{4}{5}{\desY}{b}\desLote{5}{6}{\desY}{c}\desLote{6}{7}{\desY}{c}\desLote{7}{8}{\desY}{a}
+  \desMicro{\desY}
+  \desMoldura{\desY}{DLSP}
+  \def\desY{2.7}
+  \desLote{0}{1}{\desY}{a}\desLote{1}{1.8}{\desY}{a}\desLote{2}{3}{\desY}{b}\desLote{3}{3.4}{\desY}{b}
+  \desLote{4}{4.8}{\desY}{b}\desLote{5}{6}{\desY}{c}\desLote{6}{6.8}{\desY}{c}\desLote{7}{8}{\desY}{a}
+  \desMicro{\desY}
+  \desMoldura{\desY}{CSLP}
+  \def\desY{1.8}
+  \desLote{0}{1}{\desY}{a}\desLote{1}{1.8}{\desY}{a}\desLote{1.8}{2}{\desY}{b}\desLote{2}{3}{\desY}{b}\desLote{3}{3.2}{\desY}{b}
+  \desLote{4}{4.8}{\desY}{b}\desLote{4.8}{5}{\desY}{c}\desLote{5}{6}{\desY}{c}\desLote{6}{6.6}{\desY}{c}\desLote{6.6}{7}{\desY}{a}\desLote{7}{7.8}{\desY}{a}
+  \desMicro{\desY}
+  \desMoldura{\desY}{PLSP}
+  \def\desY{0.9}
+  \desLote{0}{1.8}{\desY}{a}\desLote{1.8}{3.2}{\desY}{b}
+  \desLote{4}{4.8}{\desY}{b}\desLote{4.8}{6.6}{\desY}{c}\desLote{6.6}{7.8}{\desY}{a}
+  \desMoldura{\desY}{CLSD}
+  \def\desY{0}
+  \desLote{0}{1.8}{\desY}{a}\desLote{1.8}{3.2}{\desY}{b}
+  \desLote{4}{4.8}{\desY}{b}\desLote{4.8}{6.6}{\desY}{c}\desLote{6.6}{7.8}{\desY}{a}
+  \desVariavel{\desY}{1.8,3.2,4.8,6.6,7.8}
+  \desMoldura{\desY}{GLSP}
+  \foreach \desX/\desTexto in {0/macroperíodo 1,4/macroperíodo 2} {
+    \draw[contorno,line width=0.4pt] (\desX+0.05,-0.18) -- (\desX+0.05,-0.26) -- (\desX+3.95,-0.26) -- (\desX+3.95,-0.18);
+    \node[font=\footnotesize,text=contorno,anchor=north] at (\desX+2,-0.3) {\desTexto};
+  }
+\end{tikzpicture}%

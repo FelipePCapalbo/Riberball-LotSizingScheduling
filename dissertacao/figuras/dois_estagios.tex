@@ -1,0 +1,28 @@
+\begin{tikzpicture}[line cap=round,
+    etapa/.style={rectangle,draw=contorno,line width=0.5pt,fill=white,minimum width=3.0cm,minimum height=0.95cm,align=center,font=\footnotesize,inner sep=1pt},
+    etapabalao/.style={etapa,draw=bitcoin,line width=1.1pt,fill=bitcoin!12},
+    produto/.style={font=\footnotesize,align=left,anchor=west,inner sep=1pt},
+    setor/.style={font=\footnotesize,align=right,anchor=east,inner sep=1pt},
+    cabecalho/.style={font=\footnotesize,text=contorno,anchor=south,inner sep=1pt},
+    fluxo/.style={-{Stealth[length=2mm]},draw=contorno,line width=0.6pt}]
+  \newcommand{\desPilha}[4]{%
+    \foreach \desD in {0.24,0.12} {
+      \node[#4,minimum width=3.4cm] at (#1+\desD,#2+\desD) {};
+    }
+    \node[#4,minimum width=3.4cm] (#3) at (#1,#2) {};
+  }
+  \node[cabecalho] at (3.6,3.55) {primeiro estágio};
+  \node[cabecalho] at (8.42,3.55) {segundo estágio};
+  \node[cabecalho,anchor=south west] at (10.8,3.55) {produto};
+  \foreach \desY/\desSetor/\desPrimeiro/\desSegundo/\desProduto/\desEstilo in {
+      2.6/{Bebidas}/{preparo do xarope}/{envase}/{refrigerante por\\sabor e embalagem}/etapa,
+      1.3/{Fiação}/{mistura de fibras}/{fiação}/{fio por mistura\\e espessura}/etapa,
+      0/{Balões de látex}/{pigmentação\\do composto}/{moldagem}/{balão por\\formato e cor}/etapabalao} {
+    \node[setor] at (1.75,\desY) {\desSetor};
+    \node[\desEstilo] (primeiro) at (3.6,\desY) {\desPrimeiro};
+    \desPilha{8.3}{\desY}{segundo}{\desEstilo}
+    \node[font=\footnotesize,align=center] at (segundo) {\desSegundo};
+    \draw[fluxo] (primeiro) -- (segundo);
+    \draw[fluxo] ([xshift=0.24cm]segundo.east) -- ++(0.55,0) node[produto] {\desProduto};
+  }
+\end{tikzpicture}%
