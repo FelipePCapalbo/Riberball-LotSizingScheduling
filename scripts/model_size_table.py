@@ -6,14 +6,6 @@ import sys
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHART_DIRECTORY = os.path.join(ROOT_DIR, 'dissertacao', 'dados', 'esforco')
 SIZE_CSV = os.path.join(CHART_DIRECTORY, 'tamanho_modelos.csv')
-INSTANCE_LABELS = {
-    'ajustado': 'Fábrica',
-    'micro': 'Micro',
-    'pequeno': 'Pequena',
-    'medio': 'Média',
-    'grande': 'Grande',
-    'real': 'Porte real',
-}
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--arquitetura', choices=['hierarquica', 'monolitica'], default=None)
@@ -137,6 +129,13 @@ if dict_arguments['arquitetura'] is not None:
 def format_integer(str_value):
     return f'{int(float(str_value)):,}'.replace(',', '.')
 
+def build_instance_label(dict_case, dict_row):
+    if dict_case['id'].startswith('ajustado'):
+        return 'Fábrica'
+    else:
+        return f"I{dict_row['baloes']}-K{dict_row['skus']}-J{dict_row['maquinas']}-T{dict_row['semanas']}"
+
+
 
 bool_complete = True
 for dict_case in ARCHITECTURE_CASES:
@@ -154,7 +153,7 @@ if bool_complete:
         dict_row = dict_rows[dict_case['id']]
         if dict_case['arquivo'] not in list_seen_files:
             list_seen_files.append(dict_case['arquivo'])
-            str_label = INSTANCE_LABELS[dict_case['id'].split('_')[0]]
+            str_label = build_instance_label(dict_case, dict_row)
             list_instance_lines.append(f"{str_label} & {dict_row['baloes']} & {dict_row['skus']} & "
                                        f"{dict_row['maquinas']} & {dict_row['maquinas_duas_cores']} & "
                                        f"{dict_row['pares']} & {format_integer(dict_row['pedidos'])} \\\\")
@@ -179,14 +178,14 @@ if bool_complete:
     with open(os.path.join(CHART_DIRECTORY, 'tabela_tamanho_fabrica.tex'), 'w', encoding='utf-8') as file_table:
         file_table.write('\n'.join(list_factory_lines) + '\n')
 
-    list_synthetic_lines = ['\\begin{tabular}{@{}lrrrr@{}}', '\\toprule',
-                            'Instância & Semanas & Nível semanal & Nível operacional & Modelo integrado \\\\',
+    list_synthetic_lines = ['\\begin{tabular}{@{}lrrr@{}}', '\\toprule',
+                            'Instância & Nível semanal & Nível operacional & Modelo integrado \\\\',
                             '\\midrule']
     for dict_case in ARCHITECTURE_CASES:
         if not dict_case['id'].startswith('ajustado'):
             dict_row = dict_rows[dict_case['id']]
-            str_label = INSTANCE_LABELS[dict_case['id'].split('_')[0]]
-            list_synthetic_lines.append(f"{str_label} & {dict_row['semanas']} & "
+            str_label = build_instance_label(dict_case, dict_row)
+            list_synthetic_lines.append(f"{str_label} & "
                                         f"{format_integer(dict_row['semanal_binaries'])} & "
                                         f"{format_integer(dict_row['operacional_binaries'])} & "
                                         f"{format_integer(dict_row['monolitico_binaries'])} \\\\")
