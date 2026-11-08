@@ -16,6 +16,14 @@ Se a escala continuar insuficiente, o caminho e' de **formulacao**, nao de heuri
 
 Reportar no capitulo de Resultados o status e o gap de cada instancia, nao apenas o custo.
 
+## Travas lexicograficas
+
+- Investigar a fragilidade numerica das travas exatas (`Z <= Z*`): num teste do worktree de pre-processamento, o Gurobi
+  declarou otimo um estagio 1% acima de outra solucao viavel, achada com outra semente. Uma folga na trava resolveria
+  o aperto numerico, mas foi descartada em 2026-11-07: qualquer folga, mesmo relativa de 1e-5, e explorada pelo estagio
+  de custo e quebra a prioridade estrita (atendimento antes de custo). Caminhos a testar: tolerancias de
+  viabilidade e otimalidade do Gurobi (`FeasibilityTol`, `MIPGap` dos estagios de servico) e reescala do objetivo.
+
 ## Dados
 
 - Levantar em campo quais máquinas são de duas cores. Hoje o arquivo ajustado marca 7 das 28 de forma sintética
