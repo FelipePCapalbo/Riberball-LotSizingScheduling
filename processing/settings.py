@@ -18,6 +18,10 @@ DEFAULT_SETTINGS = {
     'threads': None,
     'solver_seed': 0,
     'solver_log_file': None,
+    'decomposition': 'produto',
+    'weekly_block_size': 5,
+    'daily_block_size': 5,
+    'fo_time_share': 0.3,
 }
 
 

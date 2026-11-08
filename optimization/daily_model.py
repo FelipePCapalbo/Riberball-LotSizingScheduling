@@ -447,12 +447,74 @@ def solve_daily_model(dict_scenario, dict_settings):
                                     <= dict_form[(str_product, str_machine, int_shift)],
                                     f'cor_da_forma_{clean_name(str_sku)}_{str_machine}_{int_side}_{int_shift}')
 
+    dict_product_demand = {}
+    list_product_ranking = []
+    for int_position in range(len(list_products)):
+        str_product = list_products[int_position]
+        float_demand = 0.0
+        for str_sku in dict_scenario['skus_of_product'][str_product]:
+            for dict_shift in list_shifts:
+                float_demand += dict_scenario['orders'][(str_sku, dict_shift['index'])]
+        for str_week in list_weeks:
+            float_demand += dict_scenario['target'][(str_product, str_week)]
+        dict_product_demand[str_product] = float_demand
+        list_product_ranking.append((-float_demand, int_position, str_product))
+    list_product_ranking.sort()
+
+    list_machine_ranking = []
+    for int_position in range(len(list_machines)):
+        str_machine = list_machines[int_position]
+        float_demand_hours = 0.0
+        for str_product in dict_scenario['products_of_machine'][str_machine]:
+            float_demand_hours += (dict_product_demand[str_product]
+                                   / dict_scenario['productivity'][str_product][str_machine])
+        float_capacity = 0.0
+        for dict_shift in list_shifts:
+            float_capacity += (dict_scenario['shift_capacity'][(str_machine, dict_shift['index'])]
+                               * dict_scenario['color_sides'][str_machine])
+        if float_capacity > 0.0:
+            float_load = float_demand_hours / float_capacity
+        else:
+            float_load = 0.0
+        list_machine_ranking.append((-float_load, int_position, str_machine))
+    list_machine_ranking.sort()
+
+    dict_day_unit = {}
+    for dict_shift in list_shifts:
+        dict_day_unit[dict_shift['day_index']] = []
+    dict_machine_unit = {}
+    for tuple_ranked in list_machine_ranking:
+        dict_machine_unit[tuple_ranked[2]] = []
+    dict_product_unit = {}
+    for tuple_ranked in list_product_ranking:
+        dict_product_unit[tuple_ranked[2]] = []
+    for str_machine in list_machines:
+        for dict_shift in list_shifts:
+            int_shift = dict_shift['index']
+            for str_product in dict_scenario['products_of_machine'][str_machine]:
+                list_names = [dict_form[(str_product, str_machine, int_shift)].name]
+                for str_sku in dict_scenario['skus_of_product'][str_product]:
+                    for int_side in range(1, dict_scenario['color_sides'][str_machine] + 1):
+                        list_names.append(dict_run[(str_sku, str_machine, int_side, int_shift)].name)
+                for str_name in list_names:
+                    dict_day_unit[dict_shift['day_index']].append(str_name)
+                    dict_machine_unit[str_machine].append(str_name)
+                    dict_product_unit[str_product].append(str_name)
+    dict_partitions = {'tempo': [], 'maquina': [], 'produto': []}
+    for str_decomposition, dict_unit in [('tempo', dict_day_unit), ('maquina', dict_machine_unit),
+                                         ('produto', dict_product_unit)]:
+        for value_key in dict_unit:
+            if len(dict_unit[value_key]) > 0:
+                dict_partitions[str_decomposition].append(dict_unit[value_key])
+
     list_stage_expressions = [pulp.lpSum(list_backlog_terms), pulp.lpSum(list_target_terms),
                               pulp.lpSum(list_cost_terms)]
     float_started_at = time.perf_counter()
     str_status, bool_hit_time_limit, list_stage_values, list_stage_reports = solve_lexicographic(
         problem, list_stage_expressions, dict_settings['daily_solver_name'], int(dict_settings['daily_time_limit']),
-        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'])
+        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'],
+        dict_partitions, dict_settings['decomposition'], dict_settings['daily_block_size'],
+        dict_settings['fo_time_share'])
     float_solve_seconds = time.perf_counter() - float_started_at
 
     if str_status not in ('Optimal', 'Feasible'):
