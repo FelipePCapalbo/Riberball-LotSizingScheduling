@@ -22,6 +22,7 @@ VARIANTS = {
     'warm_start': {'branch': 'exp/warm-start', 'folder': 'warm-start'},
     'cascata': {'branch': 'exp/cascata-negocio', 'folder': 'cascata'},
 }
+VARIANTS['classes_variaveis'] = {'branch': 'exp/classes-variaveis', 'folder': 'classes-variaveis'}
 MONOLITHIC_TECHNIQUES = ['pura', 'desagregado', 'rf_tempo', 'rf_maquina', 'rf_produto', 'preprocessamento',
                          'warm_start', 'cascata']
 for str_technique in MONOLITHIC_TECHNIQUES:
@@ -30,7 +31,7 @@ for str_technique in MONOLITHIC_TECHNIQUES:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('variantes', nargs='*')
-parser.add_argument('--bateria', choices=['esforco', 'arquitetura'], default='esforco')
+parser.add_argument('--bateria', choices=['esforco', 'arquitetura', 'classes'], default='esforco')
 parser.add_argument('--apos', default=None)
 parser.add_argument('--paralelo', type=int, default=3)
 parser.add_argument('--rapido', action='store_true')
@@ -66,7 +67,11 @@ if dict_arguments['supervisor'] is not None:
         for dict_job in list_wave:
             os.makedirs(dict_job['pasta'], exist_ok=True)
             file_output = open(os.path.join(dict_job['pasta'], 'saida.out'), 'a', encoding='utf-8')
-            if dict_job['bateria'] == 'arquitetura':
+            if dict_job['bateria'] == 'classes':
+                list_command = [dict_job['python'], os.path.join(dict_job['codigo'], 'scripts',
+                                                                'variable_class_test.py'),
+                                '--saida', OUTPUT_ROOT, '--pasta', dict_job['pasta'], '--threads', '1']
+            elif dict_job['bateria'] == 'arquitetura':
                 list_command = [dict_job['python'], os.path.join(ROOT_DIR, 'scripts', 'architecture_experiments.py'),
                                 '--codigo', dict_job['codigo'], '--arquitetura', dict_job['arquitetura'],
                                 '--tecnica', dict_job['tecnica'], '--variante', dict_job['variante'],
@@ -126,11 +131,14 @@ else:
             list_names = []
             for str_name in VARIANTS:
                 if dict_arguments['bateria'] == 'arquitetura' or 'tecnica' not in VARIANTS[str_name]:
-                    list_names.append(str_name)
+                    if str_name != 'classes_variaveis':
+                        list_names.append(str_name)
         for str_name in list_names:
             str_folder_name = f'{str_stamp}_{str_machine_label}_{str_name}'
             if dict_arguments['bateria'] == 'arquitetura':
                 str_folder_name = f'{str_stamp}_{str_machine_label}_arquitetura_{str_name}'
+            if dict_arguments['bateria'] == 'classes':
+                str_folder_name = f'{str_stamp}_{str_machine_label}_classes_variaveis'
             if dict_arguments['rapido']:
                 str_folder_name = f'{str_folder_name}_rapido'
             list_jobs.append({'variante': str_name, 'pasta': os.path.join(RUNS_ROOT, str_folder_name),

@@ -156,7 +156,7 @@ dict_baseline_instance = load_instance(BASELINE_FILE)
 str_battery_log = os.path.join(str_variant_directory, 'bateria.log')
 with open(str_battery_log, 'a', encoding='utf-8') as file_battery:
     file_battery.write(f'{datetime.now().isoformat(timespec="seconds")} inicio variante={str_variant} '
-                       f'execucoes={len(list_runs)} commit={str_commit}\n')
+                       f'execucoes={len(list_runs)} commit={dict_environment["commit"]}\n')
 
 int_run_number = 0
 for dict_run in list_runs:
