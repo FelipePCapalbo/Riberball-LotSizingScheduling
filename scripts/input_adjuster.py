@@ -7,7 +7,7 @@ DATA_DIR = os.path.join(ROOT_DIR, 'data')
 SOURCE_PATH = os.path.join(DATA_DIR, 'brutos', 'input_asis.xlsx')
 OUTPUT_PATH = os.path.join(DATA_DIR, 'input_asis_ajustado.xlsx')
 
-WORKING_DAYS_PER_WEEK = 6
+WORKING_DAYS_PER_WEEK = 7
 HOURS_PER_SHIFT = 8.0
 
 COLOR_DARKNESS = {
