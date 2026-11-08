@@ -297,12 +297,65 @@ def solve_weekly_model(dict_scenario, dict_settings):
                 problem += (dict_production[tuple_key] <= float_big_m * dict_setup[tuple_key],
                             f'lote_minimo_superior_{str_label}')
 
+    dict_product_demand = {}
+    list_product_ranking = []
+    for int_position in range(len(list_products)):
+        str_product = list_products[int_position]
+        float_demand = 0.0
+        for timestamp_week in list_weeks:
+            float_demand += (dict_scenario['orders'][str_product][timestamp_week]
+                             + dict_scenario['forecast'][str_product][timestamp_week])
+        dict_product_demand[str_product] = float_demand
+        list_product_ranking.append((-float_demand, int_position, str_product))
+    list_product_ranking.sort()
+
+    list_machine_ranking = []
+    for int_position in range(len(dict_scenario['machines'])):
+        str_machine = dict_scenario['machines'][int_position]
+        float_demand_hours = 0.0
+        for str_product in list_products:
+            if str_machine in dict_scenario['machines_of_product'][str_product]:
+                float_demand_hours += (dict_product_demand[str_product]
+                                       / dict_scenario['productivity'][str_product][str_machine])
+        float_capacity = 0.0
+        for timestamp_week in list_weeks:
+            float_capacity += dict_scenario['capacity'][str_machine][timestamp_week]
+        if float_capacity > 0.0:
+            float_load = float_demand_hours / float_capacity
+        else:
+            float_load = 0.0
+        list_machine_ranking.append((-float_load, int_position, str_machine))
+    list_machine_ranking.sort()
+
+    dict_week_unit = {}
+    for timestamp_week in list_weeks:
+        dict_week_unit[timestamp_week] = []
+    dict_machine_unit = {}
+    for tuple_ranked in list_machine_ranking:
+        dict_machine_unit[tuple_ranked[2]] = []
+    dict_product_unit = {}
+    for tuple_ranked in list_product_ranking:
+        dict_product_unit[tuple_ranked[2]] = []
+    for tuple_key in dict_setup:
+        str_product, str_machine, timestamp_week = tuple_key
+        dict_week_unit[timestamp_week].append(dict_setup[tuple_key].name)
+        dict_machine_unit[str_machine].append(dict_setup[tuple_key].name)
+        dict_product_unit[str_product].append(dict_setup[tuple_key].name)
+    dict_partitions = {'tempo': [], 'maquina': [], 'produto': []}
+    for str_decomposition, dict_unit in [('tempo', dict_week_unit), ('maquina', dict_machine_unit),
+                                         ('produto', dict_product_unit)]:
+        for value_key in dict_unit:
+            if len(dict_unit[value_key]) > 0:
+                dict_partitions[str_decomposition].append(dict_unit[value_key])
+
     list_stage_expressions = [pulp.lpSum(list_backlog_terms), pulp.lpSum(list_lost_terms),
                               pulp.lpSum(list_floor_terms), pulp.lpSum(list_cost_terms)]
     float_started_at = time.perf_counter()
     str_status, bool_hit_time_limit, list_stage_values, list_stage_reports = solve_lexicographic(
         problem, list_stage_expressions, dict_settings['weekly_solver_name'], int(dict_settings['weekly_time_limit']),
-        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'])
+        dict_settings['threads'], int(dict_settings['solver_seed']), dict_settings['solver_log_file'],
+        dict_partitions, dict_settings['decomposition'], dict_settings['weekly_block_size'],
+        dict_settings['fo_time_share'])
     float_solve_seconds = time.perf_counter() - float_started_at
 
     if str_status not in ('Optimal', 'Feasible'):

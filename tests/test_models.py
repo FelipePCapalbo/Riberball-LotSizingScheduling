@@ -64,6 +64,7 @@ dict_base = load_settings()
 dict_base['start_week'] = '2024-01-01'
 dict_base['weeks_in_plan'] = 8
 dict_base['weekly_time_limit'] = 60
+dict_base['decomposition'] = None
 for str_product in dict_instance['products']:
     dict_instance['mape'][str_product] = 0.0
     for str_color in dict_instance['colors_by_product'][str_product]:
@@ -246,7 +247,8 @@ for int_day in range(2):
             'week': pd.Timestamp('2024-01-01'),
         })
 dict_settings = {'annual_holding_rate': 0.25, 'daily_solver_name': 'ORTOOLS',
-                 'daily_time_limit': 60, 'threads': None, 'solver_seed': 0, 'solver_log_file': None}
+                 'daily_time_limit': 60, 'threads': None, 'solver_seed': 0, 'solver_log_file': None,
+                 'decomposition': None, 'daily_block_size': None, 'fo_time_share': None}
 str_product = 'A-L'
 list_skus = [f'{str_product}-X', f'{str_product}-Y', f'{str_product}-Z']
 dict_color_setup = complete_setup_matrix({('X', 'Y'): 1.0, ('Y', 'X'): 2.0, ('Y', 'Z'): 1.0, ('Z', 'Y'): 1.0},
@@ -835,6 +837,123 @@ float_short_one = dict_result_one['kpis']['backlog_cost'] + dict_result_one['kpi
 float_short_two = dict_result_two['kpis']['backlog_cost'] + dict_result_two['kpis']['lost_sales_cost']
 check(float_short_two < float_short_one,
       f'com 1 h/turno, duas cores reduzem atraso + venda perdida de {float_short_one:,.0f} para {float_short_two:,.0f}')
+
+
+print('\n== relax-and-fix + fix-and-optimize: tempo, maquina e produto ==')
+dict_instance_rf = load_instance(os.path.join(DATA_DIR, 'instance_micro_P2_M3_T8.xlsx'))
+dict_settings_pure = dict(dict_base)
+dict_settings_pure['hours_per_shift'] = 1.0
+dict_settings_pure['weekly_solver_name'] = 'GUROBI'
+dict_settings_pure['daily_solver_name'] = 'GUROBI'
+dict_settings_pure['weekly_time_limit'] = 60
+dict_settings_pure['daily_time_limit'] = 60
+dict_settings_pure['threads'] = 2
+dict_settings_pure['decomposition'] = None
+dict_settings_pure['weekly_block_size'] = 1
+dict_settings_pure['daily_block_size'] = 1
+dict_settings_pure['fo_time_share'] = 0.3
+dict_weekly_scenario_rf = build_weekly_scenario(dict_instance_rf, dict_settings_pure)
+dict_weekly_pure = solve_weekly_model(dict_weekly_scenario_rf, dict_settings_pure)
+for str_decomposition in ['tempo', 'maquina', 'produto']:
+    dict_settings = dict(dict_settings_pure)
+    dict_settings['decomposition'] = str_decomposition
+    dict_result = solve_weekly_model(dict_weekly_scenario_rf, dict_settings)
+    dict_kpis = dict_result['kpis']
+    list_stages = dict_result['stage_objectives']
+    check(dict_result['status'] in ('Optimal', 'Feasible') and len(list_stages) == 4,
+          f'{str_decomposition} semanal: quatro estagios com solucao ({dict_result["status"]})')
+    float_sum = (dict_kpis['backlog_cost'] + dict_kpis['lost_sales_cost'] + dict_kpis['floor_slack_cost']
+                 + dict_kpis['setup_cost'] + dict_kpis['holding_cost'])
+    check(abs(float_sum - dict_kpis['total_cost']) < 1e-6
+          and dict_kpis['backlog_cost'] <= list_stages[0] + 1e-6
+          and dict_kpis['lost_sales_cost'] <= list_stages[1] + 1e-6
+          and dict_kpis['floor_slack_cost'] <= list_stages[2] + 1e-6,
+          f'{str_decomposition} semanal: KPIs somam o total e respeitam as travas dos estagios')
+    check(list_stages[0] >= dict_weekly_pure['stage_objectives'][0] - 1e-6,
+          f'{str_decomposition} semanal: estagio 1 nao fica abaixo do otimo da formulacao '
+          f'({list_stages[0]:,.1f} >= {dict_weekly_pure["stage_objectives"][0]:,.1f})')
+    bool_reports = True
+    for dict_report in dict_result['stage_reports']:
+        if dict_report['bound'] > dict_report['objective'] + 1e-6 * (1.0 + abs(dict_report['objective'])):
+            bool_reports = False
+        if 'subproblems' not in dict_report or dict_report['rf_seconds'] < 0.0 or dict_report['fo_seconds'] < 0.0:
+            bool_reports = False
+        if dict_report['binaries'] != dict_weekly_pure['stage_reports'][0]['binaries']:
+            bool_reports = False
+    check(bool_reports, f'{str_decomposition} semanal: limitante da relaxacao <= objetivo, binarias do modelo cheio')
+
+    bool_balance = True
+    for str_product in dict_weekly_scenario_rf['products']:
+        float_previous = dict_weekly_scenario_rf['initial_inventory'][str_product]
+        for str_week in dict_result['weeks']:
+            for dict_row in dict_result['demand']:
+                if dict_row['product'] == str_product and dict_row['week'] == str_week:
+                    dict_demand_row = dict_row
+            for dict_row in dict_result['inventory']:
+                if dict_row['product'] == str_product and dict_row['week'] == str_week:
+                    dict_inventory_row = dict_row
+            float_produced = 0.0
+            for dict_row in dict_result['production']:
+                if dict_row['product'] == str_product and dict_row['week'] == str_week:
+                    float_produced += dict_row['kg']
+            float_left = float_previous + float_produced
+            float_right = (dict_inventory_row['inventory'] + dict_demand_row['delivered_orders']
+                           + dict_demand_row['delivered_forecast'])
+            if abs(float_left - float_right) > 1e-2 + 1e-6 * (abs(float_left) + abs(float_right)):
+                bool_balance = False
+            float_previous = dict_inventory_row['inventory']
+    bool_capacity = True
+    for str_machine in dict_weekly_scenario_rf['machines']:
+        for timestamp_week in dict_weekly_scenario_rf['weeks']:
+            float_used = 0.0
+            for dict_row in dict_result['production']:
+                if dict_row['machine'] == str_machine and dict_row['week'] == timestamp_week.strftime('%Y-%m-%d'):
+                    float_used += dict_row['hours'] + dict_row['setup_hours']
+            if float_used > dict_weekly_scenario_rf['capacity'][str_machine][timestamp_week] + 1e-3:
+                bool_capacity = False
+    bool_lots = True
+    for dict_row in dict_result['production']:
+        if dict_row['kg'] < dict_weekly_scenario_rf['min_lot'][dict_row['product']] - 1e-4:
+            bool_lots = False
+        if abs(dict_row['setup_hours']
+               - dict_weekly_scenario_rf['side_setup'][(dict_row['product'], dict_row['machine'])]) > 1e-6:
+            bool_lots = False
+    check(bool_balance and bool_capacity and bool_lots,
+          f'{str_decomposition} semanal: balanco, capacidade, lote minimo e setup inteiro no plano final')
+
+    dict_daily_scenario_rf = build_daily_scenario(dict_instance_rf, dict_settings, dict_result)
+    dict_daily_pure = solve_daily_model(dict_daily_scenario_rf, dict_settings_pure)
+    dict_daily = solve_daily_model(dict_daily_scenario_rf, dict_settings)
+    dict_kpis = dict_daily['kpis']
+    list_stages = dict_daily['stage_objectives']
+    check(dict_daily['status'] in ('Optimal', 'Feasible') and len(list_stages) == 3,
+          f'{str_decomposition} diario: tres estagios com solucao ({dict_daily["status"]})')
+    check(abs(dict_kpis['backlog_cost'] + dict_kpis['target_slack_cost'] + dict_kpis['setup_cost']
+              + dict_kpis['holding_cost'] - dict_kpis['total_cost']) < 1e-6
+          and dict_kpis['backlog_cost'] <= list_stages[0] + 1e-4
+          and dict_kpis['target_slack_cost'] <= list_stages[1] + 1e-4
+          and list_stages[0] >= dict_daily_pure['stage_objectives'][0] - 1e-6,
+          f'{str_decomposition} diario: KPIs somam o total, respeitam as travas e o estagio 1 nao bate o otimo')
+    bool_capacity = True
+    bool_lots = True
+    dict_used = {}
+    for dict_row in dict_daily['schedule']:
+        tuple_cell = (dict_row['machine'], dict_row['side'], dict_row['shift_index'])
+        if tuple_cell not in dict_used:
+            dict_used[tuple_cell] = 0.0
+        dict_used[tuple_cell] += (dict_row['production_hours'] + dict_row['color_setup_hours']
+                                  + dict_row['form_setup_hours'])
+        if dict_row['sku'] != '-' and dict_row['kg'] < dict_daily_scenario_rf['min_lot'][dict_row['product']] - 1e-4:
+            bool_lots = False
+    for tuple_cell in dict_used:
+        if dict_used[tuple_cell] > dict_daily_scenario_rf['shift_capacity'][(tuple_cell[0], tuple_cell[2])] + 1e-4:
+            bool_capacity = False
+    dict_sequenced = sequence_daily_plan(dict_daily_scenario_rf, dict_settings, dict_daily)
+    float_total_violation = 0.0
+    for str_name in dict_sequenced['sequencing_violations']:
+        float_total_violation += dict_sequenced['sequencing_violations'][str_name]
+    check(bool_capacity and bool_lots and float_total_violation < 1e-6,
+          f'{str_decomposition} diario: capacidade por lado e turno, lote minimo e sequenciamento sem violacao')
 
 
 print('\n' + '=' * 60)
