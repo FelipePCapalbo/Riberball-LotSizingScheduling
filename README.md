@@ -281,6 +281,19 @@ python scripts/computational_experiments_analysis.py [--maquina <rotulo>]
 | `warm_start` | `../Riberball-wt-warm-start`: heurística construtiva de solução inicial |
 | `cascata` | `../Riberball-wt-cascata`: warm start sequencial por segmento de negócio |
 
+A bateria de arquitetura compara o planejamento hierárquico com o modelo monolítico (worktree
+`../Riberball-wt-monolitico`, um MILP só, por turno e posição de cor, sobre todo o horizonte), cada um sob as mesmas
+técnicas, nas cinco instâncias sintéticas e na série de horizonte do ajustado (1, 2, 4, 8 e 13 semanas):
+
+```bash
+python scripts/launch_experiments.py todas --bateria arquitetura --apos experimentos/esforco_computacional/disparos/<disparo>.json
+python scripts/launch_experiments.py monolitico_pura formulacao --bateria arquitetura --rapido
+```
+
+`--apos` deixa o disparo na fila: as ondas só começam quando todas as rodadas do disparo indicado terminam. As
+variantes monolíticas são `monolitico_<tecnica>`, com `pura`, `desagregado`, `rf_tempo`, `rf_maquina`, `rf_produto`,
+`preprocessamento`, `warm_start` e `cascata`.
+
 O worktree que faltar é criado a partir da sua branch `exp/*`. As variantes de uma onda rodam em paralelo
 (`--paralelo`, padrão 3), cada uma com `--threads` do Gurobi (padrão 2). A comparação de tempo só vale entre rodadas
 da mesma máquina; as unidades de trabalho do Gurobi (`work`) são determinísticas e são a resposta principal.
