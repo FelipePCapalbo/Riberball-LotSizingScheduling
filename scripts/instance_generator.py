@@ -78,7 +78,7 @@ PROFILES = {
 START_WEEK = pd.Timestamp('2024-01-01')
 SHIFTS_PER_DAY = 3
 HOURS_PER_SHIFT = 8
-WORKING_DAYS_PER_WEEK = 6
+WORKING_DAYS_PER_WEEK = 7
 
 
 def generate_instance(str_name, dict_profile, int_seed):
