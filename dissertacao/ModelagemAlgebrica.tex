@@ -1116,7 +1116,45 @@ Semanas detalhadas em turnos & 1, 2 & 1 \\
 \fonte{Elaborado pelo autor (2026).}
 \end{quadro}
 
-O resolvedor é o Gurobi 13, com duas \textit{threads} e os limites de tempo da operação: 300~s no nível semanal, 600~s no operacional e a soma, 900~s, no modelo integrado. O esforço é medido pelo tempo de solução, em segundos, e pelo número de nós do \textit{branch-and-bound}.
+O resolvedor é o Gurobi 13, com duas \textit{threads} e os limites de tempo da operação: 600~s no nível semanal, 300~s no operacional e a soma, 900~s, no modelo integrado. O esforço é medido pelo tempo de solução, em segundos, e pelo número de nós do \textit{branch-and-bound}.
+
+\subsection{Modelo integrado e desagregação em três níveis}
+\label{sec:resultado_arquitetura}
+
+[A ESCREVER: tempo, nós e qualidade da solução do modelo integrado e da desagregação em três níveis nas seis instâncias, com cada técnica do Quadro~\ref{tab:tecnicas} aplicável a cada abordagem; responde se a desagregação é o que torna o problema tratável.]
+
+[TABELA A INSERIR: abordagem e técnica por instância, com a situação ao fim do limite de tempo, o tempo e o \textit{gap}.]
+
+\subsection{Efeito das características da instância}
+\label{sec:resultado_fatores}
+
+[A ESCREVER: variação do tempo de solução entre as cinco sementes na instância da fábrica, a faixa de ruído contra a qual se lê o efeito de cada fator.]
+
+[A ESCREVER: fatores ordenados pela amplitude do esforço em cada nível, o que pesa no nível semanal e o que pesa no operacional. No semanal, que atinge o limite de tempo na maior parte das execuções, falta decidir se a medida é o tempo ou o \textit{gap} ao fim do limite.]
+
+[FIGURA A INSERIR: amplitude do esforço por fator, nos níveis semanal e operacional.]
+
+[FIGURA A INSERIR: esforço em cada nível de cada fator, com a instância da fábrica e o limite de tempo marcados.]
+
+[A ESCREVER: interação nos três pares cruzados: máquinas e demanda, cores por balão e tempos de \textit{setup}, estoque inicial e demanda.]
+
+[FIGURA A INSERIR: esforço nas grades de $4 \times 4$ níveis dos três pares, com as execuções que atingiram o limite de tempo marcadas.]
+
+[A ESCREVER: quanto do esforço o número de variáveis binárias explica, a partir do teste que relaxa cada classe de variável.]
+
+\subsection{Técnicas de resolução na desagregação em três níveis}
+\label{sec:resultado_tecnicas}
+
+[A ESCREVER: para cada técnica, as execuções resolvidas ao ótimo, a média geométrica do tempo, quantas vezes encontra a melhor solução e o \textit{gap} primal médio. A qualidade se compara só no nível semanal, porque cada técnica entrega ao nível operacional metas de estoque diferentes.]
+
+[TABELA A INSERIR: técnicas nos níveis semanal e operacional, com ótimos, tempo, melhor solução e \textit{gap} primal.]
+
+[FIGURA A INSERIR: perfil de desempenho do tempo das técnicas em cada nível.]
+
+\chapter{Conclusão}
+\label{sec:conclusao}
+
+[A ESCREVER]
 
 
 \postextual
